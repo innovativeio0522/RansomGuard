@@ -68,6 +68,14 @@
         <Setter Property="FontWeight" Value="SemiBold"/>
         <Setter Property="FontFamily" Value="Segoe UI"/>
     </Style>
+
+    <!-- Status Text (Warning/Amber) -->
+    <Style x:Key="TextStatusWarning" TargetType="TextBlock">
+        <Setter Property="Foreground" Value="{StaticResource TertiaryBrush}"/>
+        <Setter Property="FontSize" Value="11"/>
+        <Setter Property="FontWeight" Value="SemiBold"/>
+        <Setter Property="FontFamily" Value="Segoe UI"/>
+    </Style>
     
     <!-- Monospace Text (for paths, PIDs) -->
     <Style x:Key="TextMono" TargetType="TextBlock">

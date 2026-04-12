@@ -27,7 +27,7 @@
                               HorizontalAlignment="Right" VerticalAlignment="Top" Width="48" Margin="0,8,8,0"/>
                         <StackPanel Margin="24">
                             <TextBlock Text="FILES MONITORED" Style="{StaticResource TextLabel}"/>
-                            <TextBlock Text="1.2M" FontSize="36" FontWeight="Black" 
+                            <TextBlock Text="{Binding FilesMonitoredCount}" FontSize="36" FontWeight="Black" 
                                       Foreground="{StaticResource OnSurfaceBrush}" Margin="0,8,0,0"/>
                             <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
                                 <Viewbox Width="12" Height="12" Margin="0,0,4,0">
@@ -50,7 +50,7 @@
                               HorizontalAlignment="Right" VerticalAlignment="Top" Width="48" Margin="0,8,8,0"/>
                         <StackPanel Margin="24">
                             <TextBlock Text="THREATS BLOCKED" Style="{StaticResource TextLabel}"/>
-                            <TextBlock Text="42" FontSize="36" FontWeight="Black" 
+                            <TextBlock Text="{Binding ThreatsBlockedCount}" FontSize="36" FontWeight="Black" 
                                       Foreground="{StaticResource PrimaryBrush}" Margin="0,8,0,0"/>
                             <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
                                 <Viewbox Width="12" Height="12" Margin="0,0,4,0">
@@ -72,7 +72,7 @@
                               HorizontalAlignment="Right" VerticalAlignment="Top" Width="48" Margin="0,8,8,0"/>
                         <StackPanel Margin="24">
                             <TextBlock Text="ACTIVE PROCESSES" Style="{StaticResource TextLabel}"/>
-                            <TextBlock Text="158" FontSize="36" FontWeight="Black" 
+                            <TextBlock Text="{Binding ActiveProcessesCount}" FontSize="36" FontWeight="Black" 
                                       Foreground="{StaticResource OnSurfaceBrush}" Margin="0,8,0,0"/>
                             <ProgressBar Height="4" Value="15" Maximum="100" Margin="0,12,0,0"
                                         Background="{StaticResource SurfaceContainerHighestBrush}"
@@ -143,64 +143,23 @@
                             </StackPanel>
                         </Border>
 
-                        <StackPanel Margin="12" MaxHeight="400">
-                            <!-- Activity Item 1 -->
-                            <Border BorderBrush="{StaticResource SecondaryBrush}" BorderThickness="2,0,0,0" 
-                                   Background="{StaticResource SurfaceContainerBrush}" 
-                                   Padding="12" Margin="0,0,0,8" CornerRadius="0,4,4,0">
-                                <StackPanel>
-                                    <TextBlock Text="C:\System32\drivers\etc\hosts" 
-                                              Style="{StaticResource TextBody}" FontSize="11"/>
-                                    <TextBlock Text="WRITE ACTION • 12:44:02" 
-                                              Style="{StaticResource TextSmall}" Margin="0,4,0,0"/>
-                                </StackPanel>
-                            </Border>
-
-                            <!-- Activity Item 2 -->
-                            <Border BorderBrush="{StaticResource OutlineVariantBrush}" BorderThickness="2,0,0,0"
-                                   Padding="12" Margin="0,0,0,8" Opacity="0.8">
-                                <StackPanel>
-                                    <TextBlock Text="D:\User\Documents\Report_Q3.pdf" 
-                                              Style="{StaticResource TextBody}" FontSize="11"/>
-                                    <TextBlock Text="READ ACTION • 12:43:58" 
-                                              Style="{StaticResource TextSmall}" Margin="0,4,0,0"/>
-                                </StackPanel>
-                            </Border>
-
-                            <!-- Activity Item 3 -->
-                            <Border BorderBrush="{StaticResource OutlineVariantBrush}" BorderThickness="2,0,0,0" 
-                                   Padding="12" Margin="0,0,0,8" Opacity="0.8">
-                                <StackPanel>
-                                    <TextBlock Text="C:\Users\Admin\Desktop\temp_log.txt" 
-                                              Style="{StaticResource TextBody}" FontSize="11"/>
-                                    <TextBlock Text="DELETE ACTION • 12:43:45" 
-                                              Style="{StaticResource TextSmall}" Margin="0,4,0,0"/>
-                                </StackPanel>
-                            </Border>
-
-                            <!-- Activity Item 4 -->
-                            <Border BorderBrush="{StaticResource SecondaryBrush}" BorderThickness="2,0,0,0" 
-                                   Background="{StaticResource SurfaceContainerBrush}" 
-                                   Padding="12" Margin="0,0,0,8" CornerRadius="0,4,4,0">
-                                <StackPanel>
-                                    <TextBlock Text="C:\Users\Admin\AppData\Local\Cache" 
-                                              Style="{StaticResource TextBody}" FontSize="11"/>
-                                    <TextBlock Text="BATCH READ • 12:43:10" 
-                                              Style="{StaticResource TextSmall}" Margin="0,4,0,0"/>
-                                </StackPanel>
-                            </Border>
-
-                            <!-- Activity Item 5 -->
-                            <Border BorderBrush="{StaticResource OutlineVariantBrush}" BorderThickness="2,0,0,0" 
-                                   Padding="12" Margin="0,0,0,8" Opacity="0.8">
-                                <StackPanel>
-                                    <TextBlock Text="D:\Project\source\main.exe" 
-                                              Style="{StaticResource TextBody}" FontSize="11"/>
-                                    <TextBlock Text="EXECUTE • 12:42:55" 
-                                              Style="{StaticResource TextSmall}" Margin="0,4,0,0"/>
-                                </StackPanel>
-                            </Border>
-                        </StackPanel>
+                        <ItemsControl ItemsSource="{Binding RecentActivities}" Margin="12">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border BorderBrush="{Binding IsSuspicious, Converter={StaticResource BooleanToBrushConverter}, ConverterParameter=SecondaryBrush}" 
+                                            BorderThickness="2,0,0,0" 
+                                            Background="{StaticResource SurfaceContainerBrush}" 
+                                            Padding="12" Margin="0,0,0,8" CornerRadius="0,4,4,0">
+                                        <StackPanel>
+                                            <TextBlock Text="{Binding FilePath}" 
+                                                      Style="{StaticResource TextBody}" FontSize="11"/>
+                                            <TextBlock Text="{Binding Action, StringFormat='{}{0} ACTION'}" 
+                                                      Style="{StaticResource TextSmall}" Margin="0,4,0,0"/>
+                                        </StackPanel>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
                     </StackPanel>
                 </Border>
 
@@ -236,14 +195,14 @@
                             <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
                                 <TextBlock Text="THREAT RISK SCORE" Style="{StaticResource TextLabel}" 
                                           HorizontalAlignment="Center"/>
-                                <TextBlock Text="12" FontSize="96" FontWeight="Black" 
+                                <TextBlock Text="{Binding ThreatRiskScore}" FontSize="96" FontWeight="Black" 
                                           Foreground="{StaticResource OnSurfaceBrush}" 
                                           HorizontalAlignment="Center" LineHeight="1">
                                     <TextBlock.Effect>
                                         <DropShadowEffect BlurRadius="20" ShadowDepth="0" Color="White" Opacity="0.1"/>
                                     </TextBlock.Effect>
                                 </TextBlock>
-                                <Border Background="#1a4edea3" BorderBrush="#334edea3" BorderThickness="1" 
+                                <Border Background="#1a4edea3" 
                                        Padding="16,6" CornerRadius="16" Margin="0,16,0,0" HorizontalAlignment="Center">
                                     <TextBlock Text="SECURED" Foreground="#4edea3" 
                                               FontWeight="Bold" FontSize="10"/>
@@ -283,8 +242,8 @@
                                 </TextBlock>
                             </StackPanel>
 
-                            <Rectangle Grid.Column="1" Fill="{StaticResource OutlineVariantBrush}" 
-                                      Width="1" Opacity="0.3"/>
+                            <Rectangle Grid.Column="1" HorizontalAlignment="Center"
+                                      Width="1" Opacity="0.05"/>
 
                             <StackPanel Grid.Column="2" HorizontalAlignment="Center">
                                 <TextBlock Text="BEHAVIORAL" Style="{StaticResource TextLabel}" HorizontalAlignment="Center"/>
@@ -308,8 +267,8 @@
                                 </TextBlock>
                             </StackPanel>
 
-                            <Rectangle Grid.Column="3" Fill="{StaticResource OutlineVariantBrush}" 
-                                      Width="1" Opacity="0.3"/>
+                            <Rectangle Grid.Column="3" HorizontalAlignment="Center"
+                                      Width="1" Opacity="0.05"/>
 
                             <StackPanel Grid.Column="4" HorizontalAlignment="Center">
                                 <TextBlock Text="ENTROPY" Style="{StaticResource TextLabel}" HorizontalAlignment="Center"/>
@@ -337,107 +296,51 @@
                             </Grid>
                         </Border>
 
-                        <StackPanel Margin="12">
-                            <!-- Medium Alert -->
-                            <Border Background="{StaticResource SurfaceContainerBrush}" 
-                                   Margin="0,0,0,12" CornerRadius="6" ClipToBounds="True"
-                                   BorderBrush="{StaticResource TertiaryBrush}" BorderThickness="0,0,0,1">
-                                <Grid>
-                                    <StackPanel Margin="16">
-                                        <Grid Margin="0,0,0,8">
-                                            <StackPanel Orientation="Horizontal">
-                                                <Viewbox Width="16" Height="16" Margin="0,0,8,0">
-                                                    <Path Data="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z" 
-                                                          Fill="{StaticResource TertiaryBrush}"/>
-                                                </Viewbox>
-                                                <TextBlock Text="Suspicious modification" 
-                                                          Style="{StaticResource TextBody}" FontWeight="Bold"/>
+                        <ItemsControl ItemsSource="{Binding ActiveAlerts}" Margin="12">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Background="{StaticResource SurfaceContainerBrush}" 
+                                           Margin="0,0,0,12" CornerRadius="8" ClipToBounds="True">
+                                        <Grid>
+                                            <StackPanel Margin="16">
+                                                <Grid Margin="0,0,0,8">
+                                                    <StackPanel Orientation="Horizontal">
+                                                        <Viewbox Width="16" Height="16" Margin="0,0,8,0">
+                                                            <Path Data="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z" 
+                                                                  Fill="{StaticResource TertiaryBrush}"/>
+                                                        </Viewbox>
+                                                        <TextBlock Text="{Binding Name}" 
+                                                                  Style="{StaticResource TextBody}" FontWeight="Bold"/>
+                                                    </StackPanel>
+                                                </Grid>
+                                                <TextBlock Text="{Binding Path, StringFormat='Target: {0}'}" 
+                                                          Style="{StaticResource TextSmall}" TextWrapping="Wrap"/>
+                                                <Grid Margin="0,12,0,0">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="*"/>
+                                                        <ColumnDefinition Width="8"/>
+                                                        <ColumnDefinition Width="*"/>
+                                                    </Grid.ColumnDefinitions>
+                                                    <Button Content="IGNORE" Grid.Column="0" 
+                                                           Style="{StaticResource NativeButton}" Padding="8,6"/>
+                                                    <Button Content="QUARANTINE" Grid.Column="2" 
+                                                           Style="{StaticResource DangerButton}" Padding="8,6"/>
+                                                </Grid>
                                             </StackPanel>
+                                            
+                                            <Border Background="{StaticResource TertiaryBrush}" Opacity="0.1" CornerRadius="0,0,0,8" 
+                                                    HorizontalAlignment="Right" VerticalAlignment="Top">
+                                                <TextBlock Text="{Binding Severity}" Foreground="Transparent" 
+                                                           FontWeight="Black" FontSize="9" Padding="12,4"/>
+                                            </Border>
+                                            <TextBlock Text="{Binding Severity}" Foreground="{StaticResource TertiaryBrush}" 
+                                                       FontWeight="Black" FontSize="9" Padding="12,4" 
+                                                       HorizontalAlignment="Right" VerticalAlignment="Top"/>
                                         </Grid>
-                                        <TextBlock Text="Multiple .TMP files created in root directory by 'sys_updater.exe'" 
-                                                  Style="{StaticResource TextSmall}" TextWrapping="Wrap"/>
-                                        <Grid Margin="0,12,0,0">
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="*"/>
-                                                <ColumnDefinition Width="8"/>
-                                                <ColumnDefinition Width="*"/>
-                                            </Grid.ColumnDefinitions>
-                                            <Button Content="IGNORE" Grid.Column="0" 
-                                                   Style="{StaticResource NativeButton}" Padding="8,6"/>
-                                            <Button Content="QUARANTINE" Grid.Column="2" 
-                                                   Style="{StaticResource DangerButton}" Padding="8,6"/>
-                                        </Grid>
-                                    </StackPanel>
-                                    
-                                    <Border Background="{StaticResource TertiaryBrush}" Opacity="0.2" CornerRadius="0,0,0,8" 
-                                            HorizontalAlignment="Right" VerticalAlignment="Top">
-                                        <TextBlock Text="MEDIUM" Foreground="Transparent" 
-                                                   FontWeight="Black" FontSize="9" Padding="12,4"/>
                                     </Border>
-                                    <TextBlock Text="MEDIUM" Foreground="{StaticResource TertiaryBrush}" 
-                                               FontWeight="Black" FontSize="9" Padding="12,4" 
-                                               HorizontalAlignment="Right" VerticalAlignment="Top"/>
-                                </Grid>
-                            </Border>
-
-                            <!-- Low Alert 1 -->
-                            <Border Background="{StaticResource SurfaceContainerBrush}" 
-                                   Margin="0,0,0,12" CornerRadius="6" Opacity="0.7" ClipToBounds="True">
-                                <Grid>
-                                    <StackPanel Margin="16">
-                                        <Grid Margin="0,0,0,4">
-                                            <StackPanel Orientation="Horizontal">
-                                                <Viewbox Width="16" Height="16" Margin="0,0,8,0">
-                                                    <Path Data="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z" 
-                                                          Fill="{StaticResource OnSurfaceVariantBrush}"/>
-                                                </Viewbox>
-                                                <TextBlock Text="Unauthorized Port Access" 
-                                                          Style="{StaticResource TextBody}" FontWeight="Bold" FontSize="11"/>
-                                            </StackPanel>
-                                        </Grid>
-                                        <TextBlock Text="Incoming ping request from IP 192.168.1.14 blocked." 
-                                                  Style="{StaticResource TextSmall}" FontSize="9"/>
-                                    </StackPanel>
-                                    <Border Background="{StaticResource OnSurfaceVariantBrush}" Opacity="0.1" CornerRadius="0,0,0,8" 
-                                            HorizontalAlignment="Right" VerticalAlignment="Top">
-                                        <TextBlock Text="LOW" Foreground="Transparent" 
-                                                   FontWeight="Black" FontSize="9" Padding="12,4"/>
-                                    </Border>
-                                    <TextBlock Text="LOW" Foreground="{StaticResource OnSurfaceVariantBrush}" Opacity="0.8"
-                                               FontWeight="Black" FontSize="9" Padding="12,4" 
-                                               HorizontalAlignment="Right" VerticalAlignment="Top"/>
-                                </Grid>
-                            </Border>
-
-                            <!-- Low Alert 2 -->
-                            <Border Background="{StaticResource SurfaceContainerBrush}" 
-                                   CornerRadius="6" Opacity="0.7" ClipToBounds="True">
-                                <Grid>
-                                    <StackPanel Margin="16">
-                                        <Grid Margin="0,0,0,4">
-                                            <StackPanel Orientation="Horizontal">
-                                                <Viewbox Width="16" Height="16" Margin="0,0,8,0">
-                                                    <Path Data="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z" 
-                                                          Fill="{StaticResource OnSurfaceVariantBrush}"/>
-                                                </Viewbox>
-                                                <TextBlock Text="Driver Signature Warning" 
-                                                          Style="{StaticResource TextBody}" FontWeight="Bold" FontSize="11"/>
-                                            </StackPanel>
-                                        </Grid>
-                                        <TextBlock Text="Unsigned driver 'vbus_adapter.sys' attempted to load." 
-                                                  Style="{StaticResource TextSmall}" FontSize="9"/>
-                                    </StackPanel>
-                                    <Border Background="{StaticResource OnSurfaceVariantBrush}" Opacity="0.1" CornerRadius="0,0,0,8" 
-                                            HorizontalAlignment="Right" VerticalAlignment="Top">
-                                        <TextBlock Text="LOW" Foreground="Transparent" 
-                                                   FontWeight="Black" FontSize="9" Padding="12,4"/>
-                                    </Border>
-                                    <TextBlock Text="LOW" Foreground="{StaticResource OnSurfaceVariantBrush}" Opacity="0.8"
-                                               FontWeight="Black" FontSize="9" Padding="12,4" 
-                                               HorizontalAlignment="Right" VerticalAlignment="Top"/>
-                                </Grid>
-                            </Border>
-                        </StackPanel>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
 
                         <Button Content="VIEW ALL INCIDENT LOGS" Style="{StaticResource NativeButton}" 
                                Margin="12" HorizontalAlignment="Center"/>

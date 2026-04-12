@@ -6,44 +6,41 @@ Identified during the Sentinel Design System (SDS) v4.2.0 audit on 2026-04-12. I
 
 ## 🔴 Should Fix (Visible Quality Gaps)
 
-### 1. Dark Tooltip Style
+### 1. ✅ Dark Tooltip Style
+- **Status**: COMPLETED
 - **File**: `RansomGuard/Resources/Styles/ControlStyles.xaml`
-- **Issue**: WPF default tooltip is white/yellow and completely breaks the dark Sentinel theme. Every `ToolTip="..."` in the app shows the system default popup.
-- **Fix**: Add a global `<Style TargetType="ToolTip">` with `SurfaceContainerHighBrush` background, `OnSurfaceBrush` text, 8px `CornerRadius`, and a subtle `DropShadowEffect`.
+- **Issue**: WPF default tooltip was white/yellow.
+- **Fix**: Added global style with `SurfaceContainerHighBrush`, 8px `CornerRadius`, and `DropShadowEffect`.
 
-### 2. Verify `TextButtonStyle` Exists
+### 2. ✅ Verify `TextButtonStyle` Exists
+- **Status**: COMPLETED
 - **File**: `RansomGuard/Resources/Styles/ButtonStyles.xaml`
-- **Issue**: `TextButtonStyle` is referenced in `SettingsView.xaml` (Documentation card links) but was not confirmed to exist in `ButtonStyles.xaml`. WPF silently falls back to the default button style, causing visual inconsistency.
-- **Fix**: Audit `ButtonStyles.xaml` and add `TextButtonStyle` if missing — a transparent background button with `OnSurfaceVariant` text and a subtle underline-on-hover effect.
+- **Fix**: Audited and confirmed existence; ensured `Cursor="Hand"` is applied.
 
-### 3. `TextStatusThreat` Color Mismatch
-- **File**: `RansomGuard/Resources/Styles/TextStyles.xaml` (Line 65)
-- **Issue**: Uses `TertiaryContainerBrush` (orange/amber) for threat status text. This is the "High Severity" accent — but "Low" threat items also use this style with the same bright orange, reducing visual hierarchy.
-- **Fix**: Add a `TextStatusWarning` style using `TertiaryBrush` (softer) for low/medium items, and reserve `TertiaryContainerBrush` for critical/high only.
+### 3. ✅ `TextStatusThreat` Color Mismatch
+- **Status**: COMPLETED
+- **File**: `RansomGuard/Resources/Styles/TextStyles.xaml`
+- **Fix**: Standardized `TextStatusThreat` (High) and `TextStatusWarning` (Low/Medium) styles.
 
 ---
 
 ## 🟡 Nice to Have (Polish)
 
-### 4. Hover Cursor on Interactive Elements
-- **Files**: All view `.xaml` files
-- **Issue**: Icon buttons and clickable cards don't set `Cursor="Hand"`. On a precision-tool UI this feels unfinished.
-- **Fix**: Add `Cursor="Hand"` to `IconButton`, `PrimaryButton`, `SecondaryButton`, and `TextButtonStyle` in `ButtonStyles.xaml` globally.
+### 4. ✅ Hover Cursor on Interactive Elements
+- **Status**: COMPLETED
+- **Fix**: Added `Cursor="Hand"` to all button and toggle styles.
 
-### 5. Audit `OnboardingView.xaml`
-- **File**: `RansomGuard/Views/OnboardingView.xaml` (19.8 KB)
-- **Issue**: Not yet audited against SDS — likely carries old-generation design patterns (explicit borders, thick shadows, non-Sentinel typography).
-- **Fix**: Full SDS pass — No-Line rule, typography standardization, icon weight normalization.
+### 5. ✅ Audit `OnboardingView.xaml`
+- **Status**: COMPLETED
+- **Fix**: SDS pass completed (8px radii, border removal, standardized resources).
 
-### 6. FileActivity & ProcessMonitor Border Audit
-- **Files**: `FileActivityView.xaml`, `ProcessMonitorView.xaml`
-- **Issue**: Were modernized in a previous session but may still contain 1px explicit border strokes on row separators — violating the No-Line rule.
-- **Fix**: Replace `BorderThickness="0,1,0,0"` row separators with alternating background depth shifts (`SurfaceContainerLow` ↔ `SurfaceContainer`).
+### 6. ✅ FileActivity & ProcessMonitor Border Audit
+- **Status**: COMPLETED
+- **Fix**: Implemented No-Line rule & Zebra striping in both views.
 
-### 7. ToggleSwitch Hover/Focus States
-- **File**: `RansomGuard/Resources/Styles/ControlStyles.xaml`
-- **Issue**: The `ToggleSwitchStyle` has no explicit `IsMouseOver` or `IsFocused` state beyond the checked animation. The thumb doesn't give visual feedback on hover.
-- **Fix**: Add a subtle `SurfaceVariantBrush` glow or scale transform on `IsMouseOver`.
+### 7. ✅ ToggleSwitch Hover/Focus States
+- **Status**: COMPLETED
+- **Fix**: Added thumb scaling and refined focus feedback.
 
 ---
 
@@ -51,10 +48,10 @@ Identified during the Sentinel Design System (SDS) v4.2.0 audit on 2026-04-12. I
 
 | # | Priority | Item | File |
 |---|---|---|---|
-| 1 | 🔴 | Dark Tooltip Style | `ControlStyles.xaml` |
-| 2 | 🔴 | Verify `TextButtonStyle` | `ButtonStyles.xaml` |
-| 3 | 🔴 | `TextStatusThreat` color hierarchy | `TextStyles.xaml` |
-| 4 | 🟡 | `Cursor="Hand"` on all buttons | All button styles |
-| 5 | 🟡 | Audit `OnboardingView` | `OnboardingView.xaml` |
-| 6 | 🟡 | FileActivity/ProcessMonitor border audit | `FileActivityView.xaml`, `ProcessMonitorView.xaml` |
-| 7 | 🟡 | ToggleSwitch hover/focus states | `ControlStyles.xaml` |
+| 1 | ✅ | Dark Tooltip Style | `ControlStyles.xaml` |
+| 2 | ✅ | Verify `TextButtonStyle` | `ButtonStyles.xaml` |
+| 3 | ✅ | `TextStatusThreat` color hierarchy | `TextStyles.xaml` |
+| 4 | ✅ | `Cursor="Hand"` on all buttons | All button styles |
+| 5 | ✅ | Audit `OnboardingView` | `OnboardingView.xaml` |
+| 6 | ✅ | FileActivity/ProcessMonitor border audit | `FileActivityView.xaml`, `ProcessMonitorView.xaml` |
+| 7 | ✅ | ToggleSwitch hover/focus states | `ControlStyles.xaml` |
