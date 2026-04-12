@@ -18,7 +18,7 @@
         <Rectangle Fill="{StaticResource PrimaryBrush}" Opacity="0.08"/>
 
         <!-- Onboarding Wizard Modal -->
-        <Border HorizontalAlignment="Center" VerticalAlignment="Center" Width="896" Height="576" CornerRadius="2">
+        <Border HorizontalAlignment="Center" VerticalAlignment="Center" Width="896" Height="576" CornerRadius="8">
             <Border.Background>
                 <SolidColorBrush Color="{StaticResource SurfaceContainerHigh}" Opacity="0.6"/>
             </Border.Background>
@@ -33,10 +33,7 @@
                 </Grid.ColumnDefinitions>
 
                 <!-- Left Panel: Branding -->
-                <Border Grid.Column="0" Background="{StaticResource SurfaceContainerLowBrush}" Padding="40" BorderThickness="0,0,1,0">
-                    <Border.BorderBrush>
-                        <SolidColorBrush Color="{StaticResource OutlineVariant}" Opacity="0.1"/>
-                    </Border.BorderBrush>
+                <Border Grid.Column="0" Background="{StaticResource SurfaceContainerLowBrush}" Padding="40" BorderThickness="0">
                     <Grid>
                         <StackPanel>
                             <!-- Logo & Title -->
@@ -91,7 +88,7 @@
                     <!-- Main Content -->
                     <StackPanel Grid.Row="1" Margin="48,0,48,0">
                         <!-- Shield Icon -->
-                        <Border Width="64" Height="64" Background="{StaticResource PrimaryBrush}" Opacity="0.1" CornerRadius="2" HorizontalAlignment="Left" Margin="0,0,0,24">
+                        <Border Width="64" Height="64" Background="{StaticResource PrimaryBrush}" Opacity="0.1" CornerRadius="8" HorizontalAlignment="Left" Margin="0,0,0,24">
                             <Path Data="M12,1L3,5V11C3,16.55 6.84,21.74 12,23C17.16,21.74 21,16.55 21,11V5L12,1Z" 
                                   Fill="{StaticResource PrimaryBrush}" Width="32" Height="32" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
@@ -103,9 +100,9 @@
                         <!-- Protection Options -->
                         <StackPanel>
                             <!-- Standard Option (Recommended) -->
-                            <Border BorderBrush="{StaticResource PrimaryBrush}" BorderThickness="1" Padding="20" Margin="0,0,0,16" CornerRadius="2" Cursor="Hand">
+                            <Border BorderThickness="0" Padding="20" Margin="0,0,0,16" CornerRadius="8" Cursor="Hand">
                                 <Border.Background>
-                                    <SolidColorBrush Color="{StaticResource Primary}" Opacity="0.05"/>
+                                    <SolidColorBrush Color="{StaticResource Primary}" Opacity="0.1"/>
                                 </Border.Background>
                                 <Grid>
                                     <Grid.ColumnDefinitions>
@@ -114,7 +111,7 @@
                                         <ColumnDefinition Width="Auto"/>
                                     </Grid.ColumnDefinitions>
                                     
-                                    <Border Grid.Column="0" Width="40" Height="40" Background="{StaticResource PrimaryBrush}" CornerRadius="2" VerticalAlignment="Top">
+                                    <Border Grid.Column="0" Width="40" Height="40" Background="{StaticResource PrimaryBrush}" CornerRadius="8" VerticalAlignment="Top">
                                         <Path Data="M11.8,10.9C9.5,10.3 7.8,8.5 7.2,6.2C7.1,5.9 7.1,5.7 7.2,5.4C7.8,3.1 9.5,1.3 11.8,0.7C12.1,0.6 12.3,0.6 12.6,0.7C14.9,1.3 16.6,3.1 17.2,5.4C17.3,5.7 17.3,5.9 17.2,6.2C16.6,8.5 14.9,10.3 12.6,10.9C12.3,11 12.1,11 11.8,10.9Z" 
                                               Fill="{StaticResource OnPrimaryContainerBrush}" Width="20" Height="20" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                     </Border>
@@ -122,7 +119,7 @@
                                     <StackPanel Grid.Column="1" Margin="20,0,0,0">
                                         <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
                                             <TextBlock Text="Standard" FontSize="16" FontWeight="Bold" Foreground="{StaticResource OnSurfaceBrush}" VerticalAlignment="Center"/>
-                                            <Border Background="{StaticResource SecondaryBrush}" Opacity="0.2" Padding="8,2" Margin="12,0,0,0" CornerRadius="2">
+                                            <Border Background="{StaticResource SecondaryBrush}" Opacity="0.2" Padding="8,2" Margin="12,0,0,0" CornerRadius="4">
                                                 <TextBlock Text="Recommended" FontSize="9" FontWeight="Bold" Foreground="{StaticResource SecondaryBrush}"/>
                                             </Border>
                                         </StackPanel>
@@ -146,8 +143,8 @@
                                 </Grid.ColumnDefinitions>
 
                                 <!-- Aggressive Option -->
-                                <Border Grid.Column="0" Background="{StaticResource SurfaceContainerHighBrush}" BorderBrush="{StaticResource OutlineVariantBrush}" BorderThickness="1" 
-                                        Padding="20" CornerRadius="2" Cursor="Hand">
+                                <Border Grid.Column="0" Background="{StaticResource SurfaceContainerHighBrush}" 
+                                        Padding="20" CornerRadius="8" Cursor="Hand">
                                     <Border.Style>
                                         <Style TargetType="Border">
                                             <Style.Triggers>
@@ -164,7 +161,7 @@
                                                 <ColumnDefinition Width="Auto"/>
                                                 <ColumnDefinition Width="*"/>
                                             </Grid.ColumnDefinitions>
-                                            <Border Grid.Column="0" Width="32" Height="32" Background="{StaticResource TertiaryContainerBrush}" Opacity="0.1" CornerRadius="2" Margin="0,0,12,0">
+                                            <Border Grid.Column="0" Width="32" Height="32" Background="{StaticResource TertiaryContainerBrush}" Opacity="0.1" CornerRadius="8" Margin="0,0,12,0">
                                                 <Path Data="M12,1L3,5V11C3,16.55 6.84,21.74 12,23C17.16,21.74 21,16.55 21,11V5L12,1ZM12,10.99H19C18.47,15.11 15.72,18.78 12,19.93V11H5V5.3L12,2.19V10.99Z" 
                                                       Fill="{StaticResource TertiaryContainerBrush}" Width="16" Height="16" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                             </Border>
@@ -176,8 +173,8 @@
                                 </Border>
 
                                 <!-- Custom Option -->
-                                <Border Grid.Column="2" Background="{StaticResource SurfaceContainerHighBrush}" BorderBrush="{StaticResource OutlineVariantBrush}" BorderThickness="1" 
-                                        Padding="20" CornerRadius="2" Cursor="Hand">
+                                <Border Grid.Column="2" Background="{StaticResource SurfaceContainerHighBrush}" 
+                                        Padding="20" CornerRadius="8" Cursor="Hand">
                                     <Border.Style>
                                         <Style TargetType="Border">
                                             <Style.Triggers>
@@ -194,7 +191,7 @@
                                                 <ColumnDefinition Width="Auto"/>
                                                 <ColumnDefinition Width="*"/>
                                             </Grid.ColumnDefinitions>
-                                            <Border Grid.Column="0" Width="32" Height="32" Background="{StaticResource OnSurfaceVariantBrush}" Opacity="0.1" CornerRadius="2" Margin="0,0,12,0">
+                                            <Border Grid.Column="0" Width="32" Height="32" Background="{StaticResource OnSurfaceVariantBrush}" Opacity="0.1" CornerRadius="8" Margin="0,0,12,0">
                                                 <Path Data="M3,17V19H9V17H3M3,5V7H13V5H3M13,21V19H21V17H13V19H9V21H3M7,9V11H3V9H7M13,9V11H21V9H13M13,13V15H21V13H13M13,15V17H17V19H13V17M17,9V11H21V9H17M17,13V15H21V13H17Z" 
                                                       Fill="{StaticResource OnSurfaceVariantBrush}" Width="16" Height="16" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                             </Border>
@@ -209,10 +206,7 @@
                     </StackPanel>
 
                     <!-- Footer Navigation -->
-                    <Border Grid.Row="2" BorderThickness="0,1,0,0" Padding="48,32" Margin="48,0,0,0">
-                        <Border.BorderBrush>
-                            <SolidColorBrush Color="{StaticResource OutlineVariant}" Opacity="0.1"/>
-                        </Border.BorderBrush>
+                    <Border Grid.Row="2" BorderThickness="0" Padding="48,32" Margin="48,0,0,0">
                         <Grid>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*"/>
