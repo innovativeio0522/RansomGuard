@@ -1,0 +1,164 @@
+###############################################################################
+# .gitignore — RansomGuard (.NET MAUI / C# / Windows)
+###############################################################################
+
+# ─── Build Output ────────────────────────────────────────────────────────────
+[Bb]in/
+[Oo]bj/
+[Oo]ut/
+[Ll]og/
+[Ll]ogs/
+build/
+dist/
+publish/
+*.nupkg
+*.snupkg
+
+# ─── Visual Studio ───────────────────────────────────────────────────────────
+.vs/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+*.userprefs
+*.pidb
+*.booproj
+*.svd
+*.pdb
+*.mdf
+*.ldf
+*.opendb
+*.VC.db
+*.VC.VC.opendb
+.vscode/
+*.code-workspace
+
+# ─── Rider / JetBrains ───────────────────────────────────────────────────────
+.idea/
+*.sln.iml
+_ReSharper*/
+*.DotSettings.user
+
+# ─── NuGet ───────────────────────────────────────────────────────────────────
+*.nuget/
+packages/
+!packages/repositories.config
+*.lock.json
+!package-lock.json
+project.lock.json
+project.fragment.lock.json
+artifacts/
+
+# ─── .NET / MSBuild ──────────────────────────────────────────────────────────
+*.cache
+*.suo
+*.tmp
+*.temp
+BenchmarkDotNet.Artifacts/
+project.lock.json
+StyleCopReport.xml
+TestResult.xml
+[Tt]est[Rr]esult*/
+[Bb]uild[Ll]og.*
+*.testlog
+
+# ─── .NET MAUI / Xamarin / Android / iOS ─────────────────────────────────────
+# Android
+*.apk
+*.aab
+*.ap_
+*.dex
+local.properties
+proguard/
+*.keystore
+!debug.keystore
+
+# iOS / macOS
+*.ipa
+*.xcarchive
+*.dSYM.zip
+*.dSYM
+xcuserdata/
+*.moved-aside
+*.pbxuser
+!default.pbxuser
+*.mode1v3
+!default.mode1v3
+*.mode2v3
+!default.mode2v3
+*.perspectivev3
+!default.perspectivev3
+*.xcworkspace
+!default.xcworkspace
+timeline.xctimeline
+playground.xcworkspace
+.build/
+
+# Windows / WinUI
+AppPackages/
+BundleArtifacts/
+Package.StoreAssociation.xml
+_pkginfo.txt
+*.appx
+*.appxbundle
+*.appxupload
+*.msix
+*.msixbundle
+*.msixupload
+
+# ─── Secrets & Sensitive Config ──────────────────────────────────────────────
+*.env
+*.env.*
+!*.env.example
+appsettings.Development.json
+appsettings.local.json
+secrets.json
+**/secrets/**
+*.pfx
+*.p12
+*.cer
+*.key
+
+# ─── Crash & Diagnostic Reports ──────────────────────────────────────────────
+*.crash
+*.dmp
+crashlytics-build.properties
+fabric.properties
+
+# ─── OS Artifacts ────────────────────────────────────────────────────────────
+# Windows
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+Desktop.ini
+$RECYCLE.BIN/
+*.lnk
+*.cab
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.Spotlight-V100
+.Trashes
+
+# Linux
+*~
+.nfs*
+
+# ─── Test & Coverage ─────────────────────────────────────────────────────────
+coverage/
+coverage.xml
+*.coverage
+*.coveragexml
+TestResults/
+*.trx
+
+# ─── Miscellaneous ───────────────────────────────────────────────────────────
+*.bak
+*.orig
+*.rej
+*.swp
+*#
