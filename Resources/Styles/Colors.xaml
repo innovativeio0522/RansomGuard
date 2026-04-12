@@ -1,0 +1,70 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    
+    <!-- Reference Screen Color Palette (Exact Colors) -->
+    
+    <!-- Background Colors -->
+    <Color x:Key="Background">#0f131d</Color>
+    <Color x:Key="SurfaceDim">#0f131d</Color>
+    <Color x:Key="SurfaceContainerLowest">#0a0e18</Color>
+    
+    <!-- Surface Colors -->
+    <Color x:Key="SurfaceContainerLow">#171b26</Color>
+    <Color x:Key="SurfaceContainer">#1c1f2a</Color>
+    <Color x:Key="SurfaceContainerHigh">#262a35</Color>
+    <Color x:Key="SurfaceContainerHighest">#313540</Color>
+    <Color x:Key="SurfaceBright">#353944</Color>
+    
+    <!-- Primary Colors (Blue) -->
+    <Color x:Key="Primary">#adc6ff</Color>
+    <Color x:Key="PrimaryContainer">#4d8eff</Color>
+    <Color x:Key="PrimaryFixed">#d8e2ff</Color>
+    <Color x:Key="PrimaryFixedDim">#adc6ff</Color>
+    <Color x:Key="OnPrimary">#002e6a</Color>
+    <Color x:Key="OnPrimaryContainer">#00285d</Color>
+    <Color x:Key="OnPrimaryFixed">#001a42</Color>
+    <Color x:Key="OnPrimaryFixedVariant">#004395</Color>
+    <Color x:Key="InversePrimary">#005ac2</Color>
+    
+    <!-- Secondary Colors (Green - Safe/Success) -->
+    <Color x:Key="Secondary">#4edea3</Color>
+    <Color x:Key="SecondaryContainer">#00a572</Color>
+    <Color x:Key="SecondaryFixed">#6ffbbe</Color>
+    <Color x:Key="SecondaryFixedDim">#4edea3</Color>
+    <Color x:Key="OnSecondary">#003824</Color>
+    <Color x:Key="OnSecondaryContainer">#00311f</Color>
+    <Color x:Key="OnSecondaryFixed">#002113</Color>
+    <Color x:Key="OnSecondaryFixedVariant">#005236</Color>
+    
+    <!-- Tertiary Colors (Red/Orange - Threat/Danger) -->
+    <Color x:Key="Tertiary">#ffb3ad</Color>
+    <Color x:Key="TertiaryContainer">#ff5451</Color>
+    <Color x:Key="TertiaryFixed">#ffdad7</Color>
+    <Color x:Key="TertiaryFixedDim">#ffb3ad</Color>
+    <Color x:Key="OnTertiary">#68000a</Color>
+    <Color x:Key="OnTertiaryContainer">#5c0008</Color>
+    <Color x:Key="OnTertiaryFixed">#410004</Color>
+    <Color x:Key="OnTertiaryFixedVariant">#930013</Color>
+    
+    <!-- Error Colors -->
+    <Color x:Key="Error">#ffb4ab</Color>
+    <Color x:Key="ErrorContainer">#93000a</Color>
+    <Color x:Key="OnError">#690005</Color>
+    <Color x:Key="OnErrorContainer">#ffdad6</Color>
+    
+    <!-- Text Colors -->
+    <Color x:Key="OnSurface">#dfe2f1</Color>
+    <Color x:Key="OnSurfaceVariant">#c2c6d6</Color>
+    <Color x:Key="InverseSurface">#dfe2f1</Color>
+    <Color x:Key="InverseOnSurface">#2c303b</Color>
+    <Color x:Key="OnBackground">#dfe2f1</Color>
+    
+    <!-- Outline Colors -->
+    <Color x:Key="Outline">#8c909f</Color>
+    <Color x:Key="OutlineVariant">#424754</Color>
+    <Color x:Key="SurfaceVariant">#313540</Color>
+    
+    <!-- Surface Tint -->
+    <Color x:Key="SurfaceTint">#adc6ff</Color>
+    
+</ResourceDictionary>

@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>The Sentinel - Process Monitor</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@100;300;400;500;600;700;800;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "on-error": "#690005",
+                    "surface-container-high": "#262a35",
+                    "tertiary": "#ffb3ad",
+                    "tertiary-container": "#ff5451",
+                    "on-surface": "#dfe2f1",
+                    "on-secondary-fixed-variant": "#005236",
+                    "on-error-container": "#ffdad6",
+                    "surface-container": "#1c1f2a",
+                    "surface-tint": "#adc6ff",
+                    "error-container": "#93000a",
+                    "on-primary-container": "#00285d",
+                    "secondary-container": "#00a572",
+                    "on-tertiary-fixed-variant": "#930013",
+                    "on-primary-fixed": "#001a42",
+                    "primary-fixed": "#d8e2ff",
+                    "primary-container": "#4d8eff",
+                    "outline": "#8c909f",
+                    "surface-container-lowest": "#0a0e18",
+                    "on-primary": "#002e6a",
+                    "background": "#0f131d",
+                    "on-tertiary-container": "#5c0008",
+                    "surface-dim": "#0f131d",
+                    "inverse-surface": "#dfe2f1",
+                    "on-surface-variant": "#c2c6d6",
+                    "primary": "#adc6ff",
+                    "inverse-on-surface": "#2c303b",
+                    "on-tertiary": "#68000a",
+                    "on-secondary": "#003824",
+                    "on-secondary-fixed": "#002113",
+                    "tertiary-fixed": "#ffdad7",
+                    "on-tertiary-fixed": "#410004",
+                    "tertiary-fixed-dim": "#ffb3ad",
+                    "surface-variant": "#313540",
+                    "on-secondary-container": "#00311f",
+                    "surface": "#0f131d",
+                    "error": "#ffb4ab",
+                    "secondary": "#4edea3",
+                    "surface-container-low": "#171b26",
+                    "on-background": "#dfe2f1",
+                    "on-primary-fixed-variant": "#004395",
+                    "outline-variant": "#424754",
+                    "secondary-fixed": "#6ffbbe",
+                    "surface-container-highest": "#313540",
+                    "surface-bright": "#353944",
+                    "primary-fixed-dim": "#adc6ff",
+                    "inverse-primary": "#005ac2",
+                    "secondary-fixed-dim": "#4edea3"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.125rem",
+                    "lg": "0.25rem",
+                    "xl": "0.5rem",
+                    "full": "0.75rem"
+            },
+            "fontFamily": {
+                    "headline": ["Inter"],
+                    "body": ["Inter"],
+                    "label": ["Inter"]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24;
+        }
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-thumb { background: #313540; border-radius: 10px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+    </style>
+</head>
+<body class="bg-background text-on-surface font-body overflow-hidden">
+<!-- SideNavBar (Authority: JSON) -->
+<aside class="fixed left-0 top-0 h-full flex flex-col h-screen w-64 border-r border-[#313540]/15 bg-[#0f131d] font-['Inter'] font-medium tracking-tight">
+<div class="p-8">
+<span class="text-xl font-black text-[#adc6ff] tracking-widest">The Sentinel</span>
+<p class="text-[10px] text-on-surface-variant uppercase tracking-widest mt-1 opacity-60">Cybersecurity Node</p>
+</div>
+<nav class="flex-1 px-4 space-y-1">
+<!-- Navigation Items Mapping -->
+<a class="flex items-center gap-3 px-4 py-3 rounded text-[#c2c6d6] opacity-70 hover:opacity-100 hover:bg-[#313540]/20 transition-colors" href="#">
+<span class="material-symbols-outlined text-lg">dashboard</span>
+<span class="text-sm">Dashboard</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 rounded text-[#c2c6d6] opacity-70 hover:opacity-100 hover:bg-[#313540]/20 transition-colors" href="#">
+<span class="material-symbols-outlined text-lg">warning</span>
+<span class="text-sm">Threat Alerts</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 rounded text-[#c2c6d6] opacity-70 hover:opacity-100 hover:bg-[#313540]/20 transition-colors" href="#">
+<span class="material-symbols-outlined text-lg">security</span>
+<span class="text-sm">Quarantine</span>
+</a>
+<!-- ACTIVE TAB: Process Monitor -->
+<a class="flex items-center gap-3 px-4 py-3 rounded text-[#adc6ff] bg-[#313540]/30 font-bold border-r-2 border-[#adc6ff] brightness-125 transition-all" href="#">
+<span class="material-symbols-outlined text-lg">analytics</span>
+<span class="text-sm">Process Monitor</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 rounded text-[#c2c6d6] opacity-70 hover:opacity-100 hover:bg-[#313540]/20 transition-colors" href="#">
+<span class="material-symbols-outlined text-lg">description</span>
+<span class="text-sm">File Activity</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 rounded text-[#c2c6d6] opacity-70 hover:opacity-100 hover:bg-[#313540]/20 transition-colors" href="#">
+<span class="material-symbols-outlined text-lg">assessment</span>
+<span class="text-sm">Reports</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 rounded text-[#c2c6d6] opacity-70 hover:opacity-100 hover:bg-[#313540]/20 transition-colors" href="#">
+<span class="material-symbols-outlined text-lg">settings</span>
+<span class="text-sm">Settings</span>
+</a>
+</nav>
+<div class="p-6 mt-auto">
+<div class="flex items-center gap-3 p-3 rounded-lg bg-surface-container-low">
+<img class="w-10 h-10 rounded-full border-2 border-outline-variant" data-alt="close-up portrait of a professional male security analyst with short dark hair and a neutral focused expression" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCDQDFAcPrF48nIr2jjoSoIC7VKlAvjkRIiXDCdYvo0_GudNgj6sAC0JS4CcN08ZOwctloYoTz40bcwxP0u7eiOgbR3CDK6S1DEA7KBTyK9dlKJE7UqDPhlWCf-t9Vbvam0P5hXaXNY2A-WXWzwqf7CYj_sFd6zvKFwKiSIiNww5jQo5RIppSGNOIwR-Jk-1cEc9YQXkhburOC6RBKlE9rhTvy5hgiOf0QwT0N5xh6anFuhrV8ihff3HAD8cxbHSM_hekGVMVvelxq5"/>
+<div class="overflow-hidden">
+<p class="text-xs font-bold truncate">Admin Node 01</p>
+<p class="text-[10px] text-secondary">Verified Session</p>
+</div>
+</div>
+</div>
+</aside>
+<!-- TopNavBar (Authority: JSON) -->
+<header class="fixed top-0 left-64 right-0 flex justify-between items-center h-16 px-8 w-[calc(100%-16rem)] bg-[#0f131d]/80 backdrop-blur-xl z-20 font-['Inter'] text-sm tracking-wide">
+<div class="flex items-center gap-4">
+<h1 class="text-lg font-bold text-[#adc6ff]">Process Monitor</h1>
+<span class="h-4 w-px bg-outline-variant"></span>
+<div class="flex gap-4">
+<span class="flex items-center gap-1.5 text-secondary text-[11px] font-bold tracking-widest uppercase">
+<span class="w-2 h-2 rounded-full bg-secondary animate-pulse"></span> SYSTEM NOMINAL
+                </span>
+</div>
+</div>
+<div class="flex items-center gap-6">
+<div class="relative">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-base">search</span>
+<input class="bg-surface-container-highest/50 border-none rounded-full pl-10 pr-4 py-1.5 text-xs w-64 focus:ring-1 focus:ring-primary" placeholder="Search PID or Name..." type="text"/>
+</div>
+<div class="flex items-center gap-4">
+<button class="material-symbols-outlined text-[#c2c6d6] hover:text-white transition-opacity scale-95 duration-150">notifications</button>
+<button class="material-symbols-outlined text-[#c2c6d6] hover:text-white transition-opacity scale-95 duration-150">account_circle</button>
+</div>
+</div>
+</header>
+<!-- Main Content Canvas -->
+<main class="ml-64 mt-16 p-8 h-[calc(100vh-6rem)] overflow-y-auto">
+<!-- Dashboard Summary Stats (Editorial Design) -->
+<div class="grid grid-cols-4 gap-6 mb-8">
+<div class="bg-surface-container-low p-6 rounded-lg relative overflow-hidden group">
+<div class="absolute top-0 right-0 p-4 opacity-10 scale-150 group-hover:scale-125 transition-transform">
+<span class="material-symbols-outlined text-6xl">memory</span>
+</div>
+<p class="text-[10px] text-on-surface-variant font-bold uppercase tracking-widest mb-1">Active Threads</p>
+<p class="text-3xl font-black text-on-surface">1,248</p>
+<div class="mt-4 flex items-center gap-2">
+<span class="text-[10px] bg-secondary/10 text-secondary px-2 py-0.5 rounded-full font-bold">+12%</span>
+<span class="text-[10px] text-on-surface-variant">Last 5 min</span>
+</div>
+</div>
+<div class="bg-surface-container-low p-6 rounded-lg relative overflow-hidden group">
+<div class="absolute top-0 right-0 p-4 opacity-10 scale-150 group-hover:scale-125 transition-transform">
+<span class="material-symbols-outlined text-6xl">speed</span>
+</div>
+<p class="text-[10px] text-on-surface-variant font-bold uppercase tracking-widest mb-1">CPU Load</p>
+<p class="text-3xl font-black text-on-surface">18.4%</p>
+<div class="mt-4 w-full bg-surface-container-highest h-1 rounded-full overflow-hidden">
+<div class="bg-primary h-full w-[18%]"></div>
+</div>
+</div>
+<div class="bg-surface-container-low p-6 rounded-lg relative overflow-hidden group">
+<div class="absolute top-0 right-0 p-4 opacity-10 scale-150 group-hover:scale-125 transition-transform">
+<span class="material-symbols-outlined text-6xl">security</span>
+</div>
+<p class="text-[10px] text-on-surface-variant font-bold uppercase tracking-widest mb-1">Trusted Proc</p>
+<p class="text-3xl font-black text-secondary">99.2%</p>
+<div class="mt-4 flex items-center gap-2">
+<span class="text-[10px] text-on-surface-variant">Verification: <b>Active</b></span>
+</div>
+</div>
+<div class="bg-surface-container-low p-6 rounded-lg border-l-4 border-tertiary-container relative overflow-hidden group">
+<div class="absolute top-0 right-0 p-4 opacity-10 scale-150 group-hover:scale-125 transition-transform">
+<span class="material-symbols-outlined text-6xl">priority_high</span>
+</div>
+<p class="text-[10px] text-on-surface-variant font-bold uppercase tracking-widest mb-1">Suspicious</p>
+<p class="text-3xl font-black text-tertiary">01</p>
+<div class="mt-4 flex items-center gap-2">
+<span class="text-[10px] text-tertiary uppercase font-bold animate-pulse">Action Required</span>
+</div>
+</div>
+</div>
+<!-- Main Process Table -->
+<div class="bg-surface-container-low rounded-xl overflow-hidden">
+<div class="px-6 py-4 flex justify-between items-center border-b border-outline-variant/10">
+<h2 class="text-sm font-bold tracking-tight">Active System Processes</h2>
+<div class="flex gap-2">
+<button class="bg-surface-container-highest text-on-surface text-[10px] font-bold uppercase px-3 py-1.5 rounded hover:bg-surface-variant transition-colors">Export Logs</button>
+<button class="bg-primary text-on-primary-container text-[10px] font-bold uppercase px-3 py-1.5 rounded hover:brightness-110 transition-colors">Refresh (5s)</button>
+</div>
+</div>
+<table class="w-full text-left border-collapse">
+<thead class="bg-surface-container/50">
+<tr>
+<th class="px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">Process Name</th>
+<th class="px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant text-center">PID</th>
+<th class="px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">CPU %</th>
+<th class="px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">Memory (MB)</th>
+<th class="px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">Disk I/O</th>
+<th class="px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant text-center">Trust Status</th>
+<th class="px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant text-right">Actions</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-outline-variant/5">
+<!-- Row 1: Suspicious Highlight -->
+<tr class="bg-tertiary-container/5 hover:bg-tertiary-container/10 transition-colors">
+<td class="px-6 py-4 flex items-center gap-3">
+<span class="material-symbols-outlined text-tertiary text-lg">label</span>
+<span class="text-sm font-mono text-tertiary">unknown_process.exe</span>
+</td>
+<td class="px-6 py-4 text-center font-mono text-xs opacity-60">8421</td>
+<td class="px-6 py-4">
+<div class="flex items-center gap-2">
+<span class="text-xs font-bold text-tertiary">14.2%</span>
+<div class="w-16 bg-surface-container-highest h-1 rounded-full overflow-hidden">
+<div class="bg-tertiary h-full w-[45%]"></div>
+</div>
+</div>
+</td>
+<td class="px-6 py-4 text-xs font-mono">1,024.0</td>
+<td class="px-6 py-4 text-[10px] font-bold text-tertiary uppercase">High Write</td>
+<td class="px-6 py-4 text-center">
+<span class="bg-tertiary-container text-on-tertiary-container text-[9px] font-black uppercase px-2 py-1 rounded ring-1 ring-tertiary/20">Suspicious</span>
+</td>
+<td class="px-6 py-4 text-right">
+<div class="flex justify-end gap-2">
+<button class="px-3 py-1 bg-error-container text-on-error-container text-[10px] font-bold rounded-lg hover:brightness-125 transition-all">Kill Process</button>
+<button class="px-3 py-1 bg-surface-variant text-on-surface text-[10px] font-bold rounded-lg hover:bg-outline-variant/30 transition-all">Whitelist</button>
+</div>
+</td>
+</tr>
+<!-- Row 2: Trusted Highlight -->
+<tr class="hover:bg-surface-container-high/50 transition-colors">
+<td class="px-6 py-4 flex items-center gap-3">
+<span class="material-symbols-outlined text-secondary text-lg">folder_managed</span>
+<span class="text-sm font-mono">explorer.exe</span>
+</td>
+<td class="px-6 py-4 text-center font-mono text-xs opacity-60">2940</td>
+<td class="px-6 py-4">
+<div class="flex items-center gap-2">
+<span class="text-xs font-bold text-on-surface-variant">1.2%</span>
+<div class="w-16 bg-surface-container-highest h-1 rounded-full overflow-hidden">
+<div class="bg-secondary h-full w-[10%]"></div>
+</div>
+</div>
+</td>
+<td class="px-6 py-4 text-xs font-mono">154.2</td>
+<td class="px-6 py-4 text-[10px] font-bold text-on-surface-variant uppercase">Idle</td>
+<td class="px-6 py-4 text-center">
+<span class="bg-secondary/10 text-secondary text-[9px] font-black uppercase px-2 py-1 rounded ring-1 ring-secondary/20">Trusted</span>
+</td>
+<td class="px-6 py-4 text-right">
+<div class="flex justify-end gap-2">
+<button class="px-3 py-1 text-on-surface-variant text-[10px] font-bold rounded-lg hover:bg-error-container hover:text-on-error-container transition-all">Kill Process</button>
+<button class="px-3 py-1 bg-secondary-container text-on-secondary-container text-[10px] font-bold rounded-lg opacity-50 cursor-not-allowed">Whitelisted</button>
+</div>
+</td>
+</tr>
+<!-- Row 3: Standard -->
+<tr class="hover:bg-surface-container-high/50 transition-colors">
+<td class="px-6 py-4 flex items-center gap-3">
+<span class="material-symbols-outlined text-on-surface-variant text-lg">public</span>
+<span class="text-sm font-mono">browser_core.exe</span>
+</td>
+<td class="px-6 py-4 text-center font-mono text-xs opacity-60">4412</td>
+<td class="px-6 py-4">
+<div class="flex items-center gap-2">
+<span class="text-xs font-bold text-on-surface-variant">4.8%</span>
+<div class="w-16 bg-surface-container-highest h-1 rounded-full overflow-hidden">
+<div class="bg-primary h-full w-[25%]"></div>
+</div>
+</div>
+</td>
+<td class="px-6 py-4 text-xs font-mono">842.1</td>
+<td class="px-6 py-4 text-[10px] font-bold text-on-surface-variant uppercase">Network Activity</td>
+<td class="px-6 py-4 text-center">
+<span class="bg-surface-container-highest text-on-surface-variant text-[9px] font-black uppercase px-2 py-1 rounded">Unknown</span>
+</td>
+<td class="px-6 py-4 text-right">
+<div class="flex justify-end gap-2">
+<button class="px-3 py-1 text-on-surface-variant text-[10px] font-bold rounded-lg hover:bg-error-container hover:text-on-error-container transition-all">Kill Process</button>
+<button class="px-3 py-1 bg-surface-variant text-on-surface text-[10px] font-bold rounded-lg hover:bg-outline-variant/30 transition-all">Whitelist</button>
+</div>
+</td>
+</tr>
+<!-- Row 4: Standard -->
+<tr class="hover:bg-surface-container-high/50 transition-colors">
+<td class="px-6 py-4 flex items-center gap-3">
+<span class="material-symbols-outlined text-secondary text-lg">settings</span>
+<span class="text-sm font-mono">svchost.exe</span>
+</td>
+<td class="px-6 py-4 text-center font-mono text-xs opacity-60">102</td>
+<td class="px-6 py-4">
+<div class="flex items-center gap-2">
+<span class="text-xs font-bold text-on-surface-variant">0.1%</span>
+<div class="w-16 bg-surface-container-highest h-1 rounded-full overflow-hidden">
+<div class="bg-secondary h-full w-[2%]"></div>
+</div>
+</div>
+</td>
+<td class="px-6 py-4 text-xs font-mono">12.4</td>
+<td class="px-6 py-4 text-[10px] font-bold text-on-surface-variant uppercase">Idle</td>
+<td class="px-6 py-4 text-center">
+<span class="bg-secondary/10 text-secondary text-[9px] font-black uppercase px-2 py-1 rounded ring-1 ring-secondary/20">Trusted</span>
+</td>
+<td class="px-6 py-4 text-right">
+<div class="flex justify-end gap-2">
+<button class="px-3 py-1 text-on-surface-variant text-[10px] font-bold rounded-lg hover:bg-error-container hover:text-on-error-container transition-all">Kill Process</button>
+<button class="px-3 py-1 bg-secondary-container text-on-secondary-container text-[10px] font-bold rounded-lg opacity-50 cursor-not-allowed">Whitelisted</button>
+</div>
+</td>
+</tr>
+<!-- Row 5: Standard -->
+<tr class="hover:bg-surface-container-high/50 transition-colors">
+<td class="px-6 py-4 flex items-center gap-3">
+<span class="material-symbols-outlined text-on-surface-variant text-lg">cloud</span>
+<span class="text-sm font-mono">sentinel_sync.exe</span>
+</td>
+<td class="px-6 py-4 text-center font-mono text-xs opacity-60">5529</td>
+<td class="px-6 py-4">
+<div class="flex items-center gap-2">
+<span class="text-xs font-bold text-on-surface-variant">2.1%</span>
+<div class="w-16 bg-surface-container-highest h-1 rounded-full overflow-hidden">
+<div class="bg-primary h-full w-[12%]"></div>
+</div>
+</div>
+</td>
+<td class="px-6 py-4 text-xs font-mono">44.8</td>
+<td class="px-6 py-4 text-[10px] font-bold text-secondary uppercase">Encrypted Up</td>
+<td class="px-6 py-4 text-center">
+<span class="bg-secondary/10 text-secondary text-[9px] font-black uppercase px-2 py-1 rounded ring-1 ring-secondary/20">Trusted</span>
+</td>
+<td class="px-6 py-4 text-right">
+<div class="flex justify-end gap-2">
+<button class="px-3 py-1 text-on-surface-variant text-[10px] font-bold rounded-lg hover:bg-error-container hover:text-on-error-container transition-all">Kill Process</button>
+<button class="px-3 py-1 bg-secondary-container text-on-secondary-container text-[10px] font-bold rounded-lg opacity-50 cursor-not-allowed">Whitelisted</button>
+</div>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<!-- System Details Grid (Bento Style) -->
+<div class="grid grid-cols-12 gap-6 mt-8">
+<div class="col-span-8 bg-surface-container-low p-6 rounded-xl">
+<div class="flex justify-between items-center mb-6">
+<h3 class="text-xs font-bold uppercase tracking-widest text-on-surface-variant">System Execution Timeline</h3>
+<div class="flex gap-4">
+<span class="text-[10px] flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-primary"></span> Kernel</span>
+<span class="text-[10px] flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-secondary"></span> User</span>
+</div>
+</div>
+<div class="h-48 flex items-end gap-1 px-2">
+<!-- Mock Histogram -->
+<div class="flex-1 bg-primary/20 h-[30%] rounded-t-sm hover:bg-primary/40 transition-colors"></div>
+<div class="flex-1 bg-primary/20 h-[45%] rounded-t-sm hover:bg-primary/40 transition-colors"></div>
+<div class="flex-1 bg-primary/20 h-[35%] rounded-t-sm hover:bg-primary/40 transition-colors"></div>
+<div class="flex-1 bg-secondary/20 h-[65%] rounded-t-sm hover:bg-secondary/40 transition-colors"></div>
+<div class="flex-1 bg-secondary/20 h-[55%] rounded-t-sm hover:bg-secondary/40 transition-colors"></div>
+<div class="flex-1 bg-secondary/20 h-[80%] rounded-t-sm hover:bg-secondary/40 transition-colors"></div>
+<div class="flex-1 bg-tertiary-container/30 h-[95%] rounded-t-sm hover:bg-tertiary-container/50 transition-colors"></div>
+<div class="flex-1 bg-primary/20 h-[40%] rounded-t-sm hover:bg-primary/40 transition-colors"></div>
+<div class="flex-1 bg-primary/20 h-[30%] rounded-t-sm hover:bg-primary/40 transition-colors"></div>
+<div class="flex-1 bg-primary/20 h-[25%] rounded-t-sm hover:bg-primary/40 transition-colors"></div>
+<div class="flex-1 bg-primary/20 h-[45%] rounded-t-sm hover:bg-primary/40 transition-colors"></div>
+<div class="flex-1 bg-primary/20 h-[60%] rounded-t-sm hover:bg-primary/40 transition-colors"></div>
+<div class="flex-1 bg-primary/20 h-[50%] rounded-t-sm hover:bg-primary/40 transition-colors"></div>
+<div class="flex-1 bg-primary/20 h-[45%] rounded-t-sm hover:bg-primary/40 transition-colors"></div>
+<div class="flex-1 bg-primary/20 h-[55%] rounded-t-sm hover:bg-primary/40 transition-colors"></div>
+<div class="flex-1 bg-primary/20 h-[40%] rounded-t-sm hover:bg-primary/40 transition-colors"></div>
+<div class="flex-1 bg-primary/20 h-[35%] rounded-t-sm hover:bg-primary/40 transition-colors"></div>
+<div class="flex-1 bg-primary/20 h-[60%] rounded-t-sm hover:bg-primary/40 transition-colors"></div>
+<div class="flex-1 bg-primary/20 h-[45%] rounded-t-sm hover:bg-primary/40 transition-colors"></div>
+<div class="flex-1 bg-primary/20 h-[30%] rounded-t-sm hover:bg-primary/40 transition-colors"></div>
+</div>
+</div>
+<div class="col-span-4 flex flex-col gap-6">
+<div class="bg-surface-container-high p-6 rounded-xl flex-1 border border-outline-variant/10">
+<div class="flex items-center justify-between mb-4">
+<p class="text-xs font-bold uppercase tracking-widest text-tertiary">Alert Detail</p>
+<span class="material-symbols-outlined text-tertiary">priority_high</span>
+</div>
+<p class="text-sm font-bold mb-2">unknown_process.exe</p>
+<p class="text-xs text-on-surface-variant leading-relaxed mb-4">Process attempting to open a raw socket on port 4444. This behavior is indicative of a reverse shell attempt.</p>
+<div class="p-3 bg-background rounded text-[10px] font-mono text-tertiary-fixed">
+                        PATH: C:\Users\Admin\AppData\Local\Temp\...
+                    </div>
+<button class="w-full mt-6 py-2 bg-tertiary-container text-on-tertiary-container font-black text-xs uppercase rounded hover:brightness-110 transition-all">Quarantine Immediately</button>
+</div>
+</div>
+</div>
+</main>
+<!-- Footer StatusBar (Authority: JSON) -->
+<footer class="fixed bottom-0 left-64 w-[calc(100%-16rem)] flex items-center justify-between px-6 bg-[#0a0e18] border-t border-[#313540]/15 h-8 z-30">
+<div class="flex items-center gap-6">
+<span class="text-[10px] uppercase font-bold tracking-widest text-[#4edea3]">System Protected | CPU: 12% | MEM: 4.2GB | Protection: ON</span>
+</div>
+<div class="flex items-center gap-4">
+<a class="text-[10px] uppercase font-bold tracking-widest text-[#c2c6d6]/50 hover:text-white transition-colors" href="#">Documentation</a>
+<span class="w-px h-2.5 bg-outline-variant/20"></span>
+<a class="text-[10px] uppercase font-bold tracking-widest text-[#c2c6d6]/50 hover:text-white transition-colors" href="#">Support</a>
+</div>
+</footer>
+</body></html>

@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>The Sentinel | Cybersecurity Node</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@100;300;400;500;600;700;800;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "on-error": "#690005",
+                    "surface-container-high": "#262a35",
+                    "tertiary": "#ffb3ad",
+                    "tertiary-container": "#ff5451",
+                    "on-surface": "#dfe2f1",
+                    "on-secondary-fixed-variant": "#005236",
+                    "on-error-container": "#ffdad6",
+                    "surface-container": "#1c1f2a",
+                    "surface-tint": "#adc6ff",
+                    "error-container": "#93000a",
+                    "on-primary-container": "#00285d",
+                    "secondary-container": "#00a572",
+                    "on-tertiary-fixed-variant": "#930013",
+                    "on-primary-fixed": "#001a42",
+                    "primary-fixed": "#d8e2ff",
+                    "primary-container": "#4d8eff",
+                    "outline": "#8c909f",
+                    "surface-container-lowest": "#0a0e18",
+                    "on-primary": "#002e6a",
+                    "background": "#0f131d",
+                    "on-tertiary-container": "#5c0008",
+                    "surface-dim": "#0f131d",
+                    "inverse-surface": "#dfe2f1",
+                    "on-surface-variant": "#c2c6d6",
+                    "primary": "#adc6ff",
+                    "inverse-on-surface": "#2c303b",
+                    "on-tertiary": "#68000a",
+                    "on-secondary": "#003824",
+                    "on-secondary-fixed": "#002113",
+                    "tertiary-fixed": "#ffdad7",
+                    "on-tertiary-fixed": "#410004",
+                    "tertiary-fixed-dim": "#ffb3ad",
+                    "surface-variant": "#313540",
+                    "on-secondary-container": "#00311f",
+                    "surface": "#0f131d",
+                    "error": "#ffb4ab",
+                    "secondary": "#4edea3",
+                    "surface-container-low": "#171b26",
+                    "on-background": "#dfe2f1",
+                    "on-primary-fixed-variant": "#004395",
+                    "outline-variant": "#424754",
+                    "secondary-fixed": "#6ffbbe",
+                    "surface-container-highest": "#313540",
+                    "surface-bright": "#353944",
+                    "primary-fixed-dim": "#adc6ff",
+                    "inverse-primary": "#005ac2",
+                    "secondary-fixed-dim": "#4edea3"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.125rem",
+                    "lg": "0.25rem",
+                    "xl": "0.5rem",
+                    "full": "0.75rem"
+            },
+            "fontFamily": {
+                    "headline": ["Inter"],
+                    "body": ["Inter"],
+                    "label": ["Inter"]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        body { font-family: 'Inter', sans-serif; }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24;
+        }
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-thumb { background: #313540; border-radius: 10px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+    </style>
+</head>
+<body class="bg-background text-on-surface overflow-hidden">
+<!-- SideNavBar -->
+<aside class="fixed left-0 top-0 h-full flex flex-col bg-[#0f131d] h-screen w-64 border-r border-[#313540]/15 font-['Inter'] font-medium tracking-tight">
+<div class="p-8">
+<span class="text-xl font-black text-[#adc6ff] tracking-widest">THE SENTINEL</span>
+<p class="text-[10px] text-on-surface-variant uppercase tracking-[0.2em] mt-1 opacity-50">Cybersecurity Node</p>
+</div>
+<nav class="flex-1 px-4 space-y-2 mt-4">
+<!-- Active State: Dashboard -->
+<a class="flex items-center gap-3 px-4 py-3 rounded-lg text-[#adc6ff] bg-[#313540]/30 font-bold border-r-2 border-[#adc6ff] brightness-125 transition-all" href="#">
+<span class="material-symbols-outlined" data-icon="dashboard">dashboard</span>
+                Dashboard
+            </a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-lg text-[#c2c6d6] opacity-70 hover:opacity-100 hover:bg-[#313540]/20 transition-colors" href="#">
+<span class="material-symbols-outlined" data-icon="warning">warning</span>
+                Threat Alerts
+            </a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-lg text-[#c2c6d6] opacity-70 hover:opacity-100 hover:bg-[#313540]/20 transition-colors" href="#">
+<span class="material-symbols-outlined" data-icon="security">security</span>
+                Quarantine
+            </a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-lg text-[#c2c6d6] opacity-70 hover:opacity-100 hover:bg-[#313540]/20 transition-colors" href="#">
+<span class="material-symbols-outlined" data-icon="analytics">analytics</span>
+                Process Monitor
+            </a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-lg text-[#c2c6d6] opacity-70 hover:opacity-100 hover:bg-[#313540]/20 transition-colors" href="#">
+<span class="material-symbols-outlined" data-icon="description">description</span>
+                File Activity
+            </a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-lg text-[#c2c6d6] opacity-70 hover:opacity-100 hover:bg-[#313540]/20 transition-colors" href="#">
+<span class="material-symbols-outlined" data-icon="assessment">assessment</span>
+                Reports
+            </a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-lg text-[#c2c6d6] opacity-70 hover:opacity-100 hover:bg-[#313540]/20 transition-colors mt-auto" href="#">
+<span class="material-symbols-outlined" data-icon="settings">settings</span>
+                Settings
+            </a>
+</nav>
+<div class="p-6 mt-auto">
+<div class="flex items-center gap-3 p-3 rounded-xl bg-surface-container-low border border-outline-variant/10">
+<div class="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center text-primary overflow-hidden">
+<img alt="User profile" data-alt="minimalist abstract geometric shape in blue and silver tones on a dark circular background representing a tech profile avatar" src="https://lh3.googleusercontent.com/aida-public/AB6AXuB01NjTatus7yGNcx_D7-B6gXOqCGcHCNbmncFEKIqEUbN7XuV5vdsqljVWDuhAdHJugg4KTi4XXEoQheabNqMLfcWN2GnG4zTgcInUyPe_nszQk6J0zX0cm0pnprg_CbNZMn32rxUsW2hTinR_nIm--mRDbzmRWtJq0s19O2z6kNZCYTIX6BVZLw8K6XjpcggVuc3uN7LKQVK-sQBUd-u2hqweYDzNIme1fiYNM5nfDC3PvkvY0-EafAC1gg8QVvtycB73J3JUiEd_"/>
+</div>
+<div class="overflow-hidden">
+<p class="text-xs font-bold truncate">Node_Admin_01</p>
+<p class="text-[10px] text-on-surface-variant">Level 4 Clearance</p>
+</div>
+</div>
+</div>
+</aside>
+<!-- TopNavBar -->
+<header class="fixed top-0 left-64 w-[calc(100%-16rem)] h-16 px-8 flex justify-between items-center bg-[#0f131d]/80 backdrop-blur-xl z-10 font-['Inter'] text-sm tracking-wide">
+<div class="flex items-center gap-4">
+<h1 class="text-lg font-bold text-[#adc6ff]">Dashboard</h1>
+<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-secondary/10 text-secondary uppercase tracking-widest border border-secondary/20">System Live</span>
+</div>
+<div class="flex items-center gap-6">
+<div class="relative flex items-center">
+<span class="material-symbols-outlined absolute left-3 text-on-surface-variant/50 text-sm">search</span>
+<input class="bg-surface-container-highest border-none rounded-full pl-10 pr-4 py-1.5 text-xs w-64 focus:ring-1 focus:ring-primary/50 text-on-surface" placeholder="Search system nodes..." type="text"/>
+</div>
+<div class="flex items-center gap-4 text-on-surface-variant">
+<button class="hover:text-white transition-opacity scale-95 duration-150 relative">
+<span class="material-symbols-outlined" data-icon="notifications">notifications</span>
+<span class="absolute top-0 right-0 w-2 h-2 bg-tertiary rounded-full border-2 border-[#0f131d]"></span>
+</button>
+<button class="hover:text-white transition-opacity scale-95 duration-150">
+<span class="material-symbols-outlined" data-icon="account_circle">account_circle</span>
+</button>
+</div>
+</div>
+</header>
+<!-- Main Content Canvas -->
+<main class="ml-64 pt-20 pb-12 px-8 h-screen overflow-y-auto bg-background">
+<!-- Dashboard Layout: Bento Grid -->
+<div class="grid grid-cols-12 gap-6 max-w-[1600px] mx-auto">
+<!-- STAT CARDS (4) -->
+<div class="col-span-12 lg:col-span-3 bg-surface-container-low p-6 rounded-xl relative overflow-hidden group">
+<div class="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+<span class="material-symbols-outlined text-4xl" data-icon="description">description</span>
+</div>
+<p class="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">Files Monitored</p>
+<h3 class="text-3xl font-black text-on-surface mt-2">1.2M</h3>
+<div class="flex items-center gap-1 mt-4 text-[10px] text-secondary">
+<span class="material-symbols-outlined text-xs">trending_up</span>
+<span>+4k / HOUR</span>
+</div>
+</div>
+<div class="col-span-12 lg:col-span-3 bg-surface-container-low p-6 rounded-xl relative overflow-hidden group border-b-2 border-primary/20">
+<div class="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+<span class="material-symbols-outlined text-4xl" data-icon="verified_user">verified_user</span>
+</div>
+<p class="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">Threats Blocked</p>
+<h3 class="text-3xl font-black text-primary mt-2">42</h3>
+<div class="flex items-center gap-1 mt-4 text-[10px] text-on-surface-variant">
+<span class="material-symbols-outlined text-xs">history</span>
+<span>SINCE LAST REBOOT</span>
+</div>
+</div>
+<div class="col-span-12 lg:col-span-3 bg-surface-container-low p-6 rounded-xl relative overflow-hidden group">
+<div class="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+<span class="material-symbols-outlined text-4xl" data-icon="memory">memory</span>
+</div>
+<p class="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">Active Processes</p>
+<h3 class="text-3xl font-black text-on-surface mt-2">158</h3>
+<div class="flex items-center gap-2 mt-4">
+<div class="flex h-1 w-full bg-surface-variant rounded-full overflow-hidden">
+<div class="bg-secondary w-[15%]" style="width: 15%"></div>
+</div>
+</div>
+</div>
+<div class="col-span-12 lg:col-span-3 bg-surface-container-low p-6 rounded-xl relative overflow-hidden group">
+<div class="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+<span class="material-symbols-outlined text-4xl" data-icon="update">update</span>
+</div>
+<p class="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">Last Scan</p>
+<h3 class="text-3xl font-black text-on-surface mt-2">12 <span class="text-sm font-normal text-on-surface-variant">mins ago</span></h3>
+<div class="mt-4 flex items-center justify-between">
+<span class="text-[10px] text-secondary font-bold">OPTIMAL STATUS</span>
+<button class="text-[10px] bg-primary text-on-primary-container px-3 py-1 rounded font-bold hover:brightness-110 transition-all">RESCAN</button>
+</div>
+</div>
+<!-- LEFT PANEL: REAL-TIME FILE ACTIVITY -->
+<div class="col-span-12 lg:col-span-3 bg-surface-container-low rounded-xl flex flex-col h-[500px]">
+<div class="p-6 bg-surface-container-highest/30 rounded-t-xl">
+<h4 class="text-xs font-black uppercase tracking-widest flex items-center gap-2">
+<span class="w-2 h-2 bg-secondary rounded-full animate-pulse"></span>
+                        Real-time File Activity
+                    </h4>
+</div>
+<div class="flex-1 overflow-y-auto p-4 space-y-4">
+<div class="flex items-start gap-3 p-3 border-l-2 border-secondary/30 bg-surface-container/50 rounded-r-lg">
+<span class="material-symbols-outlined text-secondary text-sm" data-icon="edit_note">edit_note</span>
+<div class="flex-1 min-w-0">
+<p class="text-[11px] font-bold text-on-surface truncate">C:\System32\drivers\etc\hosts</p>
+<p class="text-[9px] text-on-surface-variant">WRITE ACTION • 12:44:02</p>
+</div>
+</div>
+<div class="flex items-start gap-3 p-3 border-l-2 border-outline-variant/30 hover:bg-surface-container/30 transition-colors">
+<span class="material-symbols-outlined text-on-surface-variant text-sm" data-icon="description">description</span>
+<div class="flex-1 min-w-0">
+<p class="text-[11px] font-bold text-on-surface truncate">D:\User\Documents\Report_Q3.pdf</p>
+<p class="text-[9px] text-on-surface-variant">READ ACTION • 12:43:58</p>
+</div>
+</div>
+<div class="flex items-start gap-3 p-3 border-l-2 border-outline-variant/30 hover:bg-surface-container/30 transition-colors">
+<span class="material-symbols-outlined text-on-surface-variant text-sm" data-icon="description">description</span>
+<div class="flex-1 min-w-0">
+<p class="text-[11px] font-bold text-on-surface truncate">C:\Users\Admin\Desktop\temp_log.txt</p>
+<p class="text-[9px] text-on-surface-variant">DELETE ACTION • 12:43:45</p>
+</div>
+</div>
+<div class="flex items-start gap-3 p-3 border-l-2 border-secondary/30 bg-surface-container/50 rounded-r-lg">
+<span class="material-symbols-outlined text-secondary text-sm" data-icon="folder_open">folder_open</span>
+<div class="flex-1 min-w-0">
+<p class="text-[11px] font-bold text-on-surface truncate">C:\Users\Admin\AppData\Local\Cache</p>
+<p class="text-[9px] text-on-surface-variant">BATCH READ • 12:43:10</p>
+</div>
+</div>
+<div class="flex items-start gap-3 p-3 border-l-2 border-outline-variant/30">
+<span class="material-symbols-outlined text-on-surface-variant text-sm" data-icon="description">description</span>
+<div class="flex-1 min-w-0">
+<p class="text-[11px] font-bold text-on-surface truncate">D:\Project\source\main.exe</p>
+<p class="text-[9px] text-on-surface-variant">EXECUTE • 12:42:55</p>
+</div>
+</div>
+</div>
+</div>
+<!-- MAIN AREA: CENTER GAUGE -->
+<div class="col-span-12 lg:col-span-6 bg-surface-container-low rounded-xl p-8 flex flex-col items-center justify-center relative">
+<div class="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent pointer-events-none"></div>
+<div class="relative w-72 h-72 flex items-center justify-center">
+<!-- Gauge Background Ring -->
+<svg class="absolute w-full h-full transform -rotate-90">
+<circle class="text-surface-variant" cx="50%" cy="50%" fill="transparent" r="45%" stroke="currentColor" stroke-width="12"></circle>
+<circle class="text-secondary drop-shadow-[0_0_8px_rgba(78,222,163,0.4)]" cx="50%" cy="50%" fill="transparent" r="45%" stroke="currentColor" stroke-dasharray="282.7" stroke-dashoffset="248" stroke-width="12"></circle>
+</svg>
+<!-- Center Value -->
+<div class="text-center z-10">
+<p class="text-[10px] font-black uppercase tracking-[0.3em] text-on-surface-variant">Threat Risk Score</p>
+<h2 class="text-8xl font-black text-on-surface leading-none mt-2">12</h2>
+<div class="mt-2 px-4 py-1 bg-secondary/10 border border-secondary/20 rounded-full text-secondary text-[10px] font-bold uppercase tracking-widest inline-block">
+                            Secured
+                        </div>
+</div>
+<!-- Decorative elements -->
+<div class="absolute -bottom-4 w-full flex justify-between px-12 text-[10px] font-bold text-on-surface-variant opacity-50">
+<span>MIN 0</span>
+<span>MAX 100</span>
+</div>
+</div>
+<div class="mt-12 grid grid-cols-3 gap-12 w-full max-w-md">
+<div class="text-center">
+<p class="text-[10px] text-on-surface-variant uppercase font-bold tracking-widest">Heuristics</p>
+<p class="text-lg font-bold text-secondary">PASS</p>
+</div>
+<div class="text-center border-x border-outline-variant/30">
+<p class="text-[10px] text-on-surface-variant uppercase font-bold tracking-widest">Behavioral</p>
+<p class="text-lg font-bold text-secondary">STABLE</p>
+</div>
+<div class="text-center">
+<p class="text-[10px] text-on-surface-variant uppercase font-bold tracking-widest">Entropy</p>
+<p class="text-lg font-bold text-on-surface">2.4%</p>
+</div>
+</div>
+</div>
+<!-- RIGHT PANEL: ACTIVE ALERTS -->
+<div class="col-span-12 lg:col-span-3 bg-surface-container-low rounded-xl flex flex-col h-[500px]">
+<div class="p-6 bg-surface-container-highest/30 rounded-t-xl flex justify-between items-center">
+<h4 class="text-xs font-black uppercase tracking-widest">Active Alerts</h4>
+<span class="text-[10px] font-bold bg-tertiary-container/20 text-tertiary px-2 py-0.5 rounded">3 NEW</span>
+</div>
+<div class="flex-1 p-4 space-y-4">
+<!-- Medium Alert -->
+<div class="bg-surface-container p-4 rounded-xl border border-tertiary/20 relative group overflow-hidden">
+<div class="absolute top-0 right-0 bg-tertiary/20 text-tertiary text-[9px] font-black px-3 py-1 rounded-bl-lg uppercase tracking-wider">Medium</div>
+<div class="flex items-center gap-2 mb-2">
+<span class="material-symbols-outlined text-tertiary text-sm" data-icon="report_problem">report_problem</span>
+<h5 class="text-[11px] font-bold">Suspicious modification</h5>
+</div>
+<p class="text-[10px] text-on-surface-variant leading-relaxed">Multiple .TMP files created in root directory by 'sys_updater.exe'</p>
+<div class="mt-3 flex gap-2">
+<button class="flex-1 bg-surface-container-highest text-[10px] font-bold py-1.5 rounded hover:bg-surface-bright transition-colors">IGNORE</button>
+<button class="flex-1 bg-tertiary-container text-on-tertiary-container text-[10px] font-bold py-1.5 rounded hover:brightness-110 transition-all shadow-[0_4px_12px_rgba(255,84,81,0.2)]">QUARANTINE</button>
+</div>
+</div>
+<!-- Low Alerts -->
+<div class="bg-surface-container/40 p-4 rounded-xl border border-outline-variant/10 relative">
+<div class="absolute top-0 right-0 text-on-surface-variant/50 text-[9px] font-black px-3 py-1 uppercase tracking-wider">Low</div>
+<div class="flex items-center gap-2 mb-1">
+<span class="material-symbols-outlined text-on-surface-variant text-sm" data-icon="info">info</span>
+<h5 class="text-[11px] font-bold">Unauthorized Port Access</h5>
+</div>
+<p class="text-[9px] text-on-surface-variant">Incoming ping request from IP 192.168.1.14 blocked.</p>
+</div>
+<div class="bg-surface-container/40 p-4 rounded-xl border border-outline-variant/10 relative">
+<div class="absolute top-0 right-0 text-on-surface-variant/50 text-[9px] font-black px-3 py-1 uppercase tracking-wider">Low</div>
+<div class="flex items-center gap-2 mb-1">
+<span class="material-symbols-outlined text-on-surface-variant text-sm" data-icon="info">info</span>
+<h5 class="text-[11px] font-bold">Driver Signature Warning</h5>
+</div>
+<p class="text-[9px] text-on-surface-variant">Unsigned driver 'vbus_adapter.sys' attempted to load.</p>
+</div>
+</div>
+<div class="p-4 mt-auto">
+<button class="w-full py-2 text-[10px] font-black uppercase tracking-widest text-on-surface-variant hover:text-on-surface transition-colors">View All Incident Logs</button>
+</div>
+</div>
+</div>
+<!-- System Architecture Visualization (Decorative Section) -->
+<div class="mt-12 bg-surface-container-low rounded-xl p-8 overflow-hidden relative min-h-[200px]">
+<div class="absolute inset-0 opacity-10 mix-blend-overlay">
+<img class="w-full h-full object-cover" data-alt="abstract dark blue cybersecurity network background with glowing digital circuits and data flow patterns" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDxSTRCl1QgYwZwG8rJQbWCiPg9v8ZdvttLxsSy755oU3a7jAGjJrYAFeYxmBIo_aIeXTMroYWS8J3SwEl4-ZxMzR8jFwdVXRDdMQHadBsLLRQ8-UXInvHp-EciOpiz6_9e-4imDfVQ2SBzYoDQTuBKoMTPiiUnf6SC-8WNmPD7hIGHBLd4EEk1e5260HSdkzfS3HlDgXgzduSCoN2ySjp7eXSslmVyz4Le5jKx07eQ04EdRqyN0puenMfxPqtJTqliu5BzP_cgV6cd"/>
+</div>
+<div class="relative z-10 grid grid-cols-1 md:grid-cols-4 gap-8">
+<div class="col-span-3">
+<h4 class="text-xl font-bold mb-2">Neural Protection Engine <span class="text-primary">v4.2.0</span></h4>
+<p class="text-sm text-on-surface-variant max-w-2xl">The Sentinel is currently employing deep-packet inspection and behavioral heuristics across all active network nodes. Protection is optimized for the current threat landscape.</p>
+<div class="flex gap-4 mt-6">
+<div class="flex items-center gap-2 bg-surface-container-highest px-3 py-1.5 rounded text-[10px] font-bold">
+<span class="material-symbols-outlined text-secondary text-sm" data-icon="hub">hub</span> 12 ENDPOINTS ACTIVE
+                        </div>
+<div class="flex items-center gap-2 bg-surface-container-highest px-3 py-1.5 rounded text-[10px] font-bold">
+<span class="material-symbols-outlined text-primary text-sm" data-icon="cloud_done">cloud_done</span> CLOUD SYNC: SUCCESSFUL
+                        </div>
+</div>
+</div>
+<div class="flex flex-col justify-center items-end">
+<div class="text-right">
+<p class="text-[10px] font-black text-on-surface-variant uppercase tracking-widest">Network Latency</p>
+<p class="text-2xl font-bold text-secondary">0.04ms</p>
+</div>
+<div class="text-right mt-4">
+<p class="text-[10px] font-black text-on-surface-variant uppercase tracking-widest">Encryption Level</p>
+<p class="text-2xl font-bold text-on-surface">AES-512</p>
+</div>
+</div>
+</div>
+</div>
+</main>
+<!-- Footer / Status Bar -->
+<footer class="fixed bottom-0 left-64 w-[calc(100%-16rem)] h-8 bg-[#0a0e18] flex items-center justify-between px-6 border-t border-[#313540]/15 z-20">
+<div class="flex items-center gap-4">
+<p class="text-[10px] uppercase font-bold tracking-widest text-[#4edea3]">System Protected | CPU: 12% | MEM: 4.2GB | Protection: ON</p>
+</div>
+<div class="flex items-center gap-4">
+<a class="text-[10px] uppercase font-bold tracking-widest text-[#c2c6d6]/50 hover:text-white transition-colors" href="#">Documentation</a>
+<span class="w-1 h-1 bg-outline-variant/30 rounded-full"></span>
+<a class="text-[10px] uppercase font-bold tracking-widest text-[#c2c6d6]/50 hover:text-white transition-colors" href="#">Support</a>
+</div>
+</footer>
+</body></html>

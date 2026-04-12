@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>The Sentinel - Settings</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "on-error": "#690005",
+                    "surface-container-high": "#262a35",
+                    "tertiary": "#ffb3ad",
+                    "tertiary-container": "#ff5451",
+                    "on-surface": "#dfe2f1",
+                    "on-secondary-fixed-variant": "#005236",
+                    "on-error-container": "#ffdad6",
+                    "surface-container": "#1c1f2a",
+                    "surface-tint": "#adc6ff",
+                    "error-container": "#93000a",
+                    "on-primary-container": "#00285d",
+                    "secondary-container": "#00a572",
+                    "on-tertiary-fixed-variant": "#930013",
+                    "on-primary-fixed": "#001a42",
+                    "primary-fixed": "#d8e2ff",
+                    "primary-container": "#4d8eff",
+                    "outline": "#8c909f",
+                    "surface-container-lowest": "#0a0e18",
+                    "on-primary": "#002e6a",
+                    "background": "#0f131d",
+                    "on-tertiary-container": "#5c0008",
+                    "surface-dim": "#0f131d",
+                    "inverse-surface": "#dfe2f1",
+                    "on-surface-variant": "#c2c6d6",
+                    "primary": "#adc6ff",
+                    "inverse-on-surface": "#2c303b",
+                    "on-tertiary": "#68000a",
+                    "on-secondary": "#003824",
+                    "on-secondary-fixed": "#002113",
+                    "tertiary-fixed": "#ffdad7",
+                    "on-tertiary-fixed": "#410004",
+                    "tertiary-fixed-dim": "#ffb3ad",
+                    "surface-variant": "#313540",
+                    "on-secondary-container": "#00311f",
+                    "surface": "#0f131d",
+                    "error": "#ffb4ab",
+                    "secondary": "#4edea3",
+                    "surface-container-low": "#171b26",
+                    "on-background": "#dfe2f1",
+                    "on-primary-fixed-variant": "#004395",
+                    "outline-variant": "#424754",
+                    "secondary-fixed": "#6ffbbe",
+                    "surface-container-highest": "#313540",
+                    "surface-bright": "#353944",
+                    "primary-fixed-dim": "#adc6ff",
+                    "inverse-primary": "#005ac2",
+                    "secondary-fixed-dim": "#4edea3"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.125rem",
+                    "lg": "0.25rem",
+                    "xl": "0.5rem",
+                    "full": "0.75rem"
+            },
+            "fontFamily": {
+                    "headline": ["Inter"],
+                    "body": ["Inter"],
+                    "label": ["Inter"]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24;
+        }
+        /* Custom scrollbar */
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #313540; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #424754; }
+
+        /* Custom Toggle Switch (Windows Style) */
+        .toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 40px;
+            height: 20px;
+        }
+        .toggle-switch input { opacity: 0; width: 0; height: 0; }
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: transparent;
+            border: 2px solid #8c909f;
+            transition: .2s;
+            border-radius: 20px;
+        }
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 12px; width: 12px;
+            left: 2px; bottom: 2px;
+            background-color: #dfe2f1;
+            transition: .2s;
+            border-radius: 50%;
+        }
+        input:checked + .slider { background-color: #adc6ff; border-color: #adc6ff; }
+        input:checked + .slider:before { transform: translateX(20px); background-color: #002e6a; }
+
+        /* Custom Range Slider */
+        input[type=range] {
+            -webkit-appearance: none;
+            width: 100%;
+            background: transparent;
+        }
+        input[type=range]:focus { outline: none; }
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 4px;
+            cursor: pointer;
+            background: #313540;
+            border-radius: 2px;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            height: 18px;
+            width: 18px;
+            border-radius: 50%;
+            background: #adc6ff;
+            cursor: pointer;
+            -webkit-appearance: none;
+            margin-top: -7px;
+            box-shadow: 0 0 10px rgba(173, 198, 255, 0.3);
+        }
+    </style>
+</head>
+<body class="bg-background text-on-surface font-body selection:bg-primary/30">
+<!-- SideNavBar -->
+<nav class="fixed left-0 top-0 h-full flex flex-col bg-[#0f131d] h-screen w-64 border-r border-[#313540]/15 z-50">
+<div class="px-6 py-8">
+<span class="text-xl font-black text-[#adc6ff] tracking-widest">The Sentinel</span>
+<p class="text-[10px] uppercase font-bold tracking-widest text-[#c2c6d6] opacity-50 mt-1">Cybersecurity Node</p>
+</div>
+<div class="flex-1 px-4 space-y-1">
+<a class="flex items-center gap-3 px-4 py-3 text-[#c2c6d6] opacity-70 hover:opacity-100 hover:bg-[#313540]/20 transition-colors rounded-lg font-['Inter'] font-medium tracking-tight" href="#">
+<span class="material-symbols-outlined text-lg">dashboard</span>
+<span>Dashboard</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-[#c2c6d6] opacity-70 hover:opacity-100 hover:bg-[#313540]/20 transition-colors rounded-lg font-['Inter'] font-medium tracking-tight" href="#">
+<span class="material-symbols-outlined text-lg">warning</span>
+<span>Threat Alerts</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-[#c2c6d6] opacity-70 hover:opacity-100 hover:bg-[#313540]/20 transition-colors rounded-lg font-['Inter'] font-medium tracking-tight" href="#">
+<span class="material-symbols-outlined text-lg">security</span>
+<span>Quarantine</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-[#c2c6d6] opacity-70 hover:opacity-100 hover:bg-[#313540]/20 transition-colors rounded-lg font-['Inter'] font-medium tracking-tight" href="#">
+<span class="material-symbols-outlined text-lg">analytics</span>
+<span>Process Monitor</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-[#c2c6d6] opacity-70 hover:opacity-100 hover:bg-[#313540]/20 transition-colors rounded-lg font-['Inter'] font-medium tracking-tight" href="#">
+<span class="material-symbols-outlined text-lg">description</span>
+<span>File Activity</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-[#c2c6d6] opacity-70 hover:opacity-100 hover:bg-[#313540]/20 transition-colors rounded-lg font-['Inter'] font-medium tracking-tight" href="#">
+<span class="material-symbols-outlined text-lg">assessment</span>
+<span>Reports</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-[#adc6ff] bg-[#313540]/30 font-bold border-r-2 border-[#adc6ff] font-['Inter'] tracking-tight brightness-125 transition-all" href="#">
+<span class="material-symbols-outlined text-lg">settings</span>
+<span>Settings</span>
+</a>
+</div>
+<div class="p-6">
+<div class="flex items-center gap-3 p-3 rounded-xl bg-surface-container-low border border-outline-variant/10">
+<div class="w-10 h-10 rounded-full bg-primary-container/20 flex items-center justify-center text-primary">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">account_circle</span>
+</div>
+<div>
+<p class="text-sm font-bold">Admin Node</p>
+<p class="text-[10px] text-on-surface-variant uppercase tracking-tighter">Verified Access</p>
+</div>
+</div>
+</div>
+</nav>
+<!-- TopNavBar -->
+<header class="flex justify-between items-center h-16 px-8 ml-64 w-[calc(100%-16rem)] fixed top-0 bg-[#0f131d]/80 backdrop-blur-xl z-40">
+<div class="flex items-center gap-4">
+<h1 class="text-lg font-bold text-[#adc6ff] font-['Inter'] tracking-wide">System Configuration</h1>
+<span class="px-2 py-0.5 rounded bg-secondary-container/20 text-secondary text-[10px] font-black tracking-widest uppercase">Secured</span>
+</div>
+<div class="flex items-center gap-6">
+<div class="relative">
+<input class="bg-surface-container-high border-none text-xs px-4 py-2 w-64 rounded-lg focus:ring-1 focus:ring-primary text-on-surface placeholder:text-on-surface-variant/40" placeholder="Search parameters..." type="text"/>
+</div>
+<div class="flex items-center gap-4 text-[#c2c6d6]">
+<button class="hover:text-white transition-opacity scale-95 duration-150 relative">
+<span class="material-symbols-outlined text-xl">notifications</span>
+<span class="absolute top-0 right-0 w-2 h-2 bg-tertiary rounded-full"></span>
+</button>
+<button class="hover:text-white transition-opacity scale-95 duration-150">
+<span class="material-symbols-outlined text-xl">account_circle</span>
+</button>
+</div>
+</div>
+</header>
+<!-- Main Content -->
+<main class="ml-64 pt-24 pb-16 px-12 max-w-5xl">
+<div class="mb-12">
+<h2 class="text-4xl font-black tracking-tighter text-on-surface mb-2">Settings</h2>
+<p class="text-on-surface-variant">Configure the node's behavioral parameters and protection protocols.</p>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-12 gap-8">
+<!-- Left Column: Primary Settings -->
+<div class="md:col-span-8 space-y-8">
+<!-- General Settings Section -->
+<section class="bg-surface-container-low rounded-xl p-8 border-l-2 border-primary">
+<div class="flex items-center gap-3 mb-8">
+<span class="material-symbols-outlined text-primary">tune</span>
+<h3 class="text-lg font-bold">General Protection</h3>
+</div>
+<div class="space-y-6">
+<div class="flex items-center justify-between group">
+<div>
+<label class="font-bold text-on-surface block">Real-time protection</label>
+<p class="text-sm text-on-surface-variant opacity-70">Monitor system activity in real-time to intercept threats.</p>
+</div>
+<label class="toggle-switch">
+<input checked="" type="checkbox"/>
+<span class="slider"></span>
+</label>
+</div>
+<div class="flex items-center justify-between group">
+<div>
+<label class="font-bold text-on-surface block">Auto-quarantine</label>
+<p class="text-sm text-on-surface-variant opacity-70">Automatically isolate suspicious files without user prompt.</p>
+</div>
+<label class="toggle-switch">
+<input type="checkbox"/>
+<span class="slider"></span>
+</label>
+</div>
+</div>
+</section>
+<!-- Protection Rules Section -->
+<section class="bg-surface-container-low rounded-xl p-8">
+<div class="flex items-center gap-3 mb-8">
+<span class="material-symbols-outlined text-secondary">security_update_good</span>
+<h3 class="text-lg font-bold">Protection Rules</h3>
+</div>
+<div class="space-y-10">
+<div class="space-y-6">
+<div class="flex justify-between items-end">
+<div>
+<label class="font-bold text-on-surface block">Heuristic Sensitivity</label>
+<p class="text-sm text-on-surface-variant opacity-70">Define the threshold for behavioral anomaly detection.</p>
+</div>
+<span class="text-xs font-black bg-primary/10 text-primary px-3 py-1 rounded tracking-widest uppercase">High</span>
+</div>
+<div class="px-2">
+<input class="w-full" max="4" min="1" step="1" type="range" value="3"/>
+<div class="flex justify-between mt-4">
+<span class="text-[10px] font-bold text-on-surface-variant/40 tracking-wider uppercase">Low</span>
+<span class="text-[10px] font-bold text-on-surface-variant/40 tracking-wider uppercase">Medium</span>
+<span class="text-[10px] font-bold text-on-surface-variant/60 tracking-wider uppercase">High</span>
+<span class="text-[10px] font-bold text-tertiary tracking-wider uppercase">Paranoid</span>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Exclusions Section -->
+<section class="bg-surface-container-low rounded-xl p-8">
+<div class="flex items-center justify-between mb-8">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-on-surface-variant">folder_off</span>
+<h3 class="text-lg font-bold">Exclusions</h3>
+</div>
+<button class="bg-surface-container-high hover:bg-surface-variant text-primary px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-2">
+<span class="material-symbols-outlined text-sm">add</span>
+                            Add Path
+                        </button>
+</div>
+<div class="space-y-3">
+<div class="flex items-center justify-between p-4 bg-surface-container-lowest/50 rounded-lg group hover:bg-surface-container-high transition-colors">
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-on-surface-variant/40">folder_open</span>
+<code class="text-xs text-on-surface-variant">C:\Project\Development\Runtime</code>
+</div>
+<button class="text-on-surface-variant/20 group-hover:text-tertiary transition-colors">
+<span class="material-symbols-outlined text-lg">close</span>
+</button>
+</div>
+<div class="flex items-center justify-between p-4 bg-surface-container-lowest/50 rounded-lg group hover:bg-surface-container-high transition-colors">
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-on-surface-variant/40">folder_open</span>
+<code class="text-xs text-on-surface-variant">D:\Legacy_Assets\Backups\Encrypted</code>
+</div>
+<button class="text-on-surface-variant/20 group-hover:text-tertiary transition-colors">
+<span class="material-symbols-outlined text-lg">close</span>
+</button>
+</div>
+<div class="flex items-center justify-between p-4 bg-surface-container-lowest/50 rounded-lg group hover:bg-surface-container-high transition-colors">
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-on-surface-variant/40">folder_open</span>
+<code class="text-xs text-on-surface-variant">C:\Users\Admin\Documents\Whitelisted</code>
+</div>
+<button class="text-on-surface-variant/20 group-hover:text-tertiary transition-colors">
+<span class="material-symbols-outlined text-lg">close</span>
+</button>
+</div>
+</div>
+</section>
+</div>
+<!-- Right Column: Status & Info -->
+<div class="md:col-span-4 space-y-8">
+<!-- License Status Card -->
+<div class="bg-surface-container-high rounded-xl overflow-hidden shadow-2xl relative">
+<div class="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent pointer-events-none"></div>
+<div class="p-6 relative z-10">
+<span class="text-[10px] font-black text-primary uppercase tracking-[0.2em] mb-4 block">Product License</span>
+<div class="flex items-center justify-between mb-6">
+<h4 class="text-xl font-bold leading-tight">Business Edition</h4>
+<span class="w-2 h-2 rounded-full bg-secondary shadow-[0_0_10px_#4edea3]"></span>
+</div>
+<div class="space-y-4 mb-8">
+<div class="flex justify-between text-xs">
+<span class="text-on-surface-variant">Status</span>
+<span class="text-secondary font-bold">Active</span>
+</div>
+<div class="flex justify-between text-xs">
+<span class="text-on-surface-variant">Renew Date</span>
+<span class="text-on-surface font-mono">12-NOV-2025</span>
+</div>
+<div class="flex justify-between text-xs">
+<span class="text-on-surface-variant">Node ID</span>
+<span class="text-on-surface font-mono">TS-8849-PX</span>
+</div>
+</div>
+<button class="w-full bg-primary text-on-primary font-bold py-3 rounded-lg hover:brightness-110 transition-all text-sm">
+                            Manage Subscription
+                        </button>
+</div>
+</div>
+<!-- Quick Help / Documentation -->
+<div class="bg-surface-container-low rounded-xl p-6 border border-outline-variant/10">
+<h5 class="font-bold mb-4">Documentation</h5>
+<ul class="space-y-3">
+<li>
+<a class="text-xs text-on-surface-variant hover:text-primary transition-colors flex items-center gap-2" href="#">
+<span class="material-symbols-outlined text-sm">book</span>
+                                Deployment Guide
+                            </a>
+</li>
+<li>
+<a class="text-xs text-on-surface-variant hover:text-primary transition-colors flex items-center gap-2" href="#">
+<span class="material-symbols-outlined text-sm">help</span>
+                                Sensitivity Tuning FAQ
+                            </a>
+</li>
+<li>
+<a class="text-xs text-on-surface-variant hover:text-primary transition-colors flex items-center gap-2" href="#">
+<span class="material-symbols-outlined text-sm">contact_support</span>
+                                Node Support Matrix
+                            </a>
+</li>
+</ul>
+</div>
+<!-- System Health Indicator -->
+<div class="p-6 rounded-xl bg-surface-container-lowest/30 border border-outline-variant/5">
+<div class="flex gap-4 items-center mb-4">
+<div class="flex flex-col items-center gap-1">
+<div class="w-1 h-3 rounded-full bg-secondary"></div>
+<div class="w-1 h-2 rounded-full bg-secondary/40"></div>
+</div>
+<span class="text-xs font-bold uppercase tracking-widest text-on-surface-variant">System Integrity</span>
+</div>
+<div class="space-y-1">
+<p class="text-2xl font-black text-on-surface">99.8%</p>
+<p class="text-[10px] text-secondary font-bold">OPTIMIZED</p>
+</div>
+</div>
+</div>
+</div>
+</main>
+<!-- Footer Status Bar -->
+<footer class="fixed bottom-0 left-64 w-[calc(100%-16rem)] flex items-center justify-between px-6 bg-[#0a0e18] h-8 border-t border-[#313540]/15 z-50">
+<div class="flex items-center gap-4">
+<span class="text-[#4edea3] text-[10px] uppercase font-bold tracking-widest">System Protected | CPU: 12% | MEM: 4.2GB | Protection: ON</span>
+</div>
+<div class="flex items-center gap-6">
+<a class="text-[10px] uppercase font-bold tracking-widest text-[#c2c6d6]/50 hover:text-white transition-colors" href="#">Documentation</a>
+<a class="text-[10px] uppercase font-bold tracking-widest text-[#c2c6d6]/50 hover:text-white transition-colors" href="#">Support</a>
+</div>
+</footer>
+</body></html>

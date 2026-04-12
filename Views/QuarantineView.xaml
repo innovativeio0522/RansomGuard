@@ -1,0 +1,502 @@
+<UserControl x:Class="RansomGuard.Views.QuarantineView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             Background="{StaticResource BackgroundBrush}">
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <StackPanel Margin="24">
+            
+            <!-- Storage Usage & Actions Bento Cluster -->
+            <Grid Margin="0,0,0,24">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="2*"/>
+                    <ColumnDefinition Width="24"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- Storage Usage Bento -->
+                <Border Grid.Column="0" Background="{StaticResource SurfaceContainerLowBrush}" 
+                        CornerRadius="12" Padding="24" BorderBrush="{StaticResource OutlineVariantBrush}" BorderThickness="0">
+                    <StackPanel>
+                        <Grid Margin="0,0,0,24">
+                            <StackPanel>
+                                <TextBlock Text="Quarantine Storage" FontSize="26" FontWeight="Black" 
+                                          Foreground="{StaticResource OnSurfaceBrush}"/>
+                                <TextBlock Text="Encrypted silo status and volume metrics" 
+                                          FontSize="13" Foreground="{StaticResource OnSurfaceVariantBrush}" Margin="0,4,0,0"/>
+                            </StackPanel>
+                            <StackPanel HorizontalAlignment="Right" VerticalAlignment="Bottom" Orientation="Horizontal">
+                                <TextBlock Text="256" FontSize="36" FontWeight="Light" 
+                                          Foreground="{StaticResource PrimaryBrush}"/>
+                                <TextBlock Text=" MB" FontSize="14" FontWeight="Bold" Foreground="{StaticResource OnSurfaceVariantBrush}" Margin="2,0,8,6" VerticalAlignment="Bottom"/>
+                                <TextBlock Text="/" FontSize="16" Foreground="{StaticResource OnSurfaceVariantBrush}" Margin="0,0,8,6" VerticalAlignment="Bottom" Opacity="0.5"/>
+                                <TextBlock Text="5 GB Allocated" FontSize="13" Foreground="{StaticResource OnSurfaceVariantBrush}" Margin="0,0,0,6" VerticalAlignment="Bottom"/>
+                            </StackPanel>
+                        </Grid>
+                        
+                        <Grid Height="14">
+                            <ProgressBar Height="14" Value="5.12" Maximum="100"
+                                        Background="{StaticResource SurfaceContainerHighestBrush}"
+                                        BorderThickness="0">
+                                <ProgressBar.Foreground>
+                                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                                        <GradientStop Color="{StaticResource Primary}" Offset="0"/>
+                                        <GradientStop Color="#4d8eff" Offset="1"/>
+                                    </LinearGradientBrush>
+                                </ProgressBar.Foreground>
+                                <ProgressBar.Effect>
+                                    <DropShadowEffect Color="{StaticResource Primary}" BlurRadius="15" ShadowDepth="0" Opacity="0.4"/>
+                                </ProgressBar.Effect>
+                            </ProgressBar>
+                        </Grid>
+
+                        <StackPanel Orientation="Horizontal" Margin="0,24,0,0">
+                            <StackPanel Orientation="Horizontal" Margin="0,0,32,0">
+                                <Ellipse Width="8" Height="8" Fill="{StaticResource SecondaryBrush}" Margin="0,0,10,0" VerticalAlignment="Center"/>
+                                <TextBlock Text="SYSTEM INTEGRITY: NOMINAL" FontSize="10" FontWeight="Bold" Foreground="{StaticResource OnSurfaceVariantBrush}"/>
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal">
+                                <Ellipse Width="8" Height="8" Fill="{StaticResource TertiaryBrush}" Margin="0,0,10,0" VerticalAlignment="Center"/>
+                                <TextBlock Text="AUTO-PURGE: DISABLED" FontSize="10" FontWeight="Bold" Foreground="{StaticResource OnSurfaceVariantBrush}"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+
+                <!-- Action Hub Bento -->
+                <Border Grid.Column="2" Background="{StaticResource SurfaceContainerHighBrush}" 
+                        CornerRadius="12" Padding="24"
+                        BorderBrush="#1affffff" BorderThickness="1">
+                    <StackPanel>
+                        <TextBlock Text="BULK CONTROL" FontSize="10" FontWeight="Bold" Margin="0,0,0,20"
+                                  Foreground="{StaticResource PrimaryBrush}"/>
+                        
+                        <Button Style="{StaticResource PrimaryButton}" Margin="0,0,0,12" Height="48" HorizontalContentAlignment="Stretch">
+                            <Grid>
+                                <TextBlock Text="Scan All Repositories" VerticalAlignment="Center" HorizontalAlignment="Left"/>
+                                <Viewbox Width="18" Height="18" HorizontalAlignment="Right">
+                                    <Path Data="M15.5,14L20.5,19L19,20.5L14,15.5V14.71L13.73,14.44C12.59,15.41 11.11,16 9.5,16A6.5,6.5 0 0,1 3,9.5A6.5,6.5 0 0,1 9.5,3A6.5,6.5 0 0,1 16,9.5C16,11.11 15.41,12.59 14.44,13.73L14.71,14H15.5M9.5,14C12,14 14,12 14,9.5C14,7 12,5 9.5,5C7,5 5,7 5,9.5C5,12 7,14 9.5,14M12,10H10V12H9V10H7V9H9V7H10V9H12V10Z" 
+                                          Fill="{StaticResource OnPrimaryContainerBrush}"/>
+                                </Viewbox>
+                            </Grid>
+                        </Button>
+
+                        <Button Style="{StaticResource NativeButton}" Height="48" Background="{StaticResource SurfaceContainerHighestBrush}" HorizontalContentAlignment="Stretch">
+                            <Grid>
+                                <TextBlock Text="Clear Safe Files" VerticalAlignment="Center" HorizontalAlignment="Left"/>
+                                <Viewbox Width="18" Height="18" HorizontalAlignment="Right">
+                                    <Path Data="M19,4H15.5L14.5,3H9.5L8.5,4H5V6H19M6,19A2,2 0 0,0 8,21H16A2,2 0 0,0 18,19V7H6V19Z" 
+                                          Fill="{StaticResource OnSurfaceVariantBrush}"/>
+                                </Viewbox>
+                            </Grid>
+                        </Button>
+                    </StackPanel>
+                </Border>
+            </Grid>
+
+            <!-- Main Quarantine Table -->
+            <Border Background="{StaticResource SurfaceContainerLowBrush}" CornerRadius="12" ClipToBounds="True">
+                <StackPanel>
+                    <!-- Table Header Bar -->
+                    <Border Background="{StaticResource SurfaceVariantBrush}" 
+                           Padding="24,16" BorderBrush="{StaticResource OutlineVariantBrush}" BorderThickness="0,0,0,1" Opacity="0.8">
+                        <Grid>
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                <Viewbox Width="18" Height="18" Margin="0,0,12,0">
+                                    <Path Data="M10 18H14V16H10V18ZM3 6V8H21V6H3ZM6 13H18V11H6V13Z" 
+                                          Fill="{StaticResource PrimaryBrush}"/>
+                                </Viewbox>
+                                <TextBlock Text="ISOLATED ENTITIES (12)" FontSize="11" FontWeight="Bold" Foreground="{StaticResource OnSurfaceBrush}"/>
+                            </StackPanel>
+                            
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                <Button Content="RESTORE SELECTED" Style="{StaticResource NativeButton}" 
+                                       FontSize="10" FontWeight="Bold" Padding="16,8" Margin="0,0,8,0" Background="Transparent"
+                                       BorderBrush="{StaticResource OutlineVariantBrush}" BorderThickness="1"/>
+                                <Button Content="PURGE SELECTED" Style="{StaticResource DangerButton}" 
+                                       FontSize="10" FontWeight="Bold" Padding="16,8"/>
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+
+                    <!-- Table Columns Header -->
+                    <Border Background="{StaticResource SurfaceContainerHighBrush}" Padding="24,12">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="40"/>
+                                <ColumnDefinition Width="2*"/>
+                                <ColumnDefinition Width="2.5*"/>
+                                <ColumnDefinition Width="140"/>
+                                <ColumnDefinition Width="140"/>
+                                <ColumnDefinition Width="100"/>
+                                <ColumnDefinition Width="120"/>
+                            </Grid.ColumnDefinitions>
+
+                            <CheckBox Grid.Column="0" VerticalAlignment="Center" Style="{StaticResource NativeCheckBox}"/>
+                            <TextBlock Grid.Column="1" Text="FILE NAME" FontSize="10" FontWeight="Black" Foreground="{StaticResource OnSurfaceVariantBrush}" Margin="12,0,0,0"/>
+                            <TextBlock Grid.Column="2" Text="ORIGINAL PATH" FontSize="10" FontWeight="Black" Foreground="{StaticResource OnSurfaceVariantBrush}" Margin="12,0,0,0"/>
+                            <TextBlock Grid.Column="3" Text="DATE QUARANTINED" FontSize="10" FontWeight="Black" Foreground="{StaticResource OnSurfaceVariantBrush}" Margin="12,0,0,0"/>
+                            <TextBlock Grid.Column="4" Text="THREAT TYPE" FontSize="10" FontWeight="Black" Foreground="{StaticResource OnSurfaceVariantBrush}" Margin="12,0,0,0"/>
+                            <TextBlock Grid.Column="5" Text="RISK LEVEL" FontSize="10" FontWeight="Black" Foreground="{StaticResource OnSurfaceVariantBrush}" Margin="12,0,0,0"/>
+                            <TextBlock Grid.Column="6" Text="ACTIONS" FontSize="10" FontWeight="Black" Foreground="{StaticResource OnSurfaceVariantBrush}" HorizontalAlignment="Right"/>
+                        </Grid>
+                    </Border>
+
+                    <!-- Row 1: Critical Ransomware -->
+                    <Border BorderBrush="{StaticResource OutlineVariantBrush}" BorderThickness="0,0,0,1" Padding="24,14">
+                        <Border.Style>
+                            <Style TargetType="Border">
+                                <Setter Property="Background" Value="Transparent"/>
+                                <Style.Triggers>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter Property="Background" Value="#0DFFFFFF"/>
+                                    </Trigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Border.Style>
+                        <Grid x:Name="RowGrid">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="40"/>
+                                <ColumnDefinition Width="2*"/>
+                                <ColumnDefinition Width="2.5*"/>
+                                <ColumnDefinition Width="140"/>
+                                <ColumnDefinition Width="140"/>
+                                <ColumnDefinition Width="100"/>
+                                <ColumnDefinition Width="120"/>
+                            </Grid.ColumnDefinitions>
+
+                            <CheckBox Grid.Column="0" VerticalAlignment="Center"/>
+                            
+                            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                <Viewbox Width="20" Height="20" Margin="0,0,12,0">
+                                    <Path Data="M18,8H17V6A5,5 0 0,0 12,1A5,5 0 0,0 7,6V8H6A2,2 0 0,0 4,10V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V10A2,2 0 0,0 18,8M12,17A2,2 0 1,1 14,15A2,2 0 0,1 12,17M15.1,8H8.9V6A3.1,3.1 0 0,1 12,2.9A3.1,3.1 0 0,1 15.1,6V8Z" 
+                                          Fill="{StaticResource TertiaryBrush}"/>
+                                </Viewbox>
+                                <TextBlock Text="invoice_alpha_882.exe" FontWeight="SemiBold" FontSize="13" Foreground="{StaticResource OnSurfaceBrush}"/>
+                            </StackPanel>
+
+                            <TextBlock Grid.Column="2" Text="C:/Users/Admin/Downloads/..." 
+                                      FontSize="11" FontFamily="Consolas" Foreground="{StaticResource OnSurfaceVariantBrush}" VerticalAlignment="Center" Opacity="0.7"/>
+                            
+                            <TextBlock Grid.Column="3" Text="Oct 24, 2023 14:22" 
+                                      FontSize="11" Foreground="{StaticResource OnSurfaceBrush}" VerticalAlignment="Center" Opacity="0.8"/>
+                            
+                            <Border Grid.Column="4" Background="#1aff5451" BorderBrush="#33ff5451" BorderThickness="1"
+                                   Padding="10,4" CornerRadius="4" HorizontalAlignment="Left" VerticalAlignment="Center">
+                                <TextBlock Text="Ransomware.Locky" Foreground="{StaticResource TertiaryBrush}" 
+                                          FontWeight="Bold" FontSize="9"/>
+                            </Border>
+
+                            <StackPanel Grid.Column="5" Orientation="Horizontal" VerticalAlignment="Center">
+                                <Ellipse Width="8" Height="8" Fill="{StaticResource ErrorBrush}" Margin="0,0,10,0">
+                                    <Ellipse.Effect>
+                                        <DropShadowEffect Color="{StaticResource Error}" BlurRadius="8" ShadowDepth="0" Opacity="0.6"/>
+                                    </Ellipse.Effect>
+                                </Ellipse>
+                                <TextBlock Text="CRITICAL" Foreground="{StaticResource ErrorBrush}" 
+                                          FontWeight="Black" FontSize="9"/>
+                            </StackPanel>
+
+                            <StackPanel x:Name="ActionPanel" Grid.Column="6" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                                <StackPanel.Style>
+                                    <Style TargetType="StackPanel">
+                                        <Setter Property="Opacity" Value="0"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsMouseOver, ElementName=RowGrid}" Value="True">
+                                                <Setter Property="Opacity" Value="1"/>
+                                            </DataTrigger>
+                                            <!-- Fallback if RowGrid reference fails in some WPF versions, use ancestor trigger -->
+                                        </Style.Triggers>
+                                    </Style>
+                                </StackPanel.Style>
+                                <Button Style="{StaticResource IconButton}" Margin="0,0,6,0" ToolTip="Restore">
+                                    <Viewbox Width="14" Height="14">
+                                        <Path Data="M13,3A9,9 0 0,0 4,12H1L4.89,15.89L4.96,16.03L9,12H6A7,7 0 0,1 13,5A7,7 0 0,1 20,12A7,7 0 0,1 13,19C11.07,19 9.32,18.21 8.06,16.94L6.64,18.36C8.27,20 10.5,21 13,21A9,9 0 0,0 22,12A9,9 0 0,0 13,3Z" 
+                                              Fill="{StaticResource SecondaryBrush}"/>
+                                    </Viewbox>
+                                </Button>
+                                <Button Style="{StaticResource IconButton}" Margin="0,0,6,0" ToolTip="Scan Again">
+                                    <Viewbox Width="14" Height="14">
+                                        <Path Data="M17.65,6.35C16.2,4.9 14.21,4 12,4A8,8 0 0,0 4,12A8,8 0 0,0 12,20C15.73,20 18.84,17.45 19.73,14H17.65C16.83,16.33 14.61,18 12,18A6,6 0 0,1 6,12A6,6 0 0,1 12,6C13.66,6 15.14,6.69 16.22,7.78L13,11H20V4L17.65,6.35Z" 
+                                              Fill="{StaticResource PrimaryBrush}"/>
+                                    </Viewbox>
+                                </Button>
+                                <Button Style="{StaticResource IconButton}" ToolTip="Delete Permanently">
+                                    <Viewbox Width="14" Height="14">
+                                        <Path Data="M19,4H15.5L14.5,3H9.5L8.5,4H5V6H19M6,19A2,2 0 0,0 8,21H16A2,2 0 0,0 18,19V7H6V19Z" 
+                                              Fill="{StaticResource ErrorBrush}"/>
+                                    </Viewbox>
+                                </Button>
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+
+                    <!-- Row 2: High Trojan -->
+                    <Border BorderBrush="{StaticResource OutlineVariantBrush}" BorderThickness="0,0,0,1" Padding="24,14">
+                        <Border.Style>
+                            <Style TargetType="Border">
+                                <Setter Property="Background" Value="Transparent"/>
+                                <Style.Triggers>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter Property="Background" Value="#0DFFFFFF"/>
+                                    </Trigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Border.Style>
+                        <Grid x:Name="RowGrid2">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="40"/>
+                                <ColumnDefinition Width="2*"/>
+                                <ColumnDefinition Width="2.5*"/>
+                                <ColumnDefinition Width="140"/>
+                                <ColumnDefinition Width="140"/>
+                                <ColumnDefinition Width="100"/>
+                                <ColumnDefinition Width="120"/>
+                            </Grid.ColumnDefinitions>
+
+                            <CheckBox Grid.Column="0" VerticalAlignment="Center"/>
+                            
+                            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                <Viewbox Width="20" Height="20" Margin="0,0,12,0">
+                                    <Path Data="M19,1L17.74,3.75C18.29,4.47 18.69,5.29 18.91,6.19L21,5.12L19,1M12,4A8,8 0 0,0 4,12A8,8 0 0,0 12,20A8,8 0 0,0 20,12C20,12 20,11.96 20,11.93L18,13C18,12.67 18,12.34 18,12A6,6 0 0,0 12,6A6,6 0 0,0 6,12A6,6 0 0,0 12,18A6,6 0 0,0 16.03,16.54L17.2,18.53C15.77,19.46 14,20 12,20A8,8 0 0,1 4,12A8,8 0 0,1 12,4M12,8A4,4 0 0,0 8,12A4,4 0 0,0 12,16A4,4 0 0,0 16,12A4,4 0 0,0 12,8Z" 
+                                          Fill="{StaticResource PrimaryBrush}"/>
+                                </Viewbox>
+                                <TextBlock Text="sys_driver_update.dll" FontWeight="SemiBold" FontSize="13" Foreground="{StaticResource OnSurfaceBrush}"/>
+                            </StackPanel>
+
+                            <TextBlock Grid.Column="2" Text="C:/Windows/Temp/cache/..." 
+                                      FontSize="11" FontFamily="Consolas" Foreground="{StaticResource OnSurfaceVariantBrush}" VerticalAlignment="Center" Opacity="0.7"/>
+                            
+                            <TextBlock Grid.Column="3" Text="Oct 23, 2023 09:15" 
+                                      FontSize="11" Foreground="{StaticResource OnSurfaceBrush}" VerticalAlignment="Center" Opacity="0.8"/>
+                            
+                            <Border Grid.Column="4" Background="#1aadc6ff" BorderBrush="#33adc6ff" BorderThickness="1"
+                                   Padding="10,4" CornerRadius="4" HorizontalAlignment="Left" VerticalAlignment="Center">
+                                <TextBlock Text="Trojan.Agent.BD" Foreground="{StaticResource PrimaryBrush}" 
+                                          FontWeight="Bold" FontSize="9"/>
+                            </Border>
+
+                            <StackPanel Grid.Column="5" Orientation="Horizontal" VerticalAlignment="Center">
+                                <Ellipse Width="8" Height="8" Fill="{StaticResource TertiaryBrush}" Margin="0,0,10,0">
+                                    <Ellipse.Effect>
+                                        <DropShadowEffect Color="{StaticResource Tertiary}" BlurRadius="8" ShadowDepth="0" Opacity="0.6"/>
+                                    </Ellipse.Effect>
+                                </Ellipse>
+                                <TextBlock Text="HIGH" Foreground="{StaticResource TertiaryBrush}" 
+                                          FontWeight="Black" FontSize="9"/>
+                            </StackPanel>
+
+                            <StackPanel Grid.Column="6" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                                <StackPanel.Style>
+                                    <Style TargetType="StackPanel">
+                                        <Setter Property="Opacity" Value="0"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsMouseOver, ElementName=RowGrid2}" Value="True">
+                                                <Setter Property="Opacity" Value="1"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </StackPanel.Style>
+                                <Button Style="{StaticResource IconButton}" Margin="0,0,6,0" ToolTip="Restore">
+                                    <Viewbox Width="14" Height="14">
+                                        <Path Data="M13,3A9,9 0 0,0 4,12H1L4.89,15.89L4.96,16.03L9,12H6A7,7 0 0,1 13,5A7,7 0 0,1 20,12A7,7 0 0,1 13,19C11.07,19 9.32,18.21 8.06,16.94L6.64,18.36C8.27,20 10.5,21 13,21A9,9 0 0,0 22,12A9,9 0 0,0 13,3Z" 
+                                              Fill="{StaticResource SecondaryBrush}"/>
+                                    </Viewbox>
+                                </Button>
+                                <Button Style="{StaticResource IconButton}" Margin="0,0,6,0" ToolTip="Scan Again">
+                                    <Viewbox Width="14" Height="14">
+                                        <Path Data="M17.65,6.35C16.2,4.9 14.21,4 12,4A8,8 0 0,0 4,12A8,8 0 0,0 12,20C15.73,20 18.84,17.45 19.73,14H17.65C16.83,16.33 14.61,18 12,18A6,6 0 0,1 6,12A6,6 0 0,1 12,6C13.66,6 15.14,6.69 16.22,7.78L13,11H20V4L17.65,6.35Z" 
+                                              Fill="{StaticResource PrimaryBrush}"/>
+                                    </Viewbox>
+                                </Button>
+                                <Button Style="{StaticResource IconButton}" ToolTip="Delete Permanently">
+                                    <Viewbox Width="14" Height="14">
+                                        <Path Data="M19,4H15.5L14.5,3H9.5L8.5,4H5V6H19M6,19A2,2 0 0,0 8,21H16A2,2 0 0,0 18,19V7H6V19Z" 
+                                              Fill="{StaticResource ErrorBrush}"/>
+                                    </Viewbox>
+                                </Button>
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+
+                    <!-- Row 3: Adware -->
+                    <Border BorderBrush="{StaticResource OutlineVariantBrush}" BorderThickness="0,0,0,1" Padding="24,14">
+                        <Border.Style>
+                            <Style TargetType="Border">
+                                <Setter Property="Background" Value="Transparent"/>
+                                <Style.Triggers>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter Property="Background" Value="#0DFFFFFF"/>
+                                    </Trigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Border.Style>
+                        <Grid x:Name="RowGrid3">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="40"/>
+                                <ColumnDefinition Width="2*"/>
+                                <ColumnDefinition Width="2.5*"/>
+                                <ColumnDefinition Width="140"/>
+                                <ColumnDefinition Width="140"/>
+                                <ColumnDefinition Width="100"/>
+                                <ColumnDefinition Width="120"/>
+                            </Grid.ColumnDefinitions>
+
+                            <CheckBox Grid.Column="0" VerticalAlignment="Center"/>
+                            
+                            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                <Viewbox Width="20" Height="20" Margin="0,0,12,0">
+                                    <Path Data="M19,16V10H5V16H19M19,2A2,2 0 0,1 21,4V16A2,2 0 0,1 19,18H14.5L13.5,19V22H10.5V19L9.5,18H5C3.89,18 3,17.1 3,16V4C3,2.89 3.89,2 5,2H19M5,4V8H19V4H5Z" 
+                                          Fill="{StaticResource OnSurfaceVariantBrush}"/>
+                                </Viewbox>
+                                <TextBlock Text="coupon_gen.msi" FontWeight="SemiBold" FontSize="13" Foreground="{StaticResource OnSurfaceBrush}"/>
+                            </StackPanel>
+
+                            <TextBlock Grid.Column="2" Text="D:/Backups/Old_Installs/..." 
+                                      FontSize="11" FontFamily="Consolas" Foreground="{StaticResource OnSurfaceVariantBrush}" VerticalAlignment="Center" Opacity="0.7"/>
+                            
+                            <TextBlock Grid.Column="3" Text="Oct 21, 2023 18:40" 
+                                      FontSize="11" Foreground="{StaticResource OnSurfaceBrush}" VerticalAlignment="Center" Opacity="0.8"/>
+                            
+                            <Border Grid.Column="4" Background="#1a424754" BorderBrush="#33424754" BorderThickness="1"
+                                   Padding="10,4" CornerRadius="4" HorizontalAlignment="Left" VerticalAlignment="Center">
+                                <TextBlock Text="PUP.Adware.Heur" Foreground="{StaticResource OnSurfaceVariantBrush}" 
+                                          FontWeight="Bold" FontSize="9"/>
+                            </Border>
+
+                            <StackPanel Grid.Column="5" Orientation="Horizontal" VerticalAlignment="Center">
+                                <Ellipse Width="8" Height="8" Fill="{StaticResource OutlineBrush}" Margin="0,0,10,0"/>
+                                <TextBlock Text="MEDIUM" Foreground="{StaticResource OutlineBrush}" 
+                                          FontWeight="Black" FontSize="9"/>
+                            </StackPanel>
+
+                            <StackPanel Grid.Column="6" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                                <StackPanel.Style>
+                                    <Style TargetType="StackPanel">
+                                        <Setter Property="Opacity" Value="0"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsMouseOver, ElementName=RowGrid3}" Value="True">
+                                                <Setter Property="Opacity" Value="1"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </StackPanel.Style>
+                                <Button Style="{StaticResource IconButton}" Margin="0,0,6,0" ToolTip="Restore">
+                                    <Viewbox Width="14" Height="14">
+                                        <Path Data="M13,3A9,9 0 0,0 4,12H1L4.89,15.89L4.96,16.03L9,12H6A7,7 0 0,1 13,5A7,7 0 0,1 20,12A7,7 0 0,1 13,19C11.07,19 9.32,18.21 8.06,16.94L6.64,18.36C8.27,20 10.5,21 13,21A9,9 0 0,0 22,12A9,9 0 0,0 13,3Z" 
+                                              Fill="{StaticResource SecondaryBrush}"/>
+                                    </Viewbox>
+                                </Button>
+                                <Button Style="{StaticResource IconButton}" Margin="0,0,6,0" ToolTip="Scan Again">
+                                    <Viewbox Width="14" Height="14">
+                                        <Path Data="M17.65,6.35C16.2,4.9 14.21,4 12,4A8,8 0 0,0 4,12A8,8 0 0,0 12,20C15.73,20 18.84,17.45 19.73,14H17.65C16.83,16.33 14.61,18 12,18A6,6 0 0,1 6,12A6,6 0 0,1 12,6C13.66,6 15.14,6.69 16.22,7.78L13,11H20V4L17.65,6.35Z" 
+                                              Fill="{StaticResource PrimaryBrush}"/>
+                                    </Viewbox>
+                                </Button>
+                                <Button Style="{StaticResource IconButton}" ToolTip="Delete Permanently">
+                                    <Viewbox Width="14" Height="14">
+                                        <Path Data="M19,4H15.5L14.5,3H9.5L8.5,4H5V6H19M6,19A2,2 0 0,0 8,21H16A2,2 0 0,0 18,19V7H6V19Z" 
+                                              Fill="{StaticResource ErrorBrush}"/>
+                                    </Viewbox>
+                                </Button>
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+
+                    <!-- Pagination / Footer -->
+                    <Border BorderBrush="{StaticResource OutlineVariantBrush}" BorderThickness="0,1,0,0" Padding="24,12" Background="{StaticResource SurfaceContainerLowBrush}">
+                        <Grid>
+                            <TextBlock Text="Showing 3 of 12 quarantined items" FontSize="10" FontWeight="Bold" Foreground="{StaticResource OnSurfaceVariantBrush}" VerticalAlignment="Center"/>
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                                <Button Content="PREVIOUS" Style="{StaticResource NativeButton}" 
+                                       FontSize="10" FontWeight="Bold" Padding="12,6" Margin="0,0,16,0" IsEnabled="False" Opacity="0.5"/>
+                                <Button Content="NEXT" Style="{StaticResource NativeButton}" 
+                                       FontSize="10" FontWeight="Bold" Padding="12,6"/>
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+                </StackPanel>
+            </Border>
+
+            <!-- Threat Intelligence Timeline (High-end Editorial UI) -->
+            <Grid Margin="0,32,0,0">
+                <Border Background="{StaticResource SurfaceContainerLowBrush}" CornerRadius="12" Padding="32">
+                    <StackPanel>
+                        <TextBlock Text="CONTAINMENT INTELLIGENCE TIMELINE" FontSize="18" FontWeight="Black" Foreground="{StaticResource OnSurfaceBrush}" Margin="0,0,0,32"/>
+                        
+                        <Grid>
+                            <!-- Vertical Line -->
+                            <Rectangle Fill="{StaticResource OutlineVariantBrush}" Width="2" HorizontalAlignment="Left" Margin="11,8,0,8" Opacity="0.3"/>
+                            
+                            <StackPanel>
+                                <!-- Event 1: Detected -->
+                                <Grid Margin="0,0,0,32">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="24"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    
+                                    <Border Width="24" Height="24" Background="{StaticResource BackgroundBrush}" BorderBrush="{StaticResource SecondaryBrush}" BorderThickness="2" CornerRadius="12" VerticalAlignment="Top">
+                                        <Ellipse Width="8" Height="8" Fill="{StaticResource SecondaryBrush}">
+                                            <Ellipse.Style>
+                                                <Style TargetType="Ellipse">
+                                                    <Style.Triggers>
+                                                        <EventTrigger RoutedEvent="Loaded">
+                                                            <BeginStoryboard>
+                                                                <Storyboard RepeatBehavior="Forever">
+                                                                    <DoubleAnimation Storyboard.TargetProperty="Opacity" From="1" To="0.3" Duration="0:0:1" AutoReverse="True"/>
+                                                                </Storyboard>
+                                                            </BeginStoryboard>
+                                                        </EventTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Ellipse.Style>
+                                        </Ellipse>
+                                    </Border>
+                                    
+                                    <StackPanel Grid.Column="1" Margin="16,0,0,0">
+                                        <StackPanel Orientation="Horizontal">
+                                            <TextBlock Text="14:22:01 — DETECTED" FontSize="10" FontWeight="Black" Foreground="{StaticResource SecondaryBrush}" VerticalAlignment="Center" Width="180"/>
+                                            <Border Background="{StaticResource SurfaceContainerBrush}" Padding="16" CornerRadius="8" BorderBrush="{StaticResource SecondaryBrush}" BorderThickness="4,0,0,0" HorizontalAlignment="Stretch">
+                                                <StackPanel>
+                                                    <TextBlock Text="Auto-Containment Triggered" FontSize="14" FontWeight="Bold" Foreground="{StaticResource OnSurfaceBrush}"/>
+                                                    <TextBlock Text="System process 'invoice_alpha_882.exe' attempted unauthorized encryption on VSS writers. Quarantined immediately." 
+                                                              FontSize="12" Foreground="{StaticResource OnSurfaceVariantBrush}" Margin="0,4,0,0" TextWrapping="Wrap" Opacity="0.7"/>
+                                                </StackPanel>
+                                            </Border>
+                                        </StackPanel>
+                                    </StackPanel>
+                                </Grid>
+
+                                <!-- Event 2: Analyzed -->
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="24"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    
+                                    <Border Width="24" Height="24" Background="{StaticResource BackgroundBrush}" BorderBrush="{StaticResource PrimaryBrush}" BorderThickness="2" CornerRadius="12" VerticalAlignment="Top">
+                                        <Ellipse Width="8" Height="8" Fill="{StaticResource PrimaryBrush}"/>
+                                    </Border>
+                                    
+                                    <StackPanel Grid.Column="1" Margin="16,0,0,0">
+                                        <StackPanel Orientation="Horizontal">
+                                            <TextBlock Text="14:22:05 — ANALYZED" FontSize="10" FontWeight="Black" Foreground="{StaticResource PrimaryBrush}" VerticalAlignment="Center" Width="180"/>
+                                            <Border Background="{StaticResource SurfaceContainerBrush}" Padding="16" CornerRadius="8" BorderBrush="{StaticResource PrimaryBrush}" BorderThickness="4,0,0,0" HorizontalAlignment="Stretch">
+                                                <StackPanel>
+                                                    <TextBlock Text="Heuristic Signature Match" FontSize="14" FontWeight="Bold" Foreground="{StaticResource OnSurfaceBrush}"/>
+                                                    <TextBlock Text="Pattern match 99.4% for Ransomware.Locky variant. Metadata uploaded to global node for verification." 
+                                                              FontSize="12" Foreground="{StaticResource OnSurfaceVariantBrush}" Margin="0,4,0,0" TextWrapping="Wrap" Opacity="0.7"/>
+                                                </StackPanel>
+                                            </Border>
+                                        </StackPanel>
+                                    </StackPanel>
+                                </Grid>
+                            </StackPanel>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+            </Grid>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>
