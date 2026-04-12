@@ -1,0 +1,2 @@
+# RansomGuard
+Detects Ransomware 
