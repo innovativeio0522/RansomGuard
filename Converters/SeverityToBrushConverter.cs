@@ -3,7 +3,7 @@ using System.Globalization;
 using System.Windows;
 using System.Windows.Data;
 using System.Windows.Media;
-using RansomGuard.Models;
+using RansomGuard.Core.Models;
 
 namespace RansomGuard.Converters
 {

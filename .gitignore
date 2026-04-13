@@ -162,3 +162,8 @@ TestResults/
 *.rej
 *.swp
 *#
+
+# ─── Scratch / Temporary Scripts ─────────────────────────────────────────────
+scratch_app/
+scratch_test.cs
+scratch_test.exe

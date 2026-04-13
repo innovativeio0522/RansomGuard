@@ -10,6 +10,7 @@
     <AssemblyName>RansomGuard</AssemblyName>
     <RootNamespace>RansomGuard</RootNamespace>
     <ApplicationManifest>app.manifest</ApplicationManifest>
+    <DefaultItemExcludes>$(DefaultItemExcludes);RansomGuard.Core\**;RansomGuard.Service\**</DefaultItemExcludes>
   </PropertyGroup>
 
   <ItemGroup>
@@ -18,11 +19,17 @@
     <PackageReference Include="Microsoft.Data.Sqlite" Version="8.0.0" />
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.2.2" />
     <PackageReference Include="BouncyCastle.Cryptography" Version="2.6.2" />
+    <PackageReference Include="System.Diagnostics.PerformanceCounter" Version="8.0.0" />
+    <PackageReference Include="System.ServiceProcess.ServiceController" Version="10.0.5" />
   </ItemGroup>
 
   <ItemGroup>
     <!-- Assets -->
     <Resource Include="Assets\**\*" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="RansomGuard.Core\RansomGuard.Core.csproj" />
   </ItemGroup>
 
 </Project>

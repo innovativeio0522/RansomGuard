@@ -16,8 +16,10 @@
             </ResourceDictionary.MergedDictionaries>
             
             <converters:BooleanToBrushConverter x:Key="BooleanToBrushConverter"/>
+            <converters:BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
             <converters:TypeToBooleanConverter x:Key="TypeToBooleanConverter"/>
             <converters:SeverityToBrushConverter x:Key="SeverityToBrushConverter"/>
+            <converters:BooleanToStatusConverter x:Key="BooleanToStatusConverter"/>
         </ResourceDictionary>
     </Application.Resources>
 </Application>

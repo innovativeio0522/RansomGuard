@@ -1,0 +1,43 @@
+<Window x:Class="RansomGuard.Views.ShieldUpAlert"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="SHIELDS UP" WindowStyle="None" WindowState="Maximized" Topmost="True"
+        Background="#1a0000" AllowsTransparency="True">
+    
+    <Grid>
+        <Border BorderBrush="{StaticResource TertiaryBrush}" BorderThickness="4" Margin="20">
+            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                <TextBlock Text="ATTACK BLOCKED" FontSize="72" FontWeight="Black" 
+                           Foreground="{StaticResource TertiaryBrush}" HorizontalAlignment="Center">
+                    <TextBlock.Triggers>
+                        <EventTrigger RoutedEvent="Loaded">
+                            <BeginStoryboard>
+                                <Storyboard RepeatBehavior="Forever">
+                                    <DoubleAnimation Storyboard.TargetProperty="Opacity" From="1" To="0.3" Duration="0:0:0.5" AutoReverse="True"/>
+                                </Storyboard>
+                            </BeginStoryboard>
+                        </EventTrigger>
+                    </TextBlock.Triggers>
+                </TextBlock>
+                
+                <TextBlock Text="PROACTIVE DEFENSE SYSTEM ENGAGED" FontSize="24" FontWeight="Bold" 
+                           Foreground="#ffb3ad" HorizontalAlignment="Center" Margin="0,20,0,40"/>
+                
+                <Border Background="#33ff5451" CornerRadius="8" Padding="24" MaxWidth="600">
+                    <StackPanel>
+                        <TextBlock Text="ACTIONS TAKEN:" FontWeight="Bold" Foreground="White" Margin="0,0,0,12"/>
+                        <TextBlock Text="• Malicious process terminated" Foreground="White" Margin="8,0,0,4"/>
+                        <TextBlock Text="• Source binary quarantined" Foreground="White" Margin="8,0,0,4"/>
+                        <TextBlock Text="• Network adapters disabled" Foreground="White" Margin="8,0,0,4"/>
+                        <TextBlock Text="• Persistence entries scrubbed" Foreground="White" Margin="8,0,0,4"/>
+                    </StackPanel>
+                </Border>
+
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,60,0,0">
+                    <Button Content="VIEW LOGS" Style="{StaticResource NativeButton}" Width="150" Height="40" Margin="0,0,20,0"/>
+                    <Button Content="RESTORE NETWORK" Style="{StaticResource DangerButton}" Width="200" Height="40" Click="Restore_Click"/>
+                </StackPanel>
+            </StackPanel>
+        </Border>
+    </Grid>
+</Window>

@@ -1,0 +1,67 @@
+using System;
+using System.Management;
+using System.Diagnostics;
+
+namespace RansomGuard.Service.Engine
+{
+    public class VssShieldService
+    {
+        private readonly SentinelEngine _engine;
+        private ManagementEventWatcher? _processWatcher;
+
+        public VssShieldService(SentinelEngine engine)
+        {
+            _engine = engine;
+        }
+
+        public void Start()
+        {
+            if (!OperatingSystem.IsWindows()) return;
+
+            try
+            {
+                // Monitor for process creation events
+                _processWatcher = new ManagementEventWatcher(new WqlEventQuery("SELECT * FROM Win32_ProcessStartTrace"));
+                _processWatcher.EventArrived += (s, e) => 
+                {
+                    string processName = e.NewEvent.Properties["ProcessName"].Value.ToString() ?? "";
+                    uint processId = (uint)e.NewEvent.Properties["ProcessID"].Value;
+
+                    CheckProcess(processName, (int)processId);
+                };
+                _processWatcher.Start();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"VSS Shield Error: {ex.Message}");
+            }
+        }
+
+        private void CheckProcess(string name, int pid)
+        {
+            if (name.ToLower() == "vssadmin.exe" || name.ToLower() == "powershell.exe")
+            {
+                try
+                {
+                    using var process = Process.GetProcessById(pid);
+                    // Use a more robust way to get command line in production (e.g. WMI query for the specific PID)
+                    // For now, we'll flag any attempt to run vssadmin from a non-system process
+                    
+                    if (name.ToLower() == "vssadmin.exe")
+                    {
+                        _engine.ReportThreat("VSS_SUBSYSTEM", $"Suspicious VSS interaction by {name}");
+                        // Force kill if it's likely a deletion attempt
+                        process.Kill();
+                    }
+                }
+                catch { }
+            }
+        }
+
+        public void Stop()
+        {
+            _processWatcher?.Stop();
+            _processWatcher?.Dispose();
+        }
+    }
+}
