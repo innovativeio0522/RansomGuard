@@ -3,13 +3,12 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using Microsoft.Win32;
+using RansomGuard.Core.Helpers;
 
 namespace RansomGuard.Service.Engine
 {
     public class ActiveResponseService
     {
-        private const string QuarantinePath = @"C:\RansomGuard\Quarantine";
-
         public void KillProcess(int pid)
         {
             try
@@ -36,13 +35,11 @@ namespace RansomGuard.Service.Engine
         {
             try
             {
-                if (!Directory.Exists(QuarantinePath))
-                {
-                    Directory.CreateDirectory(QuarantinePath);
-                }
+                string quarantinePath = PathConfiguration.QuarantinePath;
+                Directory.CreateDirectory(quarantinePath);
 
                 string fileName = Path.GetFileName(filePath);
-                string destPath = Path.Combine(QuarantinePath, fileName + ".quarantine");
+                string destPath = Path.Combine(quarantinePath, fileName + ".quarantine");
 
                 File.Move(filePath, destPath, true);
                 Console.WriteLine($"Quarantined file to: {destPath}");

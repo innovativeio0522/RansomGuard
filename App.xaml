@@ -20,6 +20,7 @@
             <converters:TypeToBooleanConverter x:Key="TypeToBooleanConverter"/>
             <converters:SeverityToBrushConverter x:Key="SeverityToBrushConverter"/>
             <converters:BooleanToStatusConverter x:Key="BooleanToStatusConverter"/>
+            <converters:StatusToBrushConverter x:Key="StatusToBrushConverter"/>
         </ResourceDictionary>
     </Application.Resources>
 </Application>

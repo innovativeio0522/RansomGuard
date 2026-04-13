@@ -51,21 +51,62 @@ public class Worker : BackgroundService
     {
         _logger.LogInformation("RansomGuard Sentinel Service starting...");
 
-        _honeyPot.Start();
-        _vssShield.Start();
-        _pipeServer.Start();
-
-        _engine.IsHoneyPotActive = true;
-        _engine.IsVssShieldActive = true;
-
-        _logger.LogInformation("All proactive shields engaged.");
-
-        while (!stoppingToken.IsCancellationRequested)
+        try
         {
-            await Task.Delay(1000, stoppingToken);
-        }
+            _honeyPot.Start();
+            _vssShield.Start();
+            _pipeServer.Start();
 
-        _vssShield.Stop();
-        _pipeServer.Stop();
+            _engine.IsHoneyPotActive = true;
+            _engine.IsVssShieldActive = true;
+
+            _logger.LogInformation("All proactive shields engaged.");
+
+            while (!stoppingToken.IsCancellationRequested)
+            {
+                await Task.Delay(1000, stoppingToken);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // Expected when service is stopping
+            _logger.LogInformation("Service stop requested.");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Unexpected error in service execution.");
+        }
+        finally
+        {
+            _logger.LogInformation("RansomGuard Sentinel Service stopping...");
+            
+            // Stop all services
+            try
+            {
+                _vssShield.Stop();
+                _pipeServer.Stop();
+                _honeyPot.Stop();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error stopping services.");
+            }
+
+            // Dispose all resources
+            try
+            {
+                (_engine as IDisposable)?.Dispose();
+                (_honeyPot as IDisposable)?.Dispose();
+                (_vssShield as IDisposable)?.Dispose();
+                (_activeResponse as IDisposable)?.Dispose();
+                // Note: _pipeServer doesn't implement IDisposable currently
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error disposing resources.");
+            }
+
+            _logger.LogInformation("RansomGuard Sentinel Service stopped.");
+        }
     }
 }

@@ -7,11 +7,16 @@ using System.Timers;
 using RansomGuard.Core.Models;
 using RansomGuard.Core.Interfaces;
 using RansomGuard.Core.Services;
+using RansomGuard.Core.Helpers;
 
 namespace RansomGuard.Service.Engine
 {
-    public class SentinelEngine : ISystemMonitorService
+    public class SentinelEngine : ISystemMonitorService, IDisposable
     {
+        private const int ChangeThreshold = 15;
+        private const int WindowSeconds = 5;
+        private const int MaxActivityHistory = 100;
+        
         public bool IsConnected => true;
         public event Action<bool>? ConnectionStatusChanged = delegate { };
         public event Action<FileActivity>? FileActivityDetected;
@@ -22,8 +27,9 @@ namespace RansomGuard.Service.Engine
         private readonly List<Threat> _threatHistory = new();
         private readonly object _historyLock = new object();
         private readonly Queue<DateTime> _recentChanges = new();
-        private const int ChangeThreshold = 15; 
-        private const int WindowSeconds = 5;
+        private readonly object _recentChangesLock = new object();
+        private readonly object _threatDedupLock = new object();
+        private readonly HashSet<string> _reportedThreats = new();
 
         public bool IsHoneyPotActive { get; set; }
         public bool IsVssShieldActive { get; set; }
@@ -35,6 +41,7 @@ namespace RansomGuard.Service.Engine
 
         private double _currentCpuUsage = 0;
         private long _currentMemoryUsage = 0;
+        private bool _disposed;
 
         public SentinelEngine()
         {
@@ -130,7 +137,7 @@ namespace RansomGuard.Service.Engine
             lock (_historyLock)
             {
                 _activityHistory.Insert(0, activity);
-                if (_activityHistory.Count > 100) _activityHistory.RemoveAt(100);
+                if (_activityHistory.Count > MaxActivityHistory) _activityHistory.RemoveAt(MaxActivityHistory);
             }
 
             FileActivityDetected?.Invoke(activity);
@@ -147,7 +154,7 @@ namespace RansomGuard.Service.Engine
         private void CheckMassChangeVelocity()
         {
             var now = DateTime.Now;
-            lock (_recentChanges)
+            lock (_recentChangesLock)
             {
                 _recentChanges.Enqueue(now);
                 while (_recentChanges.Count > 0 && (now - _recentChanges.Peek()).TotalSeconds > WindowSeconds)
@@ -165,6 +172,22 @@ namespace RansomGuard.Service.Engine
 
         public void ReportThreat(string path, string threatName, ThreatSeverity severity = ThreatSeverity.Medium)
         {
+            // Create unique key for deduplication
+            string threatKey = $"{path}|{threatName}";
+            
+            // Atomic duplicate check and insert
+            bool shouldReport = false;
+            lock (_threatDedupLock)
+            {
+                if (!_reportedThreats.Contains(threatKey))
+                {
+                    _reportedThreats.Add(threatKey);
+                    shouldReport = true;
+                }
+            }
+            
+            if (!shouldReport) return;
+
             var threat = new Threat
             {
                 Name = threatName,
@@ -176,12 +199,9 @@ namespace RansomGuard.Service.Engine
 
             lock (_historyLock)
             {
-                if (!_threatHistory.Any(t => t.Path == path && t.Name == threatName))
-                {
-                    _threatHistory.Insert(0, threat);
-                }
-                else return; 
+                _threatHistory.Insert(0, threat);
             }
+            
             ThreatDetected?.Invoke(threat);
         }
 
@@ -267,19 +287,36 @@ namespace RansomGuard.Service.Engine
 
         public IEnumerable<string> GetQuarantinedFiles()
         {
-            const string quarantinePath = @"C:\RansomGuard\Quarantine";
+            string quarantinePath = PathConfiguration.QuarantinePath;
             if (!Directory.Exists(quarantinePath)) return Enumerable.Empty<string>();
-            return Directory.EnumerateFiles(quarantinePath, "*.quarantine");
+            
+            try
+            {
+                return Directory.EnumerateFiles(quarantinePath, "*.quarantine");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"GetQuarantinedFiles error: {ex.Message}");
+                return Enumerable.Empty<string>();
+            }
         }
 
         public double GetQuarantineStorageUsage()
         {
-            const string quarantinePath = @"C:\RansomGuard\Quarantine";
+            string quarantinePath = PathConfiguration.QuarantinePath;
             if (!Directory.Exists(quarantinePath)) return 0;
             
-            var files = new DirectoryInfo(quarantinePath).GetFiles("*.quarantine");
-            long totalBytes = files.Sum(f => f.Length);
-            return totalBytes / (1024.0 * 1024.0); // Return in MB
+            try
+            {
+                var files = new DirectoryInfo(quarantinePath).GetFiles("*.quarantine");
+                long totalBytes = files.Sum(f => f.Length);
+                return totalBytes / (1024.0 * 1024.0); // Return in MB
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"GetQuarantineStorageUsage error: {ex.Message}");
+                return 0;
+            }
         }
 
         public async Task KillProcess(int pid)
@@ -290,8 +327,59 @@ namespace RansomGuard.Service.Engine
                     var p = Process.GetProcessById(pid);
                     p.Kill(true);
                 }
-                catch { }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"KillProcess error: {ex.Message}");
+                }
             });
+        }
+
+        public async Task QuarantineFile(string filePath)
+        {
+            await Task.Run(() =>
+            {
+                try
+                {
+                    if (!File.Exists(filePath)) return;
+                    
+                    string quarantineDir = PathConfiguration.QuarantinePath;
+                    Directory.CreateDirectory(quarantineDir);
+                    
+                    var dest = Path.Combine(quarantineDir, Path.GetFileName(filePath) + ".quarantine");
+                    File.Move(filePath, dest, overwrite: true);
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"QuarantineFile error: {ex.Message}");
+                }
+            });
+        }
+
+        public void Dispose()
+        {
+            if (_disposed) return;
+            _disposed = true;
+
+            // Stop and dispose telemetry timer
+            if (_telemetryTimer != null)
+            {
+                _telemetryTimer.Stop();
+                _telemetryTimer.Dispose();
+            }
+
+            // Dispose performance counter
+            _cpuCounter?.Dispose();
+
+            // Dispose all file system watchers
+            lock (_watchers)
+            {
+                foreach (var watcher in _watchers)
+                {
+                    watcher.EnableRaisingEvents = false;
+                    watcher.Dispose();
+                }
+                _watchers.Clear();
+            }
         }
     }
 }

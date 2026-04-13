@@ -13,19 +13,24 @@ namespace RansomGuard.Converters
         {
             if (value is ThreatSeverity severity)
             {
-                switch (severity)
+                string key = severity switch
                 {
-                    case ThreatSeverity.Low:
-                        return Application.Current.Resources["PrimaryBrush"];
-                    case ThreatSeverity.Medium:
-                        return Application.Current.Resources["SecondaryBrush"];
-                    case ThreatSeverity.High:
-                        return Application.Current.Resources["TertiaryBrush"];
-                    case ThreatSeverity.Critical:
-                        return Application.Current.Resources["ErrorBrush"];
+                    ThreatSeverity.Low => "PrimaryBrush",
+                    ThreatSeverity.Medium => "SecondaryBrush",
+                    ThreatSeverity.High => "TertiaryBrush",
+                    ThreatSeverity.Critical => "ErrorBrush",
+                    _ => "OnSurfaceVariantBrush"
+                };
+
+                // Safe resource access with null guard
+                if (Application.Current?.Resources.Contains(key) == true)
+                {
+                    return Application.Current.Resources[key];
                 }
             }
-            return Brushes.Transparent;
+            
+            // Fallback to neutral brush
+            return Application.Current?.TryFindResource("OnSurfaceVariantBrush") ?? Brushes.Gray;
         }
 
         public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)

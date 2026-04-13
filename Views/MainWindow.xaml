@@ -4,14 +4,14 @@
         xmlns:views="clr-namespace:RansomGuard.Views"
         xmlns:vm="clr-namespace:RansomGuard.ViewModels"
         Title="RansomGuard - DETECT. PROTECT. RECOVER." 
-        Height="900" Width="1440"
+        Height="768" Width="1280"
         x:Name="RootWindow"
         WindowStartupLocation="CenterScreen"
         Background="{StaticResource BackgroundBrush}"
         FontFamily="Segoe UI"
         TextOptions.TextFormattingMode="Display"
         TextOptions.TextRenderingMode="ClearType"
-        MinWidth="1280" MinHeight="800"
+        MinWidth="1024" MinHeight="700"
         WindowStyle="None"
         Icon="/Assets/Icons/RansomGuard.png">
 
