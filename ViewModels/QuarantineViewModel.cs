@@ -1,5 +1,6 @@
 using CommunityToolkit.Mvvm.ComponentModel;
-using RansomGuard.Models;
+using RansomGuard.Core.Models;
+using RansomGuard.Core.Interfaces;
 using RansomGuard.Services;
 using System.Collections.ObjectModel;
 using System.Linq;
@@ -18,20 +19,23 @@ namespace RansomGuard.ViewModels
         [ObservableProperty]
         private double _storageUsedMb = 256.45;
 
-        public QuarantineViewModel()
+        public QuarantineViewModel(ISystemMonitorService monitorService)
         {
-            _monitorService = new MockMonitorService();
+            _monitorService = monitorService;
             LoadData();
         }
 
         private void LoadData()
         {
+            var telemetry = _monitorService.GetTelemetry();
+            TotalItems = telemetry.QuarantinedFilesCount;
+            StorageUsedMb = telemetry.QuarantineStorageMb;
+
             var threats = _monitorService.GetRecentThreats().ToList();
             foreach (var threat in threats)
             {
                 QuarantinedItems.Add(threat);
             }
-            TotalItems = QuarantinedItems.Count;
         }
     }
 }

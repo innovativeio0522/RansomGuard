@@ -458,8 +458,43 @@
         <!-- MAIN CONTENT AREA (Placeholder for Views) -->
         <Border Grid.Row="2" Grid.Column="1" 
                 Background="{StaticResource BackgroundBrush}">
-            <!-- Content will be loaded here via navigation -->
-            <ContentControl Content="{Binding CurrentView}"/>
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+
+                <!-- SERVICE OFFLINE BANNER -->
+                <Border Grid.Row="0" Background="#33ff9800" BorderBrush="#66ff9800" BorderThickness="0,0,0,1" 
+                        Padding="16,8" Visibility="{Binding IsServiceConnected, Converter={StaticResource BooleanToVisibilityConverter}, ConverterParameter=Inverse}">
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                        <Ellipse Width="8" Height="8" Fill="#ff9800" Margin="0,0,12,0" VerticalAlignment="Center">
+                            <Ellipse.Style>
+                                <Style TargetType="Ellipse">
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsServiceConnected}" Value="False">
+                                            <DataTrigger.EnterActions>
+                                                <BeginStoryboard>
+                                                    <Storyboard RepeatBehavior="Forever">
+                                                        <DoubleAnimation Storyboard.TargetProperty="Opacity" From="1" To="0.3" Duration="0:0:0.8" AutoReverse="True"/>
+                                                    </Storyboard>
+                                                </BeginStoryboard>
+                                            </DataTrigger.EnterActions>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Ellipse.Style>
+                        </Ellipse>
+                        <TextBlock Text="SENTINEL SERVICE OFFLINE - PROTECTION DEGRADED" Foreground="#ff9800" 
+                                   FontWeight="Black" FontSize="11" VerticalAlignment="Center"/>
+                        <TextBlock Text="(RE-INSTALL OR START SERVICE IN SETTINGS)" Foreground="#ff9800" 
+                                   FontWeight="Bold" FontSize="9" VerticalAlignment="Center" Margin="12,0,0,0" Opacity="0.7"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- Content will be loaded here via navigation -->
+                <ContentControl Grid.Row="1" Content="{Binding CurrentView}"/>
+            </Grid>
         </Border>
 
         <!-- BOTTOM STATUS BAR -->
@@ -471,9 +506,9 @@
                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                     <TextBlock Text="System Protected" Foreground="#4edea3" Style="{StaticResource TextSmall}" FontWeight="Bold"/>
                     <TextBlock Text="|" Foreground="#c2c6d6" Style="{StaticResource TextSmall}" Margin="8,0" Opacity="0.4"/>
-                    <TextBlock Text="CPU: 12%" Style="{StaticResource TextSmall}"/>
+                    <TextBlock Text="{Binding CpuUsageText}" Style="{StaticResource TextSmall}"/>
                     <TextBlock Text="|" Foreground="#c2c6d6" Style="{StaticResource TextSmall}" Margin="8,0" Opacity="0.4"/>
-                    <TextBlock Text="MEM: 4.2GB" Style="{StaticResource TextSmall}"/>
+                    <TextBlock Text="{Binding MemoryUsageText}" Style="{StaticResource TextSmall}"/>
                     <TextBlock Text="|" Foreground="#c2c6d6" Style="{StaticResource TextSmall}" Margin="8,0" Opacity="0.4"/>
                     <TextBlock Text="Protection: ON" Foreground="#4edea3" Style="{StaticResource TextSmall}"/>
                 </StackPanel>

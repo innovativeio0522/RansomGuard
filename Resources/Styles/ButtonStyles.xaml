@@ -223,6 +223,21 @@
         </Setter>
     </Style>
     
+    <!-- Slider Repeat Button Style -->
+    <Style x:Key="SliderRepeatButtonStyle" TargetType="RepeatButton">
+        <Setter Property="OverridesDefaultStyle" Value="true"/>
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="Focusable" Value="false"/>
+        <Setter Property="IsTabStop" Value="false"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="RepeatButton">
+                    <Rectangle Fill="{TemplateBinding Background}" Height="{TemplateBinding Height}" Width="{TemplateBinding Width}"/>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
     <!-- Custom Slider Style -->
     <Style x:Key="CustomSliderStyle" TargetType="Slider">
         <Setter Property="Width" Value="Auto"/>
@@ -233,13 +248,16 @@
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="Slider">
-                    <Grid>
+                    <Grid VerticalAlignment="Center">
+                        <!-- Background Track -->
+                        <Border Height="4" Background="{StaticResource SurfaceVariantBrush}" CornerRadius="2" VerticalAlignment="Center" Margin="0,0,0,0"/>
+                        
                         <Track x:Name="PART_Track">
                             <Track.DecreaseRepeatButton>
-                                <RepeatButton Command="Slider.DecreaseLarge" Background="Transparent" BorderThickness="0"/>
+                                <RepeatButton Command="Slider.DecreaseLarge" Style="{StaticResource SliderRepeatButtonStyle}"/>
                             </Track.DecreaseRepeatButton>
                             <Track.IncreaseRepeatButton>
-                                <RepeatButton Command="Slider.IncreaseLarge" Background="Transparent" BorderThickness="0"/>
+                                <RepeatButton Command="Slider.IncreaseLarge" Style="{StaticResource SliderRepeatButtonStyle}"/>
                             </Track.IncreaseRepeatButton>
                             <Track.Thumb>
                                 <Thumb>
@@ -248,12 +266,12 @@
                                             <Ellipse Width="18" Height="18" 
                                                      Fill="{StaticResource PrimaryBrush}"
                                                      Stroke="{StaticResource PrimaryBrush}"
-                                                     StrokeThickness="2">
+                                                     StrokeThickness="0">
                                                 <Ellipse.Effect>
                                                     <DropShadowEffect Color="{StaticResource Primary}" 
-                                                                      BlurRadius="10" 
-                                                                      ShadowDepth="0" 
-                                                                      Opacity="0.3"/>
+                                                                       BlurRadius="10" 
+                                                                       ShadowDepth="0" 
+                                                                       Opacity="0.3"/>
                                                 </Ellipse.Effect>
                                             </Ellipse>
                                         </ControlTemplate>

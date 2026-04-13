@@ -1,4 +1,4 @@
-namespace RansomGuard.Models
+namespace RansomGuard.Core.Models
 {
     public class ProcessInfo
     {

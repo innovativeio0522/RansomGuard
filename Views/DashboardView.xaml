@@ -71,10 +71,10 @@
                               Fill="{StaticResource OnSurfaceBrush}" Opacity="0.05" Stretch="Uniform"
                               HorizontalAlignment="Right" VerticalAlignment="Top" Width="48" Margin="0,8,8,0"/>
                         <StackPanel Margin="24">
-                            <TextBlock Text="ACTIVE PROCESSES" Style="{StaticResource TextLabel}"/>
-                            <TextBlock Text="{Binding ActiveProcessesCount}" FontSize="36" FontWeight="Black" 
+                            <TextBlock Text="SYSTEM CPU LOAD" Style="{StaticResource TextLabel}"/>
+                            <TextBlock Text="{Binding CpuUsagePercent, StringFormat='{}{0:F1}%'}" FontSize="36" FontWeight="Black" 
                                       Foreground="{StaticResource OnSurfaceBrush}" Margin="0,8,0,0"/>
-                            <ProgressBar Height="4" Value="15" Maximum="100" Margin="0,12,0,0"
+                            <ProgressBar Height="4" Value="{Binding CpuUsagePercent}" Maximum="100" Margin="0,12,0,0"
                                         Background="{StaticResource SurfaceContainerHighestBrush}"
                                         Foreground="{StaticResource SecondaryBrush}"
                                         BorderThickness="0"/>
@@ -91,20 +91,92 @@
                               HorizontalAlignment="Right" VerticalAlignment="Top" Width="48" Margin="0,8,8,0"/>
                         <StackPanel Margin="24">
                             <TextBlock Text="LAST SCAN" Style="{StaticResource TextLabel}"/>
-                            <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
-                                <TextBlock Text="12" FontSize="36" FontWeight="Black" 
-                                          Foreground="{StaticResource OnSurfaceBrush}"/>
-                                <TextBlock Text=" mins ago" FontSize="14" 
-                                          Foreground="{StaticResource OnSurfaceVariantBrush}" 
-                                          VerticalAlignment="Bottom" Margin="4,0,0,4"/>
+                            <StackPanel Orientation="Horizontal" Margin="0,8,0,0" Height="48">
+                                <TextBlock Text="{Binding LastScanText}" FontSize="24" FontWeight="Black" 
+                                          Foreground="{StaticResource OnSurfaceBrush}" VerticalAlignment="Center"/>
                             </StackPanel>
                             <Grid Margin="0,12,0,0">
-                                <TextBlock Text="OPTIMAL STATUS" Style="{StaticResource TextStatusSafe}" FontWeight="Bold"/>
-                                <Button Content="RESCAN" Style="{StaticResource PrimaryButton}" 
+                                <TextBlock Text="SYSTEM SECURED" Style="{StaticResource TextStatusSafe}" FontWeight="Bold" VerticalAlignment="Center"/>
+                                <Button Content="{Binding RescanButtonText}" Style="{StaticResource PrimaryButton}" 
+                                       Command="{Binding RescanCommand}"
                                        HorizontalAlignment="Right" Padding="12,6"/>
                             </Grid>
                         </StackPanel>
                     </Grid>
+                </Border>
+            </Grid>
+            
+            <!-- Active Defense Shields -->
+            <Grid Margin="0,0,0,24">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="24"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="24"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- Honey Pot Trap -->
+                <Border Grid.Column="0" Background="{StaticResource SurfaceContainerLowBrush}" CornerRadius="8" Padding="16">
+                    <StackPanel Orientation="Horizontal">
+                        <Ellipse Width="12" Height="12" Margin="0,0,12,0"
+                                 Fill="{Binding IsHoneyPotActive, Converter={StaticResource BooleanToBrushConverter}, ConverterParameter=SecondaryBrush}">
+                            <Ellipse.Effect>
+                                <DropShadowEffect BlurRadius="8" ShadowDepth="0" Color="#4edea3" Opacity="0.5"/>
+                            </Ellipse.Effect>
+                        </Ellipse>
+                        <StackPanel>
+                            <TextBlock Text="HONEY POT TRIPWIRE" Style="{StaticResource TextLabel}"/>
+                            <TextBlock Text="{Binding IsHoneyPotActive, Converter={StaticResource BooleanToStatusConverter}, ConverterParameter='ARMED;DISARMED'}" 
+                                      FontSize="14" FontWeight="Bold" Foreground="{Binding IsHoneyPotActive, Converter={StaticResource BooleanToBrushConverter}, ConverterParameter=SecondaryBrush}"/>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+
+                <!-- VSS Shield -->
+                <Border Grid.Column="2" Background="{StaticResource SurfaceContainerLowBrush}" CornerRadius="8" Padding="16">
+                    <StackPanel Orientation="Horizontal">
+                        <Ellipse Width="12" Height="12" Margin="0,0,12,0"
+                                 Fill="{Binding IsVssShieldActive, Converter={StaticResource BooleanToBrushConverter}, ConverterParameter=SecondaryBrush}">
+                            <Ellipse.Effect>
+                                <DropShadowEffect BlurRadius="8" ShadowDepth="0" Color="#4edea3" Opacity="0.5"/>
+                            </Ellipse.Effect>
+                        </Ellipse>
+                        <StackPanel>
+                            <TextBlock Text="VSS SHADOW PROTECTION" Style="{StaticResource TextLabel}"/>
+                            <TextBlock Text="{Binding IsVssShieldActive, Converter={StaticResource BooleanToStatusConverter}, ConverterParameter='LOCKED;UNPROTECTED'}" 
+                                      FontSize="14" FontWeight="Bold" Foreground="{Binding IsVssShieldActive, Converter={StaticResource BooleanToBrushConverter}, ConverterParameter=SecondaryBrush}"/>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+
+                <!-- Panic Mode -->
+                <Border Grid.Column="4" Background="{StaticResource SurfaceContainerLowBrush}" CornerRadius="8" Padding="16">
+                    <StackPanel Orientation="Horizontal">
+                        <Ellipse Width="12" Height="12" Margin="0,0,12,0"
+                                 Fill="{Binding IsPanicModeEngaged, Converter={StaticResource BooleanToBrushConverter}, ConverterParameter=TertiaryBrush}">
+                            <Ellipse.Style>
+                                <Style TargetType="Ellipse">
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsPanicModeEngaged}" Value="True">
+                                            <DataTrigger.EnterActions>
+                                                <BeginStoryboard>
+                                                    <Storyboard RepeatBehavior="Forever">
+                                                        <DoubleAnimation Storyboard.TargetProperty="Opacity" From="1" To="0.3" Duration="0:0:0.5" AutoReverse="True"/>
+                                                    </Storyboard>
+                                                </BeginStoryboard>
+                                            </DataTrigger.EnterActions>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Ellipse.Style>
+                        </Ellipse>
+                        <StackPanel>
+                            <TextBlock Text="EMERGENCY LOCKDOWN" Style="{StaticResource TextLabel}"/>
+                            <TextBlock Text="{Binding IsPanicModeEngaged, Converter={StaticResource BooleanToStatusConverter}, ConverterParameter='ENGAGED;STANDBY'}" 
+                                      FontSize="14" FontWeight="Bold" Foreground="{Binding IsPanicModeEngaged, Converter={StaticResource BooleanToBrushConverter}, ConverterParameter=TertiaryBrush}"/>
+                        </StackPanel>
+                    </StackPanel>
                 </Border>
             </Grid>
 
@@ -374,7 +446,7 @@
                                         <Viewbox Width="14" Height="14" Margin="0,0,8,0">
                                             <Path Data="M19 15v4H5v-4h14m1-2H4c-.55 0-1 .45-1 1v6c0 .55.45 1 1 1h16c.55 0 1-.45 1-1v-6c0-.55-.45-1-1-1zM7 18.5c-.82 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zM19 5v4H5V5h14m1-2H4c-.55 0-1 .45-1 1v6c0 .55.45 1 1 1h16c.55 0 1-.45 1-1V4c0-.55-.45-1-1-1zM7 8.5c-.82 0-1.5-.68-1.5-1.5S6.18 5.5 7 5.5s1.5.68 1.5 1.5S7.83 8.5 7 8.5z" Fill="{StaticResource SecondaryBrush}"/>
                                         </Viewbox>
-                                        <TextBlock Text="12 ENDPOINTS ACTIVE" FontSize="10" FontWeight="Bold" Foreground="{StaticResource OnSurfaceBrush}"/>
+                                        <TextBlock Text="{Binding ActiveEndpoints, StringFormat='{}{0} ENDPOINTS ACTIVE'}" FontSize="10" FontWeight="Bold" Foreground="{StaticResource OnSurfaceBrush}"/>
                                     </StackPanel>
                                 </Border>
                                 <Border Background="{StaticResource SurfaceContainerHighestBrush}" Padding="12,6" CornerRadius="4">
@@ -390,10 +462,10 @@
                         
                         <StackPanel Grid.Column="1" VerticalAlignment="Center">
                             <TextBlock Text="NETWORK LATENCY" Style="{StaticResource TextLabel}" HorizontalAlignment="Right"/>
-                            <TextBlock Text="0.04ms" FontSize="24" FontWeight="Bold" Foreground="{StaticResource SecondaryBrush}" HorizontalAlignment="Right" Margin="0,0,0,16"/>
+                            <TextBlock Text="{Binding NetworkLatency}" FontSize="24" FontWeight="Bold" Foreground="{StaticResource SecondaryBrush}" HorizontalAlignment="Right" Margin="0,0,0,16"/>
                             
                             <TextBlock Text="ENCRYPTION LEVEL" Style="{StaticResource TextLabel}" HorizontalAlignment="Right"/>
-                            <TextBlock Text="AES-512" FontSize="24" FontWeight="Bold" Foreground="{StaticResource OnSurfaceBrush}" HorizontalAlignment="Right"/>
+                            <TextBlock Text="{Binding EncryptionLevel}" FontSize="24" FontWeight="Bold" Foreground="{StaticResource OnSurfaceBrush}" HorizontalAlignment="Right"/>
                         </StackPanel>
                     </Grid>
                 </Grid>
