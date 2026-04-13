@@ -1,6 +1,9 @@
 using System;
+using System.Collections.Concurrent;
 using System.IO;
 using System.IO.Pipes;
+using System.Security.AccessControl;
+using System.Security.Principal;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
@@ -15,6 +18,9 @@ namespace RansomGuard.Service.Communication
         private const string PipeName = "RansomGuardPipe";
         private readonly ISystemMonitorService _monitorService;
         private CancellationTokenSource? _cts;
+
+        // Track all active connected client writers for live broadcasting
+        private readonly ConcurrentDictionary<Guid, StreamWriter> _clients = new();
 
         public NamedPipeServer(ISystemMonitorService monitorService)
         {
@@ -40,7 +46,10 @@ namespace RansomGuard.Service.Communication
                     var telemetry = _monitorService.GetTelemetry();
                     Broadcast(MessageType.TelemetryUpdate, telemetry);
                 }
-                catch { }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"TelemetryBroadcastLoop error: {ex.Message}");
+                }
                 await Task.Delay(2000, token);
             }
         }
@@ -48,24 +57,73 @@ namespace RansomGuard.Service.Communication
         public void Stop()
         {
             _cts?.Cancel();
+            
+            // Dispose all active client connections
+            foreach (var (id, writer) in _clients)
+            {
+                try
+                {
+                    writer.Dispose();
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Stop client disposal error: {ex.Message}");
+                }
+            }
+            _clients.Clear();
         }
 
         private async Task ListenLoop(CancellationToken token)
         {
             while (!token.IsCancellationRequested)
             {
+                NamedPipeServerStream? pipeServer = null;
                 try
                 {
-                    using var pipeServer = new NamedPipeServerStream(PipeName, PipeDirection.InOut, 1, PipeTransmissionMode.Byte, PipeOptions.Asynchronous);
-                    await pipeServer.WaitForConnectionAsync(token);
+                    // Allow any local user (including non-elevated) to connect to the service pipe
+                    var pipeSecurity = new PipeSecurity();
+                    pipeSecurity.AddAccessRule(new PipeAccessRule(
+                        new SecurityIdentifier(WellKnownSidType.AuthenticatedUserSid, null),
+                        PipeAccessRights.ReadWrite | PipeAccessRights.CreateNewInstance,
+                        AccessControlType.Allow));
+                    pipeSecurity.AddAccessRule(new PipeAccessRule(
+                        new SecurityIdentifier(WellKnownSidType.LocalSystemSid, null),
+                        PipeAccessRights.FullControl,
+                        AccessControlType.Allow));
 
-                    await HandleClient(pipeServer, token);
+                    pipeServer = NamedPipeServerStreamAcl.Create(
+                        PipeName, PipeDirection.InOut, 1,
+                        PipeTransmissionMode.Byte, PipeOptions.Asynchronous,
+                        0, 0, pipeSecurity);
+
+                    // Add timeout to prevent indefinite hanging
+                    using var timeoutCts = new CancellationTokenSource(TimeSpan.FromMinutes(5));
+                    using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(token, timeoutCts.Token);
+                    
+                    await pipeServer.WaitForConnectionAsync(linkedCts.Token);
+                    
+                    // Fire HandleClient on a separate task without awaiting, so ListenLoop immediately creates a new server instance
+                    var clientPipe = pipeServer;
+                    pipeServer = null; // Transfer ownership to HandleClient task
+                    _ = Task.Run(async () =>
+                    {
+                        try
+                        {
+                            await HandleClient(clientPipe, token);
+                        }
+                        finally
+                        {
+                            clientPipe.Dispose();
+                        }
+                    }, token);
                 }
                 catch (OperationCanceledException) { }
                 catch (Exception ex)
                 {
                     Console.WriteLine($"Pipe Server Error: {ex.Message}");
-                    await Task.Delay(1000, token);
+                    pipeServer?.Dispose();
+                    if (!token.IsCancellationRequested)
+                        await Task.Delay(1000, token);
                 }
             }
         }
@@ -75,32 +133,45 @@ namespace RansomGuard.Service.Communication
             using var reader = new StreamReader(pipe);
             using var writer = new StreamWriter(pipe) { AutoFlush = true };
 
-            // Send initial state
-            foreach (var activity in _monitorService.GetRecentFileActivities())
-                await SendMessage(writer, MessageType.FileActivity, activity);
+            var clientId = Guid.NewGuid();
+            _clients[clientId] = writer;
 
-            foreach (var threat in _monitorService.GetRecentThreats())
-                await SendMessage(writer, MessageType.ThreatDetected, threat);
-
-            // Command Listener Loop
-            while (pipe.IsConnected && !token.IsCancellationRequested)
+            try
             {
-                var line = await reader.ReadLineAsync();
-                if (line == null) break;
+                // Send initial state snapshot
+                foreach (var activity in _monitorService.GetRecentFileActivities())
+                    await SendMessage(writer, MessageType.FileActivity, activity);
 
-                try
+                foreach (var threat in _monitorService.GetRecentThreats())
+                    await SendMessage(writer, MessageType.ThreatDetected, threat);
+
+                // Send initial telemetry immediately on connect
+                await SendMessage(writer, MessageType.TelemetryUpdate, _monitorService.GetTelemetry());
+
+                // Command Listener Loop
+                while (pipe.IsConnected && !token.IsCancellationRequested)
                 {
-                    var packet = JsonSerializer.Deserialize<IpcPacket>(line);
-                    if (packet?.Type == MessageType.CommandRequest)
+                    var line = await reader.ReadLineAsync(token);
+                    if (line == null) break;
+
+                    try
                     {
-                        var request = JsonSerializer.Deserialize<CommandRequest>(packet.Payload);
-                        await HandleCommand(request, writer);
+                        var packet = JsonSerializer.Deserialize<IpcPacket>(line);
+                        if (packet?.Type == MessageType.CommandRequest)
+                        {
+                            var request = JsonSerializer.Deserialize<CommandRequest>(packet.Payload);
+                            await HandleCommand(request, writer);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"Failed to process command: {ex.Message}");
                     }
                 }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"Failed to process command: {ex.Message}");
-                }
+            }
+            finally
+            {
+                _clients.TryRemove(clientId, out _);
             }
         }
 
@@ -116,7 +187,14 @@ namespace RansomGuard.Service.Communication
                 case CommandType.KillProcess:
                     if (int.TryParse(request.Arguments, out int pid))
                     {
-                        try { System.Diagnostics.Process.GetProcessById(pid).Kill(); } catch { }
+                        try
+                        {
+                            System.Diagnostics.Process.GetProcessById(pid).Kill();
+                        }
+                        catch (Exception ex)
+                        {
+                            System.Diagnostics.Debug.WriteLine($"HandleCommand KillProcess error: {ex.Message}");
+                        }
                     }
                     break;
             }
@@ -124,8 +202,43 @@ namespace RansomGuard.Service.Communication
 
         private void Broadcast<T>(MessageType type, T data)
         {
-            // Simple broadcast for now (to the next connected client)
-            // In a better implementation, we'd manage a list of clients.
+            var packet = new IpcPacket
+            {
+                Type = type,
+                Payload = JsonSerializer.Serialize(data)
+            };
+            var json = JsonSerializer.Serialize(packet);
+
+            var disconnectedClients = new List<Guid>();
+            
+            foreach (var (id, writer) in _clients)
+            {
+                try
+                {
+                    writer.WriteLine(json);
+                }
+                catch
+                {
+                    // Client disconnected — mark for removal and disposal
+                    disconnectedClients.Add(id);
+                }
+            }
+            
+            // Remove and dispose disconnected clients
+            foreach (var id in disconnectedClients)
+            {
+                if (_clients.TryRemove(id, out var writer))
+                {
+                    try
+                    {
+                        writer.Dispose();
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"Broadcast client disposal error: {ex.Message}");
+                    }
+                }
+            }
         }
 
         private async Task SendMessage<T>(StreamWriter writer, MessageType type, T data)

@@ -39,7 +39,9 @@ namespace RansomGuard.Service.Engine
 
         private void CheckProcess(string name, int pid)
         {
-            if (name.ToLower() == "vssadmin.exe" || name.ToLower() == "powershell.exe")
+            // Use culture-invariant comparison for better performance and correctness
+            if (name.Equals("vssadmin.exe", StringComparison.OrdinalIgnoreCase) || 
+                name.Equals("powershell.exe", StringComparison.OrdinalIgnoreCase))
             {
                 try
                 {
@@ -47,14 +49,17 @@ namespace RansomGuard.Service.Engine
                     // Use a more robust way to get command line in production (e.g. WMI query for the specific PID)
                     // For now, we'll flag any attempt to run vssadmin from a non-system process
                     
-                    if (name.ToLower() == "vssadmin.exe")
+                    if (name.Equals("vssadmin.exe", StringComparison.OrdinalIgnoreCase))
                     {
                         _engine.ReportThreat("VSS_SUBSYSTEM", $"Suspicious VSS interaction by {name}");
                         // Force kill if it's likely a deletion attempt
                         process.Kill();
                     }
                 }
-                catch { }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"CheckProcess error: {ex.Message}");
+                }
             }
         }
 

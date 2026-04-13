@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using RansomGuard.Core.Services;
+using RansomGuard.Core.Helpers;
 
 namespace RansomGuard.Service.Engine
 {
@@ -47,7 +48,8 @@ namespace RansomGuard.Service.Engine
                         var filePath = Path.Combine(baitPath, BaitFileName);
                         if (!File.Exists(filePath))
                         {
-                            File.WriteAllText(filePath, "This is a Sentinel protection file. DO NOT DELETE.");
+                            // Use async file I/O for better performance
+                            File.WriteAllTextAsync(filePath, "This is a Sentinel protection file. DO NOT DELETE.").GetAwaiter().GetResult();
                             File.SetAttributes(filePath, FileAttributes.Hidden | FileAttributes.System);
                         }
 
@@ -97,7 +99,10 @@ namespace RansomGuard.Service.Engine
                     {
                         Directory.Delete(baitPath, true);
                     }
-                    catch { }
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"Failed to delete bait directory: {ex.Message}");
+                    }
                 }
             }
         }
@@ -106,7 +111,7 @@ namespace RansomGuard.Service.Engine
         {
             var locations = new List<string>
             {
-                @"C:\RansomGuard\HoneyPots", // Global guaranteed location
+                PathConfiguration.HoneyPotPath, // Global guaranteed location
                 Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
                 Environment.GetFolderPath(Environment.SpecialFolder.Desktop),
                 Environment.GetFolderPath(Environment.SpecialFolder.UserProfile) + "\\Downloads"

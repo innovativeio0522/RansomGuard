@@ -39,7 +39,7 @@
                 </Grid.ColumnDefinitions>
 
                 <!-- Active Threads -->
-                <Border Grid.Column="0" Background="{StaticResource SurfaceContainerLowBrush}" CornerRadius="12" Padding="24" Height="140">
+                <Border Grid.Column="0" Background="{StaticResource SurfaceContainerLowBrush}" CornerRadius="12" Padding="24" MinHeight="140">
                     <Grid>
                         <StackPanel>
                             <TextBlock Text="ACTIVE THREADS" FontSize="10" FontWeight="Bold" Foreground="{StaticResource OnSurfaceVariantBrush}"/>
@@ -55,7 +55,7 @@
                 </Border>
 
                 <!-- CPU Load -->
-                <Border Grid.Column="2" Background="{StaticResource SurfaceContainerLowBrush}" CornerRadius="12" Padding="24" Height="140">
+                <Border Grid.Column="2" Background="{StaticResource SurfaceContainerLowBrush}" CornerRadius="12" Padding="24" MinHeight="140">
                     <Grid>
                         <StackPanel>
                             <TextBlock Text="CPU LOAD" FontSize="10" FontWeight="Bold" Foreground="{StaticResource OnSurfaceVariantBrush}"/>
@@ -71,7 +71,7 @@
                 </Border>
 
                 <!-- Trusted Proc -->
-                <Border Grid.Column="4" Background="{StaticResource SurfaceContainerLowBrush}" CornerRadius="12" Padding="24" Height="140">
+                <Border Grid.Column="4" Background="{StaticResource SurfaceContainerLowBrush}" CornerRadius="12" Padding="24" MinHeight="140">
                     <Grid>
                         <StackPanel>
                             <TextBlock Text="TRUSTED PROC" FontSize="10" FontWeight="Bold" Foreground="{StaticResource OnSurfaceVariantBrush}"/>
@@ -86,7 +86,7 @@
                 </Border>
 
                 <!-- Suspicious -->
-                <Border Grid.Column="6" Background="{StaticResource SurfaceContainerLowBrush}" CornerRadius="12" Padding="24" Height="140"
+                <Border Grid.Column="6" Background="{StaticResource SurfaceContainerLowBrush}" CornerRadius="12" Padding="24" MinHeight="140"
                         BorderBrush="{StaticResource TertiaryBrush}" BorderThickness="4,0,0,0">
                     <Grid>
                         <StackPanel>

@@ -7,9 +7,12 @@ using System.Windows;
 
 namespace RansomGuard.ViewModels
 {
-    public partial class FileActivityViewModel : ViewModelBase
+    public partial class FileActivityViewModel : ViewModelBase, IDisposable
     {
+        private const int MaxRecentActivities = 150;
+        
         private readonly ISystemMonitorService _monitorService;
+        private bool _disposed;
 
         public ObservableCollection<FileActivity> RecentActivities { get; } = new();
 
@@ -36,11 +39,23 @@ namespace RansomGuard.ViewModels
                 RecentActivities.Insert(0, activity);
 
                 // Keep buffer manageable
-                if (RecentActivities.Count > 150)
+                if (RecentActivities.Count > MaxRecentActivities)
                 {
                     RecentActivities.RemoveAt(RecentActivities.Count - 1);
                 }
             });
+        }
+
+        public void Dispose()
+        {
+            if (_disposed) return;
+            _disposed = true;
+
+            // Unsubscribe from events
+            if (_monitorService != null)
+            {
+                _monitorService.FileActivityDetected -= OnFileActivityDetected;
+            }
         }
     }
 }

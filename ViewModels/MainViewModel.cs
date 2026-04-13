@@ -10,7 +10,7 @@ using RansomGuard.Core.Models;
 
 namespace RansomGuard.ViewModels
 {
-    public partial class MainViewModel : ViewModelBase
+    public partial class MainViewModel : ViewModelBase, IDisposable
     {
         [ObservableProperty]
         private ViewModelBase _currentView;
@@ -35,6 +35,7 @@ namespace RansomGuard.ViewModels
 
         private readonly ISystemMonitorService _monitorService;
         private readonly DispatcherTimer _statusBarTimer;
+        private bool _disposed;
 
         // View instances to preserve state
         private readonly DashboardViewModel _dashboardVM;
@@ -54,11 +55,12 @@ namespace RansomGuard.ViewModels
 
             // Initialize ViewModels
             _dashboardVM = new DashboardViewModel(_monitorService);
+            _dashboardVM.NavigationRequested = destination => Navigate(destination);
             _threatAlertsVM = new ThreatAlertsViewModel(_monitorService);
             _quarantineVM = new QuarantineViewModel(_monitorService);
             _processMonitorVM = new ProcessMonitorViewModel(_monitorService);
             _fileActivityVM = new FileActivityViewModel(_monitorService);
-            _reportsVM = new ReportsViewModel();
+            _reportsVM = new ReportsViewModel(_monitorService);
             _settingsVM = new SettingsViewModel();
 
             // Set default view
@@ -86,7 +88,10 @@ namespace RansomGuard.ViewModels
                 CpuUsageText = $"CPU: {cpu:F1}%";
                 MemoryUsageText = $"MEM: {memGb:F1}GB";
             }
-            catch { }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"UpdateStatusBarTelemetry error: {ex.Message}");
+            }
         }
 
         [RelayCommand]
@@ -137,6 +142,31 @@ namespace RansomGuard.ViewModels
                     SearchPlaceholder = "Search settings...";
                     break;
             }
+        }
+
+        public void Dispose()
+        {
+            if (_disposed) return;
+            _disposed = true;
+
+            // Stop and dispose timer
+            _statusBarTimer?.Stop();
+
+            // Unsubscribe from events
+            if (_monitorService != null)
+            {
+                _monitorService.ConnectionStatusChanged -= (status) => IsServiceConnected = status;
+            }
+
+            // Dispose child ViewModels
+            (_dashboardVM as IDisposable)?.Dispose();
+            (_threatAlertsVM as IDisposable)?.Dispose();
+            (_quarantineVM as IDisposable)?.Dispose();
+            (_processMonitorVM as IDisposable)?.Dispose();
+            (_fileActivityVM as IDisposable)?.Dispose();
+
+            // Dispose service if it implements IDisposable
+            (_monitorService as IDisposable)?.Dispose();
         }
     }
 }

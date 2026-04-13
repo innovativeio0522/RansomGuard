@@ -15,12 +15,21 @@ namespace RansomGuard.Converters
                 // If it's a string resource name passed as parameter
                 if (parameter is string brushName)
                 {
-                    return Application.Current.FindResource(brushName);
+                    try
+                    {
+                        return Application.Current.FindResource(brushName);
+                    }
+                    catch
+                    {
+                        // Fallback to neutral brush if resource not found
+                        return Application.Current.TryFindResource("OnSurfaceBrush") ?? Brushes.Gray;
+                    }
                 }
-                return Brushes.Red; // Default fallback
+                // Default fallback for true without parameter - use neutral brush
+                return Application.Current.TryFindResource("OnSurfaceBrush") ?? Brushes.Gray;
             }
             
-            return Application.Current.FindResource("OutlineVariantBrush");
+            return Application.Current.TryFindResource("OutlineVariantBrush") ?? Brushes.LightGray;
         }
 
         public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)

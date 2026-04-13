@@ -3,14 +3,17 @@ using CommunityToolkit.Mvvm.Input;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.ComponentModel;
+using System.Windows.Threading;
 using Microsoft.Win32;
 using RansomGuard.Services;
 using RansomGuard.Core.Services;
 
 namespace RansomGuard.ViewModels
 {
-    public partial class SettingsViewModel : ViewModelBase
+    public partial class SettingsViewModel : ViewModelBase, IDisposable
     {
+        private readonly DispatcherTimer _saveDebounceTimer;
+        private bool _disposed;
 
         [ObservableProperty]
         private ObservableCollection<string> _monitoredPaths;
@@ -36,13 +39,24 @@ namespace RansomGuard.ViewModels
 
         public SettingsViewModel()
         {
+            // Initialize debounce timer (500ms delay)
+            _saveDebounceTimer = new DispatcherTimer
+            {
+                Interval = TimeSpan.FromMilliseconds(500)
+            };
+            _saveDebounceTimer.Tick += (s, e) =>
+            {
+                _saveDebounceTimer.Stop();
+                SaveConfigImmediate();
+            };
+
             // Map config to properties
             MonitoredPaths = new ObservableCollection<string>(ConfigurationService.Instance.MonitoredPaths);
             SensitivityLevel = ConfigurationService.Instance.SensitivityLevel;
             IsRealTimeProtectionEnabled = ConfigurationService.Instance.RealTimeProtection;
             IsAutoQuarantineEnabled = ConfigurationService.Instance.AutoQuarantine;
 
-            // Handle collection changes
+            // Handle collection changes with debouncing
             _monitoredPaths.CollectionChanged += (s, e) => SaveConfig();
         }
 
@@ -65,6 +79,13 @@ namespace RansomGuard.ViewModels
         }
 
         private void SaveConfig()
+        {
+            // Debounce: reset timer on each change
+            _saveDebounceTimer.Stop();
+            _saveDebounceTimer.Start();
+        }
+
+        private void SaveConfigImmediate()
         {
             ConfigurationService.Instance.MonitoredPaths = MonitoredPaths.ToList();
             ConfigurationService.Instance.SensitivityLevel = SensitivityLevel;
@@ -115,6 +136,21 @@ namespace RansomGuard.ViewModels
             catch (System.Exception ex)
             {
                 System.Windows.MessageBox.Show($"Failed to install the background service: {ex.Message}", "Service Error", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Warning);
+            }
+        }
+
+        public void Dispose()
+        {
+            if (_disposed) return;
+            _disposed = true;
+
+            // Stop timer and save any pending changes immediately
+            if (_saveDebounceTimer != null)
+            {
+                _saveDebounceTimer.Stop();
+                
+                // Flush any pending save
+                SaveConfigImmediate();
             }
         }
     }
