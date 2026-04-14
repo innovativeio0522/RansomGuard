@@ -1,1 +1,12 @@
-{"MonitoredPaths":["D:\\Backup","D:\\CSGO Raw Videos"],"SensitivityLevel":4,"RealTimeProtection":false,"AutoQuarantine":false,"LastScanTime":"2026-04-13T16:42:06.7701344+05:30"}
+{
+  "MonitoredPaths": [
+    "D:\\Backup",
+    "D:\\CSGO Raw Videos"
+  ],
+  "SensitivityLevel": 4,
+  "RealTimeProtection": false,
+  "AutoQuarantine": false,
+  "LastScanTime": "2026-04-14T13:08:40.2669856+05:30",
+  "TotalScansCount": 33,
+  "WhitelistedProcessNames": []
+}

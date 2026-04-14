@@ -1,6 +1,7 @@
 using System;
 using System.Management;
 using System.Diagnostics;
+using RansomGuard.Core.Models;
 
 namespace RansomGuard.Service.Engine
 {
@@ -51,7 +52,7 @@ namespace RansomGuard.Service.Engine
                     
                     if (name.Equals("vssadmin.exe", StringComparison.OrdinalIgnoreCase))
                     {
-                        _engine.ReportThreat("VSS_SUBSYSTEM", $"Suspicious VSS interaction by {name}");
+                        _engine.ReportThreat("VSS_SUBSYSTEM", $"Suspicious VSS interaction by {name}", "A process attempted to interact with the Volume Shadow Copy service in a way that often precedes ransomware encryption.", ThreatSeverity.High);
                         // Force kill if it's likely a deletion attempt
                         process.Kill();
                     }

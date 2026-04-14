@@ -32,11 +32,7 @@ namespace RansomGuard.ViewModels
             if (lastScan != DateTime.MinValue)
             {
                 LastScanDate = lastScan.ToString("MMM dd, yyyy HH:mm");
-                
-                // Estimate total scans based on how long ago first scan was
-                // Assume average of 1 scan per day
-                var daysSinceFirstScan = (DateTime.Now - lastScan).TotalDays;
-                TotalScans = Math.Max(1, (int)daysSinceFirstScan);
+                TotalScans = ConfigurationService.Instance.TotalScansCount;
             }
             else
             {

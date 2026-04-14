@@ -25,12 +25,25 @@ namespace RansomGuard.Converters
                 // Safe resource access with null guard
                 if (Application.Current?.Resources.Contains(key) == true)
                 {
-                    return Application.Current.Resources[key];
+                    var resource = Application.Current.Resources[key];
+                    
+                    if (parameter != null && parameter.ToString() == "ColorOnly" && resource is SolidColorBrush scb)
+                    {
+                        return scb.Color;
+                    }
+                    
+                    return resource;
                 }
             }
             
-            // Fallback to neutral brush
-            return Application.Current?.TryFindResource("OnSurfaceVariantBrush") ?? Brushes.Gray;
+            // Fallback
+            var fallback = Application.Current?.TryFindResource("OnSurfaceVariantBrush");
+            if (parameter != null && parameter.ToString() == "ColorOnly" && fallback is SolidColorBrush fscb)
+            {
+                return fscb.Color;
+            }
+            
+            return fallback ?? Brushes.Gray;
         }
 
         public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)

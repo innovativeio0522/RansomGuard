@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using RansomGuard.Core.Services;
 using RansomGuard.Core.Helpers;
+using RansomGuard.Core.Models;
 
 namespace RansomGuard.Service.Engine
 {
@@ -48,8 +49,8 @@ namespace RansomGuard.Service.Engine
                         var filePath = Path.Combine(baitPath, BaitFileName);
                         if (!File.Exists(filePath))
                         {
-                            // Use async file I/O for better performance
-                            File.WriteAllTextAsync(filePath, "This is a Sentinel protection file. DO NOT DELETE.").GetAwaiter().GetResult();
+                            // Use synchronous file I/O to avoid threadpool deadlock
+                            File.WriteAllText(filePath, "This is a Sentinel protection file. DO NOT DELETE.");
                             File.SetAttributes(filePath, FileAttributes.Hidden | FileAttributes.System);
                         }
 
@@ -77,7 +78,7 @@ namespace RansomGuard.Service.Engine
 
         private void HandleBaitHit(string path)
         {
-            _engine.ReportThreat(path, "HONEY POT TRIPWIRE TRIGGERED");
+            _engine.ReportThreat(path, "HONEY POT TRIPWIRE TRIGGERED", "An unauthorized process attempted to access or modify a hidden Sentinel bait file, indicating potential lateral movement or encryption activity.", ThreatSeverity.High);
         }
 
         private void CleanupBaits()

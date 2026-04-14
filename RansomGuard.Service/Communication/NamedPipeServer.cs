@@ -10,17 +10,30 @@ using System.Threading.Tasks;
 using RansomGuard.Core.IPC;
 using RansomGuard.Core.Interfaces;
 using RansomGuard.Core.Models;
+using RansomGuard.Service.Engine;
 
 namespace RansomGuard.Service.Communication
 {
     public class NamedPipeServer
     {
-        private const string PipeName = "RansomGuardPipe";
+        private const string PipeName = "SentinelGuardPipe";
         private readonly ISystemMonitorService _monitorService;
         private CancellationTokenSource? _cts;
 
-        // Track all active connected client writers for live broadcasting
-        private readonly ConcurrentDictionary<Guid, StreamWriter> _clients = new();
+        private class ClientContext
+        {
+            public StreamWriter Writer { get; }
+            public BlockingCollection<string> MessageQueue { get; } = new(1000);
+            public Task ProcessorTask { get; set; } = Task.CompletedTask;
+
+            public ClientContext(StreamWriter writer)
+            {
+                Writer = writer;
+            }
+        }
+
+        // Track all active connected client contexts for live broadcasting
+        private readonly ConcurrentDictionary<Guid, ClientContext> _clients = new();
 
         public NamedPipeServer(ISystemMonitorService monitorService)
         {
@@ -32,9 +45,11 @@ namespace RansomGuard.Service.Communication
             _cts = new CancellationTokenSource();
             Task.Run(() => ListenLoop(_cts.Token));
             Task.Run(() => TelemetryBroadcastLoop(_cts.Token));
+            Task.Run(() => ProcessListBroadcastLoop(_cts.Token));
 
             _monitorService.FileActivityDetected += (activity) => Broadcast(MessageType.FileActivity, activity);
             _monitorService.ThreatDetected += (threat) => Broadcast(MessageType.ThreatDetected, threat);
+            (_monitorService as SentinelEngine)!.ScanCompleted += (summary) => Broadcast(MessageType.ScanCompleted, summary);
         }
 
         private async Task TelemetryBroadcastLoop(CancellationToken token)
@@ -54,16 +69,35 @@ namespace RansomGuard.Service.Communication
             }
         }
 
+        private async Task ProcessListBroadcastLoop(CancellationToken token)
+        {
+            while (!token.IsCancellationRequested)
+            {
+                try
+                {
+                    var processes = _monitorService.GetActiveProcesses();
+                    Broadcast(MessageType.ProcessListUpdate, processes);
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"ProcessListBroadcastLoop error: {ex.Message}");
+                }
+                // Broadcast every 3 seconds as recommended
+                await Task.Delay(3000, token);
+            }
+        }
+
         public void Stop()
         {
             _cts?.Cancel();
             
             // Dispose all active client connections
-            foreach (var (id, writer) in _clients)
+            foreach (var (id, ctx) in _clients)
             {
                 try
                 {
-                    writer.Dispose();
+                    ctx.MessageQueue.CompleteAdding();
+                    ctx.Writer.Dispose();
                 }
                 catch (Exception ex)
                 {
@@ -80,31 +114,42 @@ namespace RansomGuard.Service.Communication
                 NamedPipeServerStream? pipeServer = null;
                 try
                 {
-                    // Allow any local user (including non-elevated) to connect to the service pipe
                     var pipeSecurity = new PipeSecurity();
+                    
+                    // Allow the current user (process owner) full control
+                    var currentUser = WindowsIdentity.GetCurrent().User;
+                    if (currentUser != null)
+                    {
+                        pipeSecurity.AddAccessRule(new PipeAccessRule(
+                            currentUser,
+                            PipeAccessRights.FullControl | PipeAccessRights.CreateNewInstance,
+                            AccessControlType.Allow));
+                    }
+
+                    // Allow all authenticated users to connect
                     pipeSecurity.AddAccessRule(new PipeAccessRule(
                         new SecurityIdentifier(WellKnownSidType.AuthenticatedUserSid, null),
                         PipeAccessRights.ReadWrite | PipeAccessRights.CreateNewInstance,
                         AccessControlType.Allow));
+
+                    // Required for service connectivity
                     pipeSecurity.AddAccessRule(new PipeAccessRule(
                         new SecurityIdentifier(WellKnownSidType.LocalSystemSid, null),
                         PipeAccessRights.FullControl,
                         AccessControlType.Allow));
 
                     pipeServer = NamedPipeServerStreamAcl.Create(
-                        PipeName, PipeDirection.InOut, 1,
+                        PipeName, PipeDirection.InOut, NamedPipeServerStream.MaxAllowedServerInstances,
                         PipeTransmissionMode.Byte, PipeOptions.Asynchronous,
                         0, 0, pipeSecurity);
 
-                    // Add timeout to prevent indefinite hanging
                     using var timeoutCts = new CancellationTokenSource(TimeSpan.FromMinutes(5));
                     using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(token, timeoutCts.Token);
                     
                     await pipeServer.WaitForConnectionAsync(linkedCts.Token);
                     
-                    // Fire HandleClient on a separate task without awaiting, so ListenLoop immediately creates a new server instance
                     var clientPipe = pipeServer;
-                    pipeServer = null; // Transfer ownership to HandleClient task
+                    pipeServer = null; 
                     _ = Task.Run(async () =>
                     {
                         try
@@ -118,12 +163,22 @@ namespace RansomGuard.Service.Communication
                     }, token);
                 }
                 catch (OperationCanceledException) { }
+                catch (UnauthorizedAccessException)
+                {
+                    Console.WriteLine("CRITICAL PIPE ERROR: Access Denied.");
+                    Console.WriteLine(">>> RANSOMGUARD REQUIRES ADMINISTRATIVE PRIVILEGES TO START THE COMMUNICATION ENGINE.");
+                    Console.WriteLine(">>> Please restart this service with 'Run as Administrator'.");
+                    
+                    pipeServer?.Dispose();
+                    if (!token.IsCancellationRequested)
+                        await Task.Delay(5000, token);
+                }
                 catch (Exception ex)
                 {
                     Console.WriteLine($"Pipe Server Error: {ex.Message}");
                     pipeServer?.Dispose();
                     if (!token.IsCancellationRequested)
-                        await Task.Delay(1000, token);
+                        await Task.Delay(2000, token);
                 }
             }
         }
@@ -134,21 +189,29 @@ namespace RansomGuard.Service.Communication
             using var writer = new StreamWriter(pipe) { AutoFlush = true };
 
             var clientId = Guid.NewGuid();
-            _clients[clientId] = writer;
+            var context = new ClientContext(writer);
+            
+            // Start the writer task for this specific client
+            context.ProcessorTask = Task.Run(() => ProcessOutgoingMessages(context, token));
+            
+            _clients[clientId] = context;
 
             try
             {
                 // Send initial state snapshot
                 foreach (var activity in _monitorService.GetRecentFileActivities())
-                    await SendMessage(writer, MessageType.FileActivity, activity);
+                    EnqueueMessage(context, MessageType.FileActivity, activity);
 
                 foreach (var threat in _monitorService.GetRecentThreats())
-                    await SendMessage(writer, MessageType.ThreatDetected, threat);
+                    EnqueueMessage(context, MessageType.ThreatDetected, threat);
 
                 // Send initial telemetry immediately on connect
-                await SendMessage(writer, MessageType.TelemetryUpdate, _monitorService.GetTelemetry());
+                EnqueueMessage(context, MessageType.TelemetryUpdate, _monitorService.GetTelemetry());
+                
+                // Send initial process list snapshot immediately on connect
+                EnqueueMessage(context, MessageType.ProcessListUpdate, _monitorService.GetActiveProcesses());
 
-                // Command Listener Loop
+                // Command Listener Loop (Inbound)
                 while (pipe.IsConnected && !token.IsCancellationRequested)
                 {
                     var line = await reader.ReadLineAsync(token);
@@ -171,7 +234,24 @@ namespace RansomGuard.Service.Communication
             }
             finally
             {
+                context.MessageQueue.CompleteAdding();
                 _clients.TryRemove(clientId, out _);
+            }
+        }
+
+        private void ProcessOutgoingMessages(ClientContext context, CancellationToken token)
+        {
+            try
+            {
+                foreach (var message in context.MessageQueue.GetConsumingEnumerable(token))
+                {
+                    context.Writer.WriteLine(message);
+                }
+            }
+            catch (OperationCanceledException) { }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"ProcessOutgoingMessages error for client: {ex.Message}");
             }
         }
 
@@ -187,14 +267,50 @@ namespace RansomGuard.Service.Communication
                 case CommandType.KillProcess:
                     if (int.TryParse(request.Arguments, out int pid))
                     {
-                        try
-                        {
-                            System.Diagnostics.Process.GetProcessById(pid).Kill();
-                        }
-                        catch (Exception ex)
-                        {
-                            System.Diagnostics.Debug.WriteLine($"HandleCommand KillProcess error: {ex.Message}");
-                        }
+                        await _monitorService.KillProcess(pid);
+                    }
+                    break;
+                case CommandType.ToggleShield:
+                    // Reserved for future shield toggling logic
+                    break;
+                case CommandType.QuarantineFile:
+                    if (!string.IsNullOrEmpty(request.Arguments))
+                    {
+                        await _monitorService.QuarantineFile(request.Arguments);
+                    }
+                    break;
+                case CommandType.UpdatePaths:
+                    _monitorService.InitializeWatchers();
+                    break;
+                case CommandType.RestoreFile:
+                    if (!string.IsNullOrEmpty(request.Arguments))
+                    {
+                        await _monitorService.RestoreQuarantinedFile(request.Arguments);
+                    }
+                    break;
+                case CommandType.DeleteFile:
+                    if (!string.IsNullOrEmpty(request.Arguments))
+                    {
+                        await _monitorService.DeleteQuarantinedFile(request.Arguments);
+                    }
+                    break;
+                case CommandType.ClearSafeFiles:
+                    await _monitorService.ClearSafeFiles();
+                    break;
+                case CommandType.GetProcessList:
+                    var processes = _monitorService.GetActiveProcesses();
+                    Broadcast(MessageType.ProcessListUpdate, processes);
+                    break;
+                case CommandType.WhitelistProcess:
+                    if (!string.IsNullOrEmpty(request.Arguments))
+                    {
+                        await _monitorService.WhitelistProcess(request.Arguments);
+                    }
+                    break;
+                case CommandType.RemoveWhitelist:
+                    if (!string.IsNullOrEmpty(request.Arguments))
+                    {
+                        await _monitorService.RemoveWhitelist(request.Arguments);
                     }
                     break;
             }
@@ -209,36 +325,23 @@ namespace RansomGuard.Service.Communication
             };
             var json = JsonSerializer.Serialize(packet);
 
-            var disconnectedClients = new List<Guid>();
-            
-            foreach (var (id, writer) in _clients)
+            foreach (var ctx in _clients.Values)
             {
-                try
+                if (!ctx.MessageQueue.IsAddingCompleted)
                 {
-                    writer.WriteLine(json);
-                }
-                catch
-                {
-                    // Client disconnected — mark for removal and disposal
-                    disconnectedClients.Add(id);
+                    ctx.MessageQueue.TryAdd(json);
                 }
             }
-            
-            // Remove and dispose disconnected clients
-            foreach (var id in disconnectedClients)
+        }
+
+        private void EnqueueMessage<T>(ClientContext context, MessageType type, T data)
+        {
+            var packet = new IpcPacket
             {
-                if (_clients.TryRemove(id, out var writer))
-                {
-                    try
-                    {
-                        writer.Dispose();
-                    }
-                    catch (Exception ex)
-                    {
-                        System.Diagnostics.Debug.WriteLine($"Broadcast client disposal error: {ex.Message}");
-                    }
-                }
-            }
+                Type = type,
+                Payload = JsonSerializer.Serialize(data)
+            };
+            context.MessageQueue.TryAdd(JsonSerializer.Serialize(packet));
         }
 
         private async Task SendMessage<T>(StreamWriter writer, MessageType type, T data)
@@ -251,4 +354,5 @@ namespace RansomGuard.Service.Communication
             await writer.WriteLineAsync(JsonSerializer.Serialize(packet));
         }
     }
+
 }

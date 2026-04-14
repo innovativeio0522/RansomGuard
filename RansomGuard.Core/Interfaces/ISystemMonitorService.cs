@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using RansomGuard.Core.Models;
+using RansomGuard.Core.IPC;
 
 namespace RansomGuard.Core.Interfaces
 {
@@ -24,6 +25,16 @@ namespace RansomGuard.Core.Interfaces
         /// Raised when the connection status to the background service changes.
         /// </summary>
         event Action<bool> ConnectionStatusChanged;
+
+        /// <summary>
+        /// Raised when a system-wide scan completes with a summary of findings.
+        /// </summary>
+        event Action<ScanSummary> ScanCompleted;
+        
+        /// <summary>
+        /// Raised when the process list has been updated with fresh data from the service.
+        /// </summary>
+        event Action ProcessListUpdated;
 
         /// <summary>
         /// Gets a value indicating whether the service is connected to the background monitoring engine.
@@ -109,5 +120,41 @@ namespace RansomGuard.Core.Interfaces
         /// <param name="filePath">The full path to the file to quarantine.</param>
         /// <returns>A task representing the asynchronous operation.</returns>
         Task QuarantineFile(string filePath);
+
+        /// <summary>
+        /// Re-initialises all FileSystemWatcher instances based on the current monitored paths configuration.
+        /// Should be called after monitored paths are added or removed.
+        /// </summary>
+        void InitializeWatchers();
+
+        /// <summary>
+        /// Restores a file from quarantine to its original location.
+        /// </summary>
+        /// <param name="quarantinePath">The path to the file in the quarantine silo.</param>
+        /// <returns>A task representing the asynchronous operation.</returns>
+        Task RestoreQuarantinedFile(string quarantinePath);
+
+        /// <summary>
+        /// Permanently deletes a file from the quarantine silo.
+        /// </summary>
+        /// <param name="quarantinePath">The path to the file in the quarantine silo.</param>
+        /// <returns>A task representing the asynchronous operation.</returns>
+        Task DeleteQuarantinedFile(string quarantinePath);
+
+        /// <summary>
+        /// Clears files from quarantine that are deemed safe.
+        /// </summary>
+        /// <returns>A task representing the asynchronous operation.</returns>
+        Task ClearSafeFiles();
+
+        /// <summary>
+        /// Adds a process name to the persistent whitelist.
+        /// </summary>
+        Task WhitelistProcess(string name);
+
+        /// <summary>
+        /// Removes a process name from the persistent whitelist.
+        /// </summary>
+        Task RemoveWhitelist(string name);
     }
 }
