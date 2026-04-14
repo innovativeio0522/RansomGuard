@@ -12,8 +12,10 @@ namespace RansomGuard.Core.Models
     {
         public string Id { get; set; } = Guid.NewGuid().ToString();
         public string Name { get; set; } = string.Empty;
+        public string Description { get; set; } = string.Empty;
         public string Path { get; set; } = string.Empty;
         public string ProcessName { get; set; } = string.Empty;
+        public int ProcessId { get; set; }
         public DateTime Timestamp { get; set; } = DateTime.Now;
         public ThreatSeverity Severity { get; set; } = ThreatSeverity.Low;
         public string ActionTaken { get; set; } = "Monitored";

@@ -216,11 +216,19 @@
                                                         <TextBlock Text="{Binding Timestamp, StringFormat='{}{0:MMM dd, yyyy • HH:mm:ss}'}" FontSize="11" Foreground="{StaticResource OnSurfaceVariantBrush}" VerticalAlignment="Center"/>
                                                     </StackPanel>
                                                     <TextBlock Text="{Binding Name}" FontWeight="Bold" FontSize="16" Foreground="{StaticResource OnSurfaceBrush}" Margin="0,0,0,4"/>
+                                                    <TextBlock Text="{Binding Description}" FontSize="12" Foreground="{StaticResource OnSurfaceVariantBrush}" Margin="0,0,0,8" FontStyle="Italic"/>
                                                     <TextBlock Text="{Binding Path}" Style="{StaticResource TextMono}" FontSize="12" Opacity="0.7"/>
                                                 </StackPanel>
                                                 
                                                 <StackPanel Grid.Row="0" Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Top">
-                                                    <Button Style="{StaticResource IconButton}" Margin="0,0,4,0" ToolTip="Quarantine" Height="32" Width="32"
+                                                    <Button Style="{StaticResource IconButton}" Margin="0,0,4,0" ToolTip="Ignore" Height="32" Width="32"
+                                            Command="{Binding DataContext.IgnoreThreatCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                            CommandParameter="{Binding}">
+                                                        <Viewbox Width="16" Height="16">
+                                                            <Path Data="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" Fill="{StaticResource OnSurfaceBrush}"/>
+                                                        </Viewbox>
+                                                    </Button>
+                                                    <Button Style="{StaticResource IconButton}" ToolTip="Quarantine" Height="32" Width="32"
                                             Command="{Binding DataContext.QuarantineThreatCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
                                             CommandParameter="{Binding}">
                                                         <Viewbox Width="16" Height="16">
@@ -234,7 +242,7 @@
                                                         <TextBlock Text="PROCESS CONTEXT:" FontSize="10" FontWeight="Bold" Foreground="{StaticResource OnSurfaceVariantBrush}" VerticalAlignment="Center" Margin="0,0,8,0"/>
                                                         <TextBlock Text="{Binding ProcessName}" FontFamily="Consolas" FontSize="11" Foreground="{StaticResource PrimaryBrush}" VerticalAlignment="Center"/>
                         <TextBlock Text=" • PID: " FontSize="11" Foreground="{StaticResource OnSurfaceVariantBrush}" VerticalAlignment="Center"/>
-                                                        <TextBlock Text="{Binding ProcessName}" FontFamily="Consolas" FontSize="11" Foreground="{StaticResource SecondaryBrush}" VerticalAlignment="Center"/>
+                                                        <TextBlock Text="{Binding ProcessId}" FontFamily="Consolas" FontSize="11" Foreground="{StaticResource SecondaryBrush}" VerticalAlignment="Center"/>
                                                     </StackPanel>
                                                 </Border>
                                             </Grid>

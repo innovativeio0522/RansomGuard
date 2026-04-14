@@ -9,7 +9,11 @@ namespace RansomGuard.Converters
     {
         public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
         {
-            bool boolValue = (bool)value;
+            bool boolValue = false;
+            if (value is bool b) boolValue = b;
+            else if (value is int i) boolValue = i > 0;
+            else if (value is long l) boolValue = l > 0;
+
             bool isInverse = parameter != null && parameter.ToString() == "Inverse";
 
             if (isInverse)

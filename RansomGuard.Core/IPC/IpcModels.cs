@@ -9,7 +9,9 @@ namespace RansomGuard.Core.IPC
         ThreatDetected,
         TelemetryUpdate,
         CommandRequest,
-        CommandResponse
+        CommandResponse,
+        ScanCompleted,
+        ProcessListUpdate
     }
 
     public class IpcPacket
@@ -24,11 +26,16 @@ namespace RansomGuard.Core.IPC
     public class TelemetryData
     {
         public double CpuUsage { get; set; }
+        public double KernelCpuUsage { get; set; }
+        public double UserCpuUsage { get; set; }
         public long MemoryUsage { get; set; }
         public double SystemRamUsedMb { get; set; }
         public double SystemRamTotalMb { get; set; }
         public double EntropyScore { get; set; }
         public int ProcessesCount { get; set; }
+        public int ActiveThreadsCount { get; set; }
+        public double TrustedProcessPercent { get; set; }
+        public int SuspiciousProcessCount { get; set; }
         public int MonitoredFilesCount { get; set; }
         public bool IsHoneyPotActive { get; set; }
         public bool IsVssShieldActive { get; set; }
@@ -48,12 +55,26 @@ namespace RansomGuard.Core.IPC
         PerformScan,
         KillProcess,
         ToggleShield,
-        UpdatePaths
+        UpdatePaths,
+        QuarantineFile,
+        RestoreFile,
+        DeleteFile,
+        ClearSafeFiles,
+        GetProcessList,
+        WhitelistProcess,
+        RemoveWhitelist
     }
 
     public class CommandRequest
     {
         public CommandType Command { get; set; }
         public string Arguments { get; set; } = string.Empty;
+    }
+
+    public class ScanSummary
+    {
+        public int FilesChecked { get; set; }
+        public int ThreatsFound { get; set; }
+        public DateTime Timestamp { get; set; } = DateTime.Now;
     }
 }

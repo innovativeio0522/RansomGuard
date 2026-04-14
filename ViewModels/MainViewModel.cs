@@ -35,6 +35,7 @@ namespace RansomGuard.ViewModels
 
         private readonly ISystemMonitorService _monitorService;
         private readonly DispatcherTimer _statusBarTimer;
+        private readonly Action<bool> _connectionStatusHandler;
         private bool _disposed;
 
         // View instances to preserve state
@@ -51,7 +52,8 @@ namespace RansomGuard.ViewModels
             // Initialize Services
             _monitorService = new ServicePipeClient();
             IsServiceConnected = _monitorService.IsConnected;
-            _monitorService.ConnectionStatusChanged += (status) => IsServiceConnected = status;
+            _connectionStatusHandler = (status) => IsServiceConnected = status;
+            _monitorService.ConnectionStatusChanged += _connectionStatusHandler;
 
             // Initialize ViewModels
             _dashboardVM = new DashboardViewModel(_monitorService);
@@ -152,10 +154,10 @@ namespace RansomGuard.ViewModels
             // Stop and dispose timer
             _statusBarTimer?.Stop();
 
-            // Unsubscribe from events
+            // Unsubscribe from events using stored delegate reference
             if (_monitorService != null)
             {
-                _monitorService.ConnectionStatusChanged -= (status) => IsServiceConnected = status;
+                _monitorService.ConnectionStatusChanged -= _connectionStatusHandler;
             }
 
             // Dispose child ViewModels

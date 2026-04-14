@@ -146,6 +146,15 @@ namespace RansomGuard.ViewModels
             ApplyFilters();
         }
 
+        [RelayCommand]
+        private void IgnoreThreat(Threat threat)
+        {
+            if (threat == null) return;
+            _allThreats.Remove(threat);
+            RefreshCounts();
+            ApplyFilters();
+        }
+
         private void OnThreatDetected(Threat threat)
         {
             Application.Current.Dispatcher.Invoke(() =>

@@ -58,6 +58,17 @@ namespace RansomGuard.Core.Services
         public DateTime LastScanTime { get; set; } = DateTime.MinValue;
 
         /// <summary>
+        /// Gets or sets the total number of security scans performed since installation.
+        /// Incremented by the scan logic; never estimated.
+        /// </summary>
+        public int TotalScansCount { get; set; } = 0;
+
+        /// <summary>
+        /// Gets or sets the list of process names that have been manually whitelisted by the user.
+        /// </summary>
+        public List<string> WhitelistedProcessNames { get; set; } = new();
+
+        /// <summary>
         /// Saves the current configuration to disk in a thread-safe manner.
         /// </summary>
         public void Save()
@@ -67,7 +78,7 @@ namespace RansomGuard.Core.Services
                 try
                 {
                     var json = JsonSerializer.Serialize(this, new JsonSerializerOptions { WriteIndented = true });
-                    File.WriteAllTextAsync(ConfigFile, json).GetAwaiter().GetResult();
+                    File.WriteAllText(ConfigFile, json);
                 }
                 catch (Exception ex)
                 {
@@ -87,8 +98,8 @@ namespace RansomGuard.Core.Services
             {
                 try
                 {
-                    // Use async file I/O for better performance
-                    var json = File.ReadAllTextAsync(ConfigFile).GetAwaiter().GetResult();
+                    // Use synchronous read to avoid deadlock on blocked thread-pool scheduler
+                    var json = File.ReadAllText(ConfigFile);
                     var config = JsonSerializer.Deserialize<ConfigurationService>(json);
                     
                     // Validate deserialized config
@@ -96,6 +107,7 @@ namespace RansomGuard.Core.Services
                     {
                         // Ensure collections are not null
                         config.MonitoredPaths ??= new List<string>();
+                        config.WhitelistedProcessNames ??= new List<string>();
                         return config;
                     }
                 }

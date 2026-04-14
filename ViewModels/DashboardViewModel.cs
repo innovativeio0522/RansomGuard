@@ -5,7 +5,9 @@ using RansomGuard.Core.Interfaces;
 using RansomGuard.Core.Helpers;
 using RansomGuard.Services;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.ObjectModel;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
@@ -20,6 +22,8 @@ namespace RansomGuard.ViewModels
         
         private readonly ISystemMonitorService _monitorService;
         private readonly DispatcherTimer _telemetryTimer;
+        private readonly DispatcherTimer _activityBufferTimer;
+        private readonly ConcurrentQueue<FileActivity> _activityBuffer = new();
         private bool _disposed;
 
         // Set by MainViewModel so the dashboard can trigger navigation
@@ -52,6 +56,9 @@ namespace RansomGuard.ViewModels
 
         [ObservableProperty]
         private double _ramUsageBytes = 0;
+
+        [ObservableProperty]
+        private double _ramUsagePercent = 0;
 
         [ObservableProperty]
         private string _ramUsageText = "-- / -- GB";
@@ -114,6 +121,14 @@ namespace RansomGuard.ViewModels
             };
             _telemetryTimer.Tick += (s, e) => UpdateTelemetry();
             _telemetryTimer.Start();
+
+            // Setup activity buffer timer (every 500ms) for UI throttling
+            _activityBufferTimer = new DispatcherTimer
+            {
+                Interval = TimeSpan.FromMilliseconds(500)
+            };
+            _activityBufferTimer.Tick += (s, e) => ProcessActivityBuffer();
+            _activityBufferTimer.Start();
         }
 
         private void LoadData()
@@ -132,6 +147,27 @@ namespace RansomGuard.ViewModels
             UpdateTelemetry();
         }
 
+        private void ProcessActivityBuffer()
+        {
+            if (_activityBuffer.IsEmpty) return;
+
+            var newItems = new List<FileActivity>();
+            while (_activityBuffer.TryDequeue(out var activity))
+            {
+                newItems.Add(activity);
+            }
+
+            // Insert new items at the beginning, maintaining order
+            foreach (var item in newItems)
+            {
+                RecentActivities.Insert(0, item);
+                if (RecentActivities.Count > MaxDashboardActivities)
+                    RecentActivities.RemoveAt(RecentActivities.Count - 1);
+            }
+            
+            FilesMonitoredCount = _monitorService.GetMonitoredFilesCount().ToString("N0");
+        }
+
         private void UpdateTelemetry()
         {
             if (IsScanning) return;
@@ -146,24 +182,13 @@ namespace RansomGuard.ViewModels
             IsVssShieldActive = telemetry.IsVssShieldActive;
             IsPanicModeEngaged = telemetry.IsPanicModeActive;
 
-            // RAM display — read directly via Win32 for guaranteed accuracy
-            try
+            // Updated: rely on service-provided RAM stats to avoid UI thread blocking
+            if (telemetry.SystemRamTotalMb > 0)
             {
-                if (NativeMemory.GetMemoryStatus(out var ms))
-                {
-                    double usedGb = (ms.ullTotalPhys - ms.ullAvailPhys) / (1024.0 * 1024.0 * 1024.0);
-                    double totalGb = ms.ullTotalPhys / (1024.0 * 1024.0 * 1024.0);
-                    RamUsageText = $"{usedGb:F1} / {totalGb:F1} GB";
-                }
-            }
-            catch
-            {
-                if (telemetry.SystemRamTotalMb > 0)
-                {
-                    double usedGb = telemetry.SystemRamUsedMb / 1024.0;
-                    double totalGb = telemetry.SystemRamTotalMb / 1024.0;
-                    RamUsageText = $"{usedGb:F1} / {totalGb:F1} GB";
-                }
+                double usedGb = telemetry.SystemRamUsedMb / 1024.0;
+                double totalGb = telemetry.SystemRamTotalMb / 1024.0;
+                RamUsageText = $"{usedGb:F1} / {totalGb:F1} GB";
+                RamUsagePercent = (telemetry.SystemRamUsedMb / telemetry.SystemRamTotalMb) * 100.0;
             }
 
             // Entropy
@@ -221,12 +246,8 @@ namespace RansomGuard.ViewModels
 
         private void OnFileActivityDetected(FileActivity activity)
         {
-            Application.Current.Dispatcher.Invoke(() =>
-            {
-                RecentActivities.Insert(0, activity);
-                if (RecentActivities.Count > MaxDashboardActivities) RecentActivities.RemoveAt(MaxDashboardActivities);
-                FilesMonitoredCount = _monitorService.GetMonitoredFilesCount().ToString("N0");
-            });
+            // Throttling: just enqueue and let the timer handle the UI update
+            _activityBuffer.Enqueue(activity);
         }
 
         private void OnThreatDetected(Threat threat)
@@ -291,10 +312,8 @@ namespace RansomGuard.ViewModels
             _disposed = true;
 
             // Stop and dispose timer
-            if (_telemetryTimer != null)
-            {
-                _telemetryTimer.Stop();
-            }
+            _telemetryTimer?.Stop();
+            _activityBufferTimer?.Stop();
 
             // Unsubscribe from events
             if (_monitorService != null)

@@ -14,8 +14,6 @@
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="24"/>
                     <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="24"/>
-                    <ColumnDefinition Width="*"/>
                 </Grid.ColumnDefinitions>
 
                 <!-- Files Monitored -->
@@ -63,27 +61,8 @@
                     </Grid>
                 </Border>
 
-                <!-- Active Processes -->
-                <Border Grid.Column="4" Background="{StaticResource SurfaceContainerLowBrush}" 
-                        CornerRadius="8" ClipToBounds="True">
-                    <Grid>
-                        <Path Data="M15 9H9v6h6V9zm-2 4h-2v-2h2v2zm8-2V9h-2V7c0-1.1-.9-2-2-2h-2V3h-2v2h-2V3H9v2H7c-1.1 0-2 .9-2 2v2H3v2h2v2H3v2h2v2c0 1.1.9 2 2 2h2v2h2v-2h2v2h2v-2h2c1.1 0 2-.9 2-2v-2h2v-2h-2v-2h2zm-4 6H7V7h14v10z" 
-                              Fill="{StaticResource OnSurfaceBrush}" Opacity="0.05" Stretch="Uniform"
-                              HorizontalAlignment="Right" VerticalAlignment="Top" Width="48" Margin="0,8,8,0"/>
-                        <StackPanel Margin="16">
-                            <TextBlock Text="SYSTEM CPU LOAD" Style="{StaticResource TextLabel}"/>
-                            <TextBlock Text="{Binding CpuUsagePercent, StringFormat='{}{0:F1}%'}" FontSize="28" FontWeight="Black" 
-                                      Foreground="{StaticResource OnSurfaceBrush}" Margin="0,8,0,0"/>
-                            <ProgressBar Height="4" Value="{Binding CpuUsagePercent}" Maximum="100" Margin="0,12,0,0"
-                                        Background="{StaticResource SurfaceContainerHighestBrush}"
-                                        Foreground="{StaticResource SecondaryBrush}"
-                                        BorderThickness="0"/>
-                        </StackPanel>
-                    </Grid>
-                </Border>
-
                 <!-- Last Scan -->
-                <Border Grid.Column="6" Background="{StaticResource SurfaceContainerLowBrush}" 
+                <Border Grid.Column="4" Background="{StaticResource SurfaceContainerLowBrush}" 
                         CornerRadius="8" ClipToBounds="True">
                     <Grid>
                         <Path Data="M21 10.12h-6.78l2.74-2.82c-2.73-2.7-7.15-2.8-9.88-.1-2.73 2.71-2.73 7.08 0 9.79 s7.15 2.71 9.88 0C18.32 15.65 19 14.08 19 12.1h2c0 2.5-.98 4.81-2.73 6.56-3.52 3.49-9.21 3.49-12.73 0-3.52-3.5-3.52-9.18 0-12.68 3.52-3.5 9.21-3.5 12.73 0l2.84-2.92V10.12z" 
