@@ -372,12 +372,14 @@ namespace RansomGuard.Service.Engine
         {
             var processes = Process.GetProcesses();
             var random = new Random();
+            int processCount = 0;
             
-            return processes.Select(p => {
+            // Get all valid process infos
+            var allProcessInfos = processes.Select(p => {
                 try {
                     (bool isTrusted, string signatureStatus) = DetermineProcessIdentity(p);
                     
-                    return new ProcessInfo { 
+                    var processInfo = new ProcessInfo { 
                         Pid = p.Id, 
                         Name = p.ProcessName, 
                         CpuUsage = ProcessStatsProvider.Instance.GetCpuUsage(p),
@@ -386,8 +388,30 @@ namespace RansomGuard.Service.Engine
                         SignatureStatus = signatureStatus,
                         IoRate = Math.Round(new Random().NextDouble() * 5, 2)
                     };
+                    
+                    // Log first 10 processes for debugging
+                    if (processCount < 10)
+                    {
+                        Console.WriteLine($"[SentinelEngine] Process: {p.ProcessName}, PID={p.Id}, Trusted={isTrusted}, Status={signatureStatus}");
+                        processCount++;
+                    }
+                    
+                    return processInfo;
                 } catch { return null; }
-            }).Where(p => p != null).Cast<ProcessInfo>().OrderByDescending(p => p.MemoryUsage).Take(50).ToList();
+            }).Where(p => p != null).Cast<ProcessInfo>().ToList();
+            
+            // Smart selection: Always include system/trusted processes, then fill with top user processes
+            var trustedProcesses = allProcessInfos.Where(p => p.IsTrusted).OrderByDescending(p => p.MemoryUsage).ToList();
+            var userProcesses = allProcessInfos.Where(p => !p.IsTrusted).OrderByDescending(p => p.MemoryUsage).ToList();
+            
+            // Take up to 20 trusted processes and 30 user processes (total 50)
+            var selectedProcesses = trustedProcesses.Take(20).Concat(userProcesses.Take(30)).ToList();
+            
+            var trustedCount = selectedProcesses.Count(p => p.IsTrusted);
+            var untrustedCount = selectedProcesses.Count - trustedCount;
+            Console.WriteLine($"[SentinelEngine] GetActiveProcesses: Total={selectedProcesses.Count}, Trusted={trustedCount}, Untrusted={untrustedCount}");
+            
+            return selectedProcesses;
         }
 
         public double GetSystemCpuUsage() => _currentCpuUsage;

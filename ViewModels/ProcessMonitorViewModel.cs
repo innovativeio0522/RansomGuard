@@ -50,6 +50,8 @@ namespace RansomGuard.ViewModels
         {
             _monitorService = monitorService;
             
+            System.Diagnostics.Debug.WriteLine($"[ProcessMonitorViewModel] Constructor called. IsConnected={monitorService.IsConnected}");
+            
             for (int i = 0; i < 30; i++) CpuHistory.Add(new CpuDataPoint { KernelH = 4, UserH = 4 });
 
             LoadData();
@@ -64,6 +66,7 @@ namespace RansomGuard.ViewModels
 
             // Reactive update: Refresh instantly when a new process list arrives from the service
             _monitorService.ProcessListUpdated += () => {
+                System.Diagnostics.Debug.WriteLine("[ProcessMonitorViewModel] ProcessListUpdated event received");
                 System.Windows.Application.Current.Dispatcher.Invoke(() => LoadData());
             };
         }
@@ -75,43 +78,61 @@ namespace RansomGuard.ViewModels
 
         private void LoadData()
         {
-            var telemetry = _monitorService.GetTelemetry();
-            
-            // Failsafe: if IPC transport drops these specific values to 0 during a race condition, calculate them locally.
-            int activeThreads = telemetry.ActiveThreadsCount;
-            double trustedPercent = telemetry.TrustedProcessPercent;
-            int suspiciousCount = telemetry.SuspiciousProcessCount;
-            
-            if (activeThreads == 0)
+            try
             {
-                var procs = System.Diagnostics.Process.GetProcesses();
-                foreach (var p in procs) { try { activeThreads += p.Threads.Count; } catch { } }
-                int total = procs.Length;
-                trustedPercent = 100;
-                suspiciousCount = 0;
+                var telemetry = _monitorService.GetTelemetry();
+                
+                // Failsafe: if IPC transport drops these specific values to 0 during a race condition, calculate them locally.
+                int activeThreads = telemetry.ActiveThreadsCount;
+                double trustedPercent = telemetry.TrustedProcessPercent;
+                int suspiciousCount = telemetry.SuspiciousProcessCount;
+                
+                if (activeThreads == 0)
+                {
+                    var procs = System.Diagnostics.Process.GetProcesses();
+                    foreach (var p in procs) { try { activeThreads += p.Threads.Count; } catch { } }
+                    int total = procs.Length;
+                    trustedPercent = 100;
+                    suspiciousCount = 0;
+                }
+
+                ActiveThreads = $"{activeThreads:N0}";
+                CpuLoad = $"{telemetry.CpuUsage:F1}%";
+                CpuLoadValue = telemetry.CpuUsage;
+                TrustedProcPercent = $"{trustedPercent:F1}%";
+                SuspiciousCount = suspiciousCount.ToString("D2");
+
+                UpdateChart(telemetry.KernelCpuUsage, telemetry.UserCpuUsage);
+
+                var processes = _monitorService.GetActiveProcesses().ToList();
+                var debugMsg = $"[LoadData] Retrieved {processes.Count} processes. IsConnected={_monitorService.IsConnected}";
+                System.Diagnostics.Debug.WriteLine(debugMsg);
+                File.AppendAllText("process_debug.log", $"{DateTime.Now}: {debugMsg}\n");
+                
+                _allProcesses.Clear();
+                foreach (var process in processes)
+                {
+                    _allProcesses.Add(process);
+                }
+
+                System.Diagnostics.Debug.WriteLine($"[LoadData] _allProcesses has {_allProcesses.Count} items");
+                System.Diagnostics.Debug.WriteLine($"[LoadData] ActiveProcesses has {ActiveProcesses.Count} items before ApplyFilter");
+
+                // Auto-select most suspicious process for Alert Detail if available
+                if (SelectedProcess == null || !_allProcesses.Any(p => p.Pid == SelectedProcess.Pid))
+                {
+                    SelectedProcess = _allProcesses.FirstOrDefault(p => !p.IsTrusted) ?? _allProcesses.FirstOrDefault();
+                    System.Diagnostics.Debug.WriteLine($"[LoadData] SelectedProcess set to {SelectedProcess?.Name ?? "null"}");
+                }
+
+                ApplyFilter();
             }
-
-            ActiveThreads = $"{activeThreads:N0}";
-            CpuLoad = $"{telemetry.CpuUsage:F1}%";
-            CpuLoadValue = telemetry.CpuUsage;
-            TrustedProcPercent = $"{trustedPercent:F1}%";
-            SuspiciousCount = suspiciousCount.ToString("D2");
-
-            UpdateChart(telemetry.KernelCpuUsage, telemetry.UserCpuUsage);
-
-            _allProcesses.Clear();
-            foreach (var process in _monitorService.GetActiveProcesses())
+            catch (Exception ex)
             {
-                _allProcesses.Add(process);
+                var errorMsg = $"[LoadData] EXCEPTION: {ex.Message}\n{ex.StackTrace}";
+                System.Diagnostics.Debug.WriteLine(errorMsg);
+                File.AppendAllText("process_debug.log", $"{DateTime.Now}: {errorMsg}\n");
             }
-
-            // Auto-select most suspicious process for Alert Detail if available
-            if (SelectedProcess == null || !_allProcesses.Any(p => p.Pid == SelectedProcess.Pid))
-            {
-                SelectedProcess = _allProcesses.FirstOrDefault(p => !p.IsTrusted) ?? _allProcesses.FirstOrDefault();
-            }
-
-            ApplyFilter();
         }
 
         private void ApplyFilter()
@@ -119,27 +140,40 @@ namespace RansomGuard.ViewModels
             var filtered = string.IsNullOrWhiteSpace(SearchQuery) 
                 ? _allProcesses 
                 : _allProcesses.Where(p => p.Name.Contains(SearchQuery, StringComparison.OrdinalIgnoreCase) || 
-                                           p.Pid.ToString().Contains(SearchQuery));
+                                           p.Pid.ToString().Contains(SearchQuery)).ToList();
 
-            // CRITICAL FIX: The UI loses selection because objects are recreated on every refresh.
-            // We must cache the selected PID and re-bind it to the NEW object instance.
-            int? currentSelectedPid = SelectedProcess?.Pid;
+            System.Diagnostics.Debug.WriteLine($"[DEBUG] ApplyFilter: filtered has {filtered.Count} items");
+            File.AppendAllText("process_debug.log", $"{DateTime.Now}: [ApplyFilter] filtered={filtered.Count}\n");
 
-            ActiveProcesses.Clear();
-            foreach (var p in filtered)
+            // CRITICAL FIX: The UI loses selection and binding state because objects are recreated on every refresh.
+            // We use reconciliation to update existing instances instead of clearing the collection.
+            var toAdd = filtered.Where(p => !ActiveProcesses.Any(ap => ap.Pid == p.Pid)).ToList();
+            var toRemove = ActiveProcesses.Where(ap => !filtered.Any(p => p.Pid == ap.Pid)).ToList();
+
+            System.Diagnostics.Debug.WriteLine($"[DEBUG] ApplyFilter: toAdd={toAdd.Count}, toRemove={toRemove.Count}");
+
+            // 1. Remove dead processes
+            foreach (var p in toRemove) ActiveProcesses.Remove(p);
+
+            // 2. Update existing processes (merging fresh data into existing instances)
+            foreach (var active in ActiveProcesses)
             {
-                ActiveProcesses.Add(p);
-            }
-
-            // Restore the selection to the newly-minted object in the list
-            if (currentSelectedPid.HasValue)
-            {
-                var newSelection = ActiveProcesses.FirstOrDefault(p => p.Pid == currentSelectedPid.Value);
-                if (newSelection != null)
+                var fresh = filtered.FirstOrDefault(p => p.Pid == active.Pid);
+                if (fresh != null)
                 {
-                    SelectedProcess = newSelection;
+                    active.UpdateFrom(fresh);
                 }
             }
+
+            // 3. Add new processes
+            foreach (var p in toAdd)
+            {
+                ActiveProcesses.Add(p);
+                System.Diagnostics.Debug.WriteLine($"[DEBUG] ApplyFilter: Added process PID={p.Pid}, Name={p.Name}");
+            }
+
+            System.Diagnostics.Debug.WriteLine($"[DEBUG] ApplyFilter: ActiveProcesses now has {ActiveProcesses.Count} items");
+            File.AppendAllText("process_debug.log", $"{DateTime.Now}: [ApplyFilter] ActiveProcesses.Count={ActiveProcesses.Count}\n");
         }
 
         private void UpdateChart(double kernelCpu, double userCpu)
