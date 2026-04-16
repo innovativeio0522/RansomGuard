@@ -389,6 +389,7 @@ namespace RansomGuard.Services
                         if (procs != null)
                         {
                             lock (_processLock) { _lastProcesses = procs; }
+                            System.Diagnostics.Debug.WriteLine($"[IPC] Received {procs.Count} processes from service");
                             ProcessListUpdated?.Invoke();
                         }
                         break;
@@ -430,14 +431,27 @@ namespace RansomGuard.Services
             {
                 lock (_processLock)
                 {
+                    System.Diagnostics.Debug.WriteLine($"[GetActiveProcesses] IsConnected=true, returning {_lastProcesses.Count} processes from cache");
+                    if (_lastProcesses.Count == 0)
+                    {
+                        System.Diagnostics.Debug.WriteLine("[GetActiveProcesses] WARNING: Connected but process cache is empty! Falling back to local.");
+                        // Service is connected but hasn't sent process data yet - use local fallback
+                        return GetLocalProcesses();
+                    }
                     return _lastProcesses.ToList();
                 }
             }
 
             // Local fallback — used when service is offline
-                        try
+            System.Diagnostics.Debug.WriteLine("[GetActiveProcesses] IsConnected=false, using local fallback");
+            return GetLocalProcesses();
+        }
+
+        private List<ProcessInfo> GetLocalProcesses()
+        {
+            try
             {
-                return Process.GetProcesses()
+                var allProcesses = Process.GetProcesses()
                     .Select(p =>
                     {
                         try
@@ -446,7 +460,7 @@ namespace RansomGuard.Services
                                           p.ProcessName.ToLower().Contains("system") || 
                                           p.ProcessName.ToLower().Contains("windows");
                                           
-                            return new ProcessInfo
+                            var processInfo = new ProcessInfo
                             {
                                 Pid = p.Id,
                                 Name = p.ProcessName,
@@ -455,6 +469,8 @@ namespace RansomGuard.Services
                                 IsTrusted = isSystem,
                                 SignatureStatus = isSystem ? "Verified" : "User Process"
                             };
+                            
+                            return processInfo;
                         }
                         catch
                         {
@@ -463,14 +479,27 @@ namespace RansomGuard.Services
                     })
                     .Where(p => p != null)
                     .Cast<ProcessInfo>()
-                    .OrderByDescending(p => p.MemoryUsage)
-                    .Take(MaxActiveProcesses)
                     .ToList();
+                
+                // Smart selection: Always include system processes, then fill with top user processes
+                var trustedProcesses = allProcesses.Where(p => p.IsTrusted).OrderByDescending(p => p.MemoryUsage).ToList();
+                var userProcesses = allProcesses.Where(p => !p.IsTrusted).OrderByDescending(p => p.MemoryUsage).ToList();
+                
+                // Take up to 20 trusted processes and 30 user processes (total 50)
+                var processes = trustedProcesses.Take(20).Concat(userProcesses.Take(30)).ToList();
+                
+                var trustedCount = processes.Count(p => p.IsTrusted);
+                var untrustedCount = processes.Count - trustedCount;
+                System.Diagnostics.Debug.WriteLine($"[GetLocalProcesses] Returning {processes.Count} processes: {trustedCount} trusted, {untrustedCount} untrusted");
+                File.AppendAllText("process_debug.log", $"{DateTime.Now}: [GetLocalProcesses] Total={processes.Count}, Trusted={trustedCount}, Untrusted={untrustedCount}\n");
+                
+                return processes;
             }
 
-            catch
+            catch (Exception ex)
             {
-                return Enumerable.Empty<ProcessInfo>();
+                System.Diagnostics.Debug.WriteLine($"[GetLocalProcesses] Exception: {ex.Message}");
+                return new List<ProcessInfo>();
             }
         }
         

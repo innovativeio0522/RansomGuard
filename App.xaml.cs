@@ -7,8 +7,21 @@ namespace RansomGuard
     /// </summary>
     public partial class App : Application
     {
+        private System.Threading.Mutex? _mutex;
+
         protected override async void OnStartup(StartupEventArgs e)
         {
+            // Enforce Single Instance using a System Mutex
+            const string appName = "RansomGuard_Dashboard_Mutex_GlobalLock";
+            _mutex = new System.Threading.Mutex(true, appName, out bool createdNew);
+
+            if (!createdNew)
+            {
+                MessageBox.Show("An instance of RansomGuard is already running.", "RansomGuard", MessageBoxButton.OK, MessageBoxImage.Information);
+                Application.Current.Shutdown();
+                return;
+            }
+
             // Global exception handling
             DispatcherUnhandledException += App_DispatcherUnhandledException;
             base.OnStartup(e);
