@@ -37,18 +37,22 @@ namespace RansomGuard.Core.IPC
         public double TrustedProcessPercent { get; set; }
         public int SuspiciousProcessCount { get; set; }
         public int MonitoredFilesCount { get; set; }
+        public int ActiveWatchers { get; set; }
         public bool IsHoneyPotActive { get; set; }
         public bool IsVssShieldActive { get; set; }
         public bool IsPanicModeActive { get; set; }
         public int QuarantinedFilesCount { get; set; }
         public double QuarantineStorageMb { get; set; }
+        public bool IsRealTimeProtectionEnabled { get; set; }
 
         // Dynamic telemetry fields
         public double NetworkLatencyMs { get; set; }
         public int ActiveEndpointsCount { get; set; }
         public string EncryptionLevel { get; set; } = "AES-256";
         public int FilesPerHour { get; set; }
+        public string[] MonitoredPaths { get; set; } = Array.Empty<string>();
     }
+
 
     public enum CommandType
     {

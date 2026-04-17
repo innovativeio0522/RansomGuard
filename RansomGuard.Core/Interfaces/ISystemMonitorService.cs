@@ -35,6 +35,11 @@ namespace RansomGuard.Core.Interfaces
         /// Raised when the process list has been updated with fresh data from the service.
         /// </summary>
         event Action ProcessListUpdated;
+        
+        /// <summary>
+        /// Raised when telemetry data has been updated from the service.
+        /// </summary>
+        event Action<TelemetryData> TelemetryUpdated;
 
         /// <summary>
         /// Gets a value indicating whether the service is connected to the background monitoring engine.

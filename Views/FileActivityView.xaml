@@ -8,16 +8,46 @@
             
             <!-- Page Header (Strict Adherence) -->
             <Grid Margin="0,0,0,24">
-                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                
+                <!-- Left: Title and Status Badges -->
+                <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
                     <TextBlock Text="File Activity Monitor" FontSize="20" FontWeight="Bold" Foreground="{StaticResource PrimaryBrush}"/>
                     <Border Background="#1a4edea3" CornerRadius="4" Margin="16,0,0,0" Padding="8,2">
                         <TextBlock Text="LIVE STREAM" Foreground="#4edea3" 
                                    FontWeight="Bold" FontSize="10"/>
                     </Border>
+                    <!-- Watcher Count Indicator -->
+                    <Border Background="#1aadc6ff" CornerRadius="4" Margin="8,0,0,0" Padding="8,2">
+                        <StackPanel Orientation="Horizontal">
+                            <Viewbox Width="10" Height="10" Margin="0,0,6,0">
+                                <Path Data="M12,9A3,3 0 0,0 9,12A3,3 0 0,0 12,15A3,3 0 0,0 15,12A3,3 0 0,0 12,9M12,17A5,5 0 0,1 7,12A5,5 0 0,1 12,7A5,5 0 0,1 17,12A5,5 0 0,1 12,17M12,4.5C7,4.5 2.73,7.61 1,12C2.73,16.39 7,19.5 12,19.5C17,19.5 21.27,16.39 23,12C21.27,7.61 17,4.5 12,4.5Z" Fill="{StaticResource PrimaryBrush}"/>
+                            </Viewbox>
+                            <TextBlock Text="{Binding Telemetry.ActiveWatchers, StringFormat='{}{0} WATCHERS ACTIVE'}" Foreground="{StaticResource PrimaryBrush}" 
+                                       FontWeight="Bold" FontSize="10"/>
+                        </StackPanel>
+                    </Border>
                 </StackPanel>
 
-                <!-- Top Right Search & Utility -->
-                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                <!-- Center: Protection Disabled Warning -->
+                <Border Grid.Column="1" Background="#33ff5451" CornerRadius="4" Margin="16,0,16,0" Padding="12,4" 
+                        VerticalAlignment="Center" HorizontalAlignment="Center"
+                        Visibility="{Binding IsRealTimeProtectionEnabled, Converter={StaticResource BooleanToVisibilityConverter}, ConverterParameter=Inverse}">
+                    <StackPanel Orientation="Horizontal">
+                        <Viewbox Width="12" Height="12" Margin="0,0,8,0">
+                            <Path Data="M13,13H11V7H13M13,17H11V15H13M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2Z" Fill="{StaticResource TertiaryBrush}"/>
+                        </Viewbox>
+                        <TextBlock Text="PROTECTION DISABLED - CHECK SETTINGS" Foreground="{StaticResource TertiaryBrush}" 
+                                   FontWeight="Bold" FontSize="11"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- Right: Search & Utility -->
+                <StackPanel Grid.Column="2" Orientation="Horizontal" HorizontalAlignment="Right">
                     <Border Background="{StaticResource SurfaceContainerLowBrush}" CornerRadius="8" Width="280" Height="32" Padding="12,0">
                         <Grid>
                             <Grid.ColumnDefinitions>
@@ -28,163 +58,421 @@
                                 <Path Data="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z" 
                                       Fill="{StaticResource OnSurfaceBrush}"/>
                             </Viewbox>
-                            <TextBlock Grid.Column="1" Text="Search file paths or processes..." 
-                                      FontSize="11" Foreground="{StaticResource OnSurfaceVariantBrush}" 
-                                      VerticalAlignment="Center" Opacity="0.5" Margin="8,0,0,0"/>
+                            <TextBox Grid.Column="1" Text="{Binding SearchQuery, UpdateSourceTrigger=PropertyChanged}" 
+                                     Background="Transparent" BorderThickness="0"
+                                     FontSize="11" Foreground="{StaticResource OnSurfaceBrush}" 
+                                     VerticalAlignment="Center" Margin="8,0,0,0"/>
                         </Grid>
                     </Border>
+                    <!-- Refresh Button -->
+                    <Button Command="{Binding RefreshCommand}" Style="{StaticResource IconButton}" Margin="16,0,0,0">
+                        <StackPanel Orientation="Horizontal">
+                            <Viewbox Width="14" Height="14" Margin="0,0,8,0">
+                                <Path Data="M17.65,6.35C16.2,4.9 14.21,4 12,4A8,8 0 0,0 4,12A8,8 0 0,0 12,20C15.73,20 18.84,17.45 19.73,14H17.65C16.83,16.33 14.61,18 12,18A6,6 0 0,1 6,12A6,6 0 0,1 12,6C13.66,6 15.14,6.69 16.22,7.78L13,11H20V4L17.65,6.35Z" Fill="{StaticResource PrimaryBrush}"/>
+                            </Viewbox>
+                            <TextBlock Text="REFRESH" FontSize="10" FontWeight="Black" VerticalAlignment="Center" Foreground="{StaticResource PrimaryBrush}"/>
+                        </StackPanel>
+                    </Button>
                 </StackPanel>
             </Grid>
 
-            <!-- Comprehensive Filter Bar (Responsive) -->
-            <Border Background="{StaticResource SurfaceContainerLowBrush}" CornerRadius="12" Padding="20" Margin="0,0,0,24">
+            <!-- Comprehensive Filter Bar (Responsive WrapPanel) -->
+            <Border Background="{StaticResource SurfaceContainerLowBrush}" CornerRadius="12" Padding="20,8" Margin="0,0,0,24">
                 <WrapPanel Orientation="Horizontal" VerticalAlignment="Center">
-                        <!-- Event Type Toggle -->
-                        <StackPanel Orientation="Horizontal" Margin="0,0,24,12">
-                            <TextBlock Text="EVENT TYPE:" FontSize="10" FontWeight="Black" Foreground="{StaticResource OnSurfaceVariantBrush}" VerticalAlignment="Center" Margin="0,0,12,0"/>
-                            <Border Background="{StaticResource SurfaceContainerHighestBrush}" CornerRadius="4" Padding="4">
-                                <StackPanel Orientation="Horizontal">
-                                    <Button Content="All Events" Style="{StaticResource NativeButton}" Background="{StaticResource SurfaceVariantBrush}" FontWeight="Bold" Padding="12,6"/>
-                                    <Button Content="Created" Style="{StaticResource NativeButton}" Background="Transparent" Foreground="{StaticResource OnSurfaceVariantBrush}" Padding="12,6"/>
-                                    <Button Content="Modified" Style="{StaticResource NativeButton}" Background="Transparent" Foreground="{StaticResource OnSurfaceVariantBrush}" Padding="12,6"/>
-                                </StackPanel>
-                            </Border>
-                        </StackPanel>
-
-                        <!-- Watch Directory Dropdown -->
-                        <StackPanel Orientation="Horizontal" Margin="0,0,24,12">
-                            <TextBlock Text="WATCH DIRECTORY:" FontSize="10" FontWeight="Black" Foreground="{StaticResource OnSurfaceVariantBrush}" VerticalAlignment="Center" Margin="0,0,12,0"/>
-                            <Border Background="{StaticResource SurfaceContainerHighestBrush}" CornerRadius="4" Padding="12,6" Width="180">
-                                <Grid>
-                                    <TextBlock Text="/System/Library" FontSize="11" Foreground="{StaticResource OnSurfaceBrush}" VerticalAlignment="Center"/>
-                                    <Path Data="M7,10L12,15L17,10H7Z" Fill="{StaticResource OnSurfaceVariantBrush}" HorizontalAlignment="Right" VerticalAlignment="Center"/>
-                                </Grid>
-                            </Border>
-                        </StackPanel>
-
-                        <!-- Risk Level -->
-                        <StackPanel Orientation="Horizontal" Margin="0,0,24,12">
-                            <TextBlock Text="RISK LEVEL:" FontSize="10" FontWeight="Black" Foreground="{StaticResource OnSurfaceVariantBrush}" VerticalAlignment="Center" Margin="0,0,12,0"/>
-                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                <Button Content="LOW" Style="{StaticResource NativeButton}" Background="{StaticResource SurfaceVariantBrush}" Foreground="{StaticResource OnSurfaceBrush}" Opacity="0.8" Padding="14,6" Margin="0,0,8,0" BorderThickness="0"/>
-                                <Button Content="MEDIUM" Style="{StaticResource NativeButton}" Background="{StaticResource SurfaceVariantBrush}" Foreground="{StaticResource OnSurfaceBrush}" Opacity="0.8" Padding="14,6" Margin="0,0,8,0" BorderThickness="0"/>
-                                <Button Content="HIGH RISK" Style="{StaticResource DangerButton}" Background="#ffb3261e" Foreground="White" Padding="14,6" BorderThickness="0"/>
+                    <!-- Event Type Toggle -->
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,4,24,4" ToolTip="Filter by activity type (Create, Modify, Delete, Rename)">
+                        <TextBlock Text="TYPE:" FontSize="10" FontWeight="Black" Foreground="{StaticResource OnSurfaceVariantBrush}" VerticalAlignment="Center" Margin="0,0,12,0"/>
+                        <Border Background="{StaticResource SurfaceContainerHighestBrush}" CornerRadius="4" Padding="4">
+                            <StackPanel Orientation="Horizontal">
+                                <Button Content="ALL" ToolTip="Show all file events"
+                                        Command="{Binding SetFilterActionCommand}" CommandParameter="ALL">
+                                    <Button.Style>
+                                        <Style TargetType="Button" BasedOn="{StaticResource NativeButton}">
+                                            <Setter Property="Background" Value="Transparent"/>
+                                            <Setter Property="Foreground" Value="{StaticResource OnSurfaceVariantBrush}"/>
+                                            <Setter Property="Padding" Value="10,6"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding FilterAction}" Value="ALL">
+                                                    <Setter Property="Background" Value="{StaticResource SurfaceVariantBrush}"/>
+                                                    <Setter Property="Foreground" Value="{StaticResource OnSurfaceBrush}"/>
+                                                    <Setter Property="FontWeight" Value="Bold"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Button.Style>
+                                </Button>
+                                <Button Content="NEW" ToolTip="Show only newly created files"
+                                        Command="{Binding SetFilterActionCommand}" CommandParameter="CREATED" Margin="2,0">
+                                    <Button.Style>
+                                        <Style TargetType="Button" BasedOn="{StaticResource NativeButton}">
+                                            <Setter Property="Background" Value="Transparent"/>
+                                            <Setter Property="Foreground" Value="{StaticResource OnSurfaceVariantBrush}"/>
+                                            <Setter Property="Padding" Value="10,6"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding FilterAction}" Value="CREATED">
+                                                    <Setter Property="Background" Value="{StaticResource SurfaceVariantBrush}"/>
+                                                    <Setter Property="Foreground" Value="{StaticResource OnSurfaceBrush}"/>
+                                                    <Setter Property="FontWeight" Value="Bold"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Button.Style>
+                                </Button>
+                                <Button Content="MOD" ToolTip="Show only modified files"
+                                        Command="{Binding SetFilterActionCommand}" CommandParameter="MODIFIED">
+                                    <Button.Style>
+                                        <Style TargetType="Button" BasedOn="{StaticResource NativeButton}">
+                                            <Setter Property="Background" Value="Transparent"/>
+                                            <Setter Property="Foreground" Value="{StaticResource OnSurfaceVariantBrush}"/>
+                                            <Setter Property="Padding" Value="10,6"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding FilterAction}" Value="MODIFIED">
+                                                    <Setter Property="Background" Value="{StaticResource SurfaceVariantBrush}"/>
+                                                    <Setter Property="Foreground" Value="{StaticResource OnSurfaceBrush}"/>
+                                                    <Setter Property="FontWeight" Value="Bold"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Button.Style>
+                                </Button>
+                                <Button Content="DEL" ToolTip="Show only deleted files"
+                                        Command="{Binding SetFilterActionCommand}" CommandParameter="DELETED" Margin="2,0">
+                                    <Button.Style>
+                                        <Style TargetType="Button" BasedOn="{StaticResource NativeButton}">
+                                            <Setter Property="Background" Value="Transparent"/>
+                                            <Setter Property="Foreground" Value="{StaticResource OnSurfaceVariantBrush}"/>
+                                            <Setter Property="Padding" Value="10,6"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding FilterAction}" Value="DELETED">
+                                                    <Setter Property="Background" Value="{StaticResource SurfaceVariantBrush}"/>
+                                                    <Setter Property="Foreground" Value="{StaticResource OnSurfaceBrush}"/>
+                                                    <Setter Property="FontWeight" Value="Bold"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Button.Style>
+                                </Button>
+                                <Button Content="REN" ToolTip="Show only renamed files"
+                                        Command="{Binding SetFilterActionCommand}" CommandParameter="RENAMED">
+                                    <Button.Style>
+                                        <Style TargetType="Button" BasedOn="{StaticResource NativeButton}">
+                                            <Setter Property="Background" Value="Transparent"/>
+                                            <Setter Property="Foreground" Value="{StaticResource OnSurfaceVariantBrush}"/>
+                                            <Setter Property="Padding" Value="10,6"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding FilterAction}" Value="RENAMED">
+                                                    <Setter Property="Background" Value="{StaticResource SurfaceVariantBrush}"/>
+                                                    <Setter Property="Foreground" Value="{StaticResource OnSurfaceBrush}"/>
+                                                    <Setter Property="FontWeight" Value="Bold"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Button.Style>
+                                </Button>
                             </StackPanel>
-                        </StackPanel>
+                        </Border>
+                    </StackPanel>
 
-                        <!-- Row Management (Pushed to end/wrapped) -->
-                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,0,12">
-                            <Button Style="{StaticResource NativeButton}" Background="Transparent" Padding="16,6" Margin="0,0,12,0" BorderThickness="0">
-                                <StackPanel Orientation="Horizontal">
-                                    <Viewbox Width="12" Height="12" Margin="0,0,8,0">
-                                        <Path Data="M14,19H18V5H14M6,19H10V5H6V19Z" Fill="{StaticResource PrimaryBrush}"/>
-                                    </Viewbox>
-                                    <TextBlock Text="Pause Log" Foreground="{StaticResource PrimaryBrush}" FontWeight="ExtraBold" FontSize="11"/>
-                                </StackPanel>
-                            </Button>
-                            <Button Style="{StaticResource NativeButton}" Background="{StaticResource SurfaceContainerHighestBrush}" Padding="16,6" BorderThickness="0">
-                                <StackPanel Orientation="Horizontal">
-                                    <Viewbox Width="12" Height="12" Margin="0,0,8,0">
-                                        <Path Data="M5,20H19V18H5M19,9H15V3H9V9H5L12,16L19,9Z" Fill="{StaticResource OnSurfaceBrush}"/>
-                                    </Viewbox>
-                                    <TextBlock Text="Export CSV" FontWeight="ExtraBold" FontSize="11" Foreground="{StaticResource OnSurfaceBrush}"/>
-                                </StackPanel>
-                            </Button>
-                        </StackPanel>
+                    <!-- Watch Directory Dropdown -->
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,4,24,4" ToolTip="Select a specific drive or folder to monitor">
+                        <TextBlock Text="DIR:" FontSize="10" FontWeight="Black" Foreground="{StaticResource OnSurfaceVariantBrush}" VerticalAlignment="Center" Margin="0,0,12,0"/>
+                        <ComboBox ItemsSource="{Binding MonitoredPaths}" 
+                                  Width="150"
+                                  Background="{StaticResource SurfaceContainerHighestBrush}"
+                                  BorderThickness="0"
+                                  Padding="12,6"
+                                  SelectedItem="{Binding SelectedPath}">
+                            <ComboBox.Style>
+                                <Style TargetType="ComboBox">
+                                    <Setter Property="Template">
+                                        <Setter.Value>
+                                            <ControlTemplate TargetType="ComboBox">
+                                                <Grid>
+                                                    <Border Background="{TemplateBinding Background}" CornerRadius="4"/>
+                                                    <Grid Margin="12,6">
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="*"/>
+                                                            <ColumnDefinition Width="20"/>
+                                                        </Grid.ColumnDefinitions>
+                                                        <TextBlock x:Name="Header" Text="{Binding SelectedItem, RelativeSource={RelativeSource TemplatedParent}}" 
+                                                                   FontSize="11" Foreground="{StaticResource OnSurfaceBrush}" VerticalAlignment="Center"
+                                                                   TextTrimming="CharacterEllipsis"/>
+                                                        <Path x:Name="Chevron" Grid.Column="1" Data="M7,10L12,15L17,10H7Z" Fill="{StaticResource OnSurfaceVariantBrush}" 
+                                                              HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                                                        <Popup x:Name="PART_Popup" AllowsTransparency="true" IsOpen="{Binding IsDropDownOpen, RelativeSource={RelativeSource TemplatedParent}}" 
+                                                               Placement="Bottom" PopupAnimation="Slide">
+                                                            <Border x:Name="DropDownBorder" Background="{StaticResource SurfaceContainerHighestBrush}" 
+                                                                    BorderBrush="{StaticResource OutlineBrush}" BorderThickness="1" CornerRadius="4" 
+                                                                    MinWidth="{TemplateBinding ActualWidth}" MaxHeight="400">
+                                                                <ScrollViewer Margin="0" SnapsToDevicePixels="True">
+                                                                    <ItemsPresenter/>
+                                                                </ScrollViewer>
+                                                            </Border>
+                                                        </Popup>
+                                                    </Grid>
+                                                    <ToggleButton Background="Transparent" BorderThickness="0" 
+                                                                   IsChecked="{Binding IsDropDownOpen, RelativeSource={RelativeSource TemplatedParent}, Mode=TwoWay}"/>
+                                                </Grid>
+                                                <ControlTemplate.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter TargetName="Header" Property="Foreground" Value="{StaticResource PrimaryBrush}"/>
+                                                        <Setter TargetName="Chevron" Property="Fill" Value="{StaticResource PrimaryBrush}"/>
+                                                    </Trigger>
+                                                </ControlTemplate.Triggers>
+                                            </ControlTemplate>
+                                        </Setter.Value>
+                                    </Setter>
+                                </Style>
+                            </ComboBox.Style>
+                            <ComboBox.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Padding="12,8">
+                                        <StackPanel Orientation="Horizontal">
+                                            <Viewbox Width="12" Height="12" Margin="0,0,12,0">
+                                                <Path Data="M10,4H4C2.89,4 2,4.89 2,6V18A2,2 0 0,0 4,20H20A2,2 0 0,0 22,18V8C22,6.89 21.1,6 20,6H12L10,4Z" Fill="{StaticResource PrimaryBrush}"/>
+                                            </Viewbox>
+                                            <TextBlock Text="{Binding}" FontSize="12" Foreground="{StaticResource OnSurfaceBrush}" MaxWidth="400" TextTrimming="CharacterEllipsis"/>
+                                        </StackPanel>
+                                    </Border>
+                                </DataTemplate>
+                            </ComboBox.ItemTemplate>
+                        </ComboBox>
+                    </StackPanel>
+
+                    <!-- Risk Level -->
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,4,24,4" ToolTip="Filter by process threat probability">
+                        <TextBlock Text="RISK:" FontSize="10" FontWeight="Black" Foreground="{StaticResource OnSurfaceVariantBrush}" VerticalAlignment="Center" Margin="0,0,12,0"/>
+                        <Border Background="{StaticResource SurfaceContainerHighestBrush}" CornerRadius="4" Padding="4">
+                            <StackPanel Orientation="Horizontal">
+                                <Button Content="ALL" ToolTip="Show all risk levels"
+                                        Command="{Binding SetRiskFilterCommand}" CommandParameter="ALL" Margin="0,0,4,0">
+                                    <Button.Style>
+                                        <Style TargetType="Button" BasedOn="{StaticResource NativeButton}">
+                                            <Setter Property="Background" Value="Transparent"/>
+                                            <Setter Property="Foreground" Value="{StaticResource OnSurfaceVariantBrush}"/>
+                                            <Setter Property="Padding" Value="10,6"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding RiskFilter}" Value="ALL">
+                                                    <Setter Property="Background" Value="{StaticResource SurfaceVariantBrush}"/>
+                                                    <Setter Property="Foreground" Value="{StaticResource OnSurfaceBrush}"/>
+                                                    <Setter Property="FontWeight" Value="Bold"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Button.Style>
+                                </Button>
+                                <Button Content="LOW" ToolTip="Show only low-risk activities"
+                                        Command="{Binding SetRiskFilterCommand}" CommandParameter="LOW" Margin="0,0,4,0">
+                                    <Button.Style>
+                                        <Style TargetType="Button" BasedOn="{StaticResource NativeButton}">
+                                            <Setter Property="Background" Value="Transparent"/>
+                                            <Setter Property="Foreground" Value="{StaticResource OnSurfaceVariantBrush}"/>
+                                            <Setter Property="Padding" Value="10,6"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding RiskFilter}" Value="LOW">
+                                                    <Setter Property="Background" Value="#264edea3"/>
+                                                    <Setter Property="Foreground" Value="#4edea3"/>
+                                                    <Setter Property="FontWeight" Value="Bold"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Button.Style>
+                                </Button>
+                                <Button Content="MED" ToolTip="Show suspicious activities"
+                                        Command="{Binding SetRiskFilterCommand}" CommandParameter="MEDIUM" Margin="0,0,4,0">
+                                    <Button.Style>
+                                        <Style TargetType="Button" BasedOn="{StaticResource NativeButton}">
+                                            <Setter Property="Background" Value="Transparent"/>
+                                            <Setter Property="Foreground" Value="{StaticResource OnSurfaceVariantBrush}"/>
+                                            <Setter Property="Padding" Value="10,6"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding RiskFilter}" Value="MEDIUM">
+                                                    <Setter Property="Background" Value="#26ffb347"/>
+                                                    <Setter Property="Foreground" Value="#ffb347"/>
+                                                    <Setter Property="FontWeight" Value="Bold"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Button.Style>
+                                </Button>
+                                <Button Content="HIGH" ToolTip="Show highly suspicious or confirmed threats"
+                                        Command="{Binding SetRiskFilterCommand}" CommandParameter="HIGH">
+                                    <Button.Style>
+                                        <Style TargetType="Button" BasedOn="{StaticResource NativeButton}">
+                                            <Setter Property="Background" Value="Transparent"/>
+                                            <Setter Property="Foreground" Value="{StaticResource OnSurfaceVariantBrush}"/>
+                                            <Setter Property="Padding" Value="10,6"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding RiskFilter}" Value="HIGH">
+                                                    <Setter Property="Background" Value="#26ff5451"/>
+                                                    <Setter Property="Foreground" Value="#ff5451"/>
+                                                    <Setter Property="FontWeight" Value="Bold"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Button.Style>
+                                </Button>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+
+                    <!-- Row Management -->
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,4,0,4">
+                        <Button Command="{Binding TogglePauseCommand}" Style="{StaticResource NativeButton}" 
+                                ToolTip="Pause or Resume live monitoring"
+                                Background="Transparent" Padding="8,6" Margin="0,0,8,0" BorderThickness="0">
+                            <StackPanel Orientation="Horizontal">
+                                <Viewbox Width="12" Height="12" Margin="0,0,8,0">
+                                    <Path Data="M14,19H18V5H14M6,19H10V5H6V19Z" Fill="{StaticResource PrimaryBrush}"/>
+                                </Viewbox>
+                                <TextBlock Text="{Binding IsPaused, Converter={StaticResource BooleanToPauseTextConverter}}" Foreground="{StaticResource PrimaryBrush}" FontWeight="ExtraBold" FontSize="11"/>
+                            </StackPanel>
+                        </Button>
+                        <Button Command="{Binding ExportCsvCommand}" Style="{StaticResource NativeButton}" 
+                                ToolTip="Export current activity list to CSV file"
+                                Background="{StaticResource SurfaceContainerHighestBrush}" Padding="8,6" BorderThickness="0">
+                            <StackPanel Orientation="Horizontal">
+                                <Viewbox Width="12" Height="12" Margin="0,0,8,0">
+                                    <Path Data="M5,20H19V18H5M19,9H15V3H9V9H5L12,16L19,9Z" Fill="{StaticResource OnSurfaceBrush}"/>
+                                </Viewbox>
+                                <TextBlock Text="CSV" FontWeight="ExtraBold" FontSize="11" Foreground="{StaticResource OnSurfaceBrush}"/>
+                            </StackPanel>
+                        </Button>
+                    </StackPanel>
                 </WrapPanel>
             </Border>
 
-            <!-- Activity Log Modern Table -->
-            <Border Background="{StaticResource SurfaceContainerBrush}" CornerRadius="12" ClipToBounds="True">
+            <!-- Activity Log Container -->
+            <Border Background="{StaticResource SurfaceContainerLowBrush}" CornerRadius="12" Padding="0" ClipToBounds="True">
                 <StackPanel>
                     <!-- Table Header -->
-                    <Grid Background="#1c202a" Height="48">
+                    <Grid Background="#1c202a" Height="36">
                         <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="180"/>
-                            <ColumnDefinition Width="100"/>
+                            <ColumnDefinition Width="140"/>
+                            <ColumnDefinition Width="80"/>
                             <ColumnDefinition Width="3*"/>
                             <ColumnDefinition Width="2*"/>
-                            <ColumnDefinition Width="140"/>
+                            <ColumnDefinition Width="120"/>
                         </Grid.ColumnDefinitions>
-                        <TextBlock Grid.Column="0" Text="TIMESTAMP" FontSize="10" FontWeight="Black" Foreground="{StaticResource OnSurfaceVariantBrush}" VerticalAlignment="Center" Margin="24,0"/>
-                        <TextBlock Grid.Column="1" Text="EVENT" FontSize="10" FontWeight="Black" Foreground="{StaticResource OnSurfaceVariantBrush}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                        <TextBlock Grid.Column="2" Text="FILE PATH" FontSize="10" FontWeight="Black" Foreground="{StaticResource OnSurfaceVariantBrush}" VerticalAlignment="Center" Margin="16,0"/>
-                        <TextBlock Grid.Column="3" Text="PROCESS RESPONSIBLE" FontSize="10" FontWeight="Black" Foreground="{StaticResource OnSurfaceVariantBrush}" VerticalAlignment="Center" Margin="16,0"/>
-                        <TextBlock Grid.Column="4" Text="ENTROPY SCORE" FontSize="10" FontWeight="Black" Foreground="{StaticResource OnSurfaceVariantBrush}" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,24,0"/>
+                        <TextBlock Grid.Column="0" Text="TIMESTAMP" FontSize="10" FontWeight="Black" Foreground="{StaticResource OnSurfaceVariantBrush}" VerticalAlignment="Center" Margin="16,0"/>
+                        <TextBlock Grid.Column="1" Text="EVENT" FontSize="9" FontWeight="Black" Foreground="{StaticResource OnSurfaceVariantBrush}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        <TextBlock Grid.Column="2" Text="FILE PATH" FontSize="9" FontWeight="Black" Foreground="{StaticResource OnSurfaceVariantBrush}" VerticalAlignment="Center" Margin="12,0"/>
+                        <TextBlock Grid.Column="3" Text="PROCESS RESPONSIBLE" FontSize="9" FontWeight="Black" Foreground="{StaticResource OnSurfaceVariantBrush}" VerticalAlignment="Center" Margin="12,0"/>
+                        <TextBlock Grid.Column="4" Text="ENTROPY SCORE" FontSize="9" FontWeight="Black" Foreground="{StaticResource OnSurfaceVariantBrush}" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,16,0"/>
                     </Grid>
 
-                    <ItemsControl ItemsSource="{Binding RecentActivities}">
-                        <ItemsControl.ItemTemplate>
-                            <DataTemplate>
-                                <Border Background="Transparent" Height="64">
-                                    <Border.Style>
-                                        <Style TargetType="Border">
-                                            <Style.Triggers>
-                                                <Trigger Property="IsMouseOver" Value="True">
-                                                    <Setter Property="Background" Value="#0DFFFFFF"/>
-                                                </Trigger>
-                                            </Style.Triggers>
-                                        </Style>
-                                    </Border.Style>
-                                    <Grid Margin="24,0">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="156"/>
-                                            <ColumnDefinition Width="100"/>
-                                            <ColumnDefinition Width="3*"/>
-                                            <ColumnDefinition Width="2*"/>
-                                            <ColumnDefinition Width="140"/>
-                                        </Grid.ColumnDefinitions>
-                                        
-                                        <StackPanel Grid.Column="0" VerticalAlignment="Center">
-                                            <TextBlock Text="{Binding Timestamp, StringFormat={}{0:yyyy-MM-dd}}" FontSize="11" FontFamily="Consolas" Foreground="{StaticResource OnSurfaceVariantBrush}" Opacity="0.6"/>
-                                            <TextBlock Text="{Binding Timestamp, StringFormat={}{0:HH:mm:ss.fff}}" FontSize="11" FontFamily="Consolas" Foreground="{StaticResource OnSurfaceBrush}" FontWeight="Bold"/>
-                                        </StackPanel>
+                    <!-- Scrollable List Container -->
+                    <Grid MaxHeight="210">
+                        <ListView ItemsSource="{Binding RecentActivities}"
+                                  Background="Transparent"
+                                  BorderThickness="0"
+                                  Padding="0"
+                                  ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                  ScrollViewer.VerticalScrollBarVisibility="Auto"
+                                  VirtualizingStackPanel.IsVirtualizing="True"
+                                  VirtualizingStackPanel.VirtualizationMode="Recycling"
+                                  VirtualizingStackPanel.ScrollUnit="Pixel"
+                                  SelectionMode="Single">
+                            <ListView.Template>
+                                <ControlTemplate TargetType="ListView">
+                                    <ScrollViewer Style="{StaticResource {x:Type ScrollViewer}}">
+                                        <ItemsPresenter />
+                                    </ScrollViewer>
+                                </ControlTemplate>
+                            </ListView.Template>
+                            <ListView.ItemContainerStyle>
+                                <Style TargetType="ListViewItem">
+                                    <Setter Property="Template">
+                                        <Setter.Value>
+                                            <ControlTemplate TargetType="ListViewItem">
+                                                <ContentPresenter />
+                                            </ControlTemplate>
+                                        </Setter.Value>
+                                    </Setter>
+                                </Style>
+                            </ListView.ItemContainerStyle>
+                            <ListView.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Background="Transparent" Height="40">
+                                        <Border.Style>
+                                            <Style TargetType="Border">
+                                                <Style.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter Property="Background" Value="#0DFFFFFF"/>
+                                                    </Trigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Border.Style>
+                                        <Grid Margin="16,0">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="124"/>
+                                                <ColumnDefinition Width="80"/>
+                                                <ColumnDefinition Width="3*"/>
+                                                <ColumnDefinition Width="2*"/>
+                                                <ColumnDefinition Width="120"/>
+                                            </Grid.ColumnDefinitions>
+                                            
+                                            <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                                                <TextBlock Text="{Binding Timestamp, StringFormat={}{0:HH:mm:ss.fff}}" FontSize="10" FontFamily="Consolas" Foreground="{StaticResource OnSurfaceBrush}" FontWeight="Bold"/>
+                                                <TextBlock Text="{Binding Timestamp, StringFormat={}{0: (MM/dd)}}" FontSize="9" FontFamily="Consolas" Foreground="{StaticResource OnSurfaceVariantBrush}" Opacity="0.5" Margin="4,0,0,0"/>
+                                            </StackPanel>
 
-                                        <Border Grid.Column="1" Padding="8,3" CornerRadius="4" HorizontalAlignment="Center" VerticalAlignment="Center">
-                                            <Border.Style>
-                                                <Style TargetType="Border">
-                                                    <Setter Property="Background" Value="#26adc6ff"/>
-                                                    <Style.Triggers>
-                                                        <DataTrigger Binding="{Binding ActivityType}" Value="Modified">
-                                                            <Setter Property="Background" Value="#26ff5451"/>
-                                                        </DataTrigger>
-                                                    </Style.Triggers>
-                                                </Style>
-                                            </Border.Style>
-                                            <TextBlock Text="{Binding ActivityType}" Foreground="{StaticResource PrimaryBrush}" FontWeight="Black" FontSize="9">
-                                                <TextBlock.Style>
-                                                    <Style TargetType="TextBlock">
+                                            <Border Grid.Column="1" Padding="6,2" CornerRadius="3" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                <Border.Style>
+                                                    <Style TargetType="Border">
+                                                        <Setter Property="Background" Value="#26adc6ff"/>
                                                         <Style.Triggers>
                                                             <DataTrigger Binding="{Binding ActivityType}" Value="Modified">
-                                                                <Setter Property="Foreground" Value="{StaticResource TertiaryBrush}"/>
+                                                                <Setter Property="Background" Value="#26ff5451"/>
                                                             </DataTrigger>
                                                         </Style.Triggers>
                                                     </Style>
-                                                </TextBlock.Style>
-                                            </TextBlock>
-                                        </Border>
+                                                </Border.Style>
+                                                <TextBlock Text="{Binding ActivityType}" Foreground="{StaticResource PrimaryBrush}" FontWeight="Black" FontSize="8">
+                                                    <TextBlock.Style>
+                                                        <Style TargetType="TextBlock">
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding ActivityType}" Value="Modified">
+                                                                    <Setter Property="Foreground" Value="{StaticResource TertiaryBrush}"/>
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </TextBlock.Style>
+                                                </TextBlock>
+                                            </Border>
 
-                                        <TextBlock Grid.Column="2" Text="{Binding FilePath}" 
-                                                   FontSize="12" Foreground="{StaticResource OnSurfaceBrush}" VerticalAlignment="Center" Margin="16,0" TextTrimming="CharacterEllipsis"/>
+                                            <TextBlock Grid.Column="2" Text="{Binding FilePath}" 
+                                                       FontSize="11" Foreground="{StaticResource OnSurfaceBrush}" VerticalAlignment="Center" Margin="12,0" TextTrimming="CharacterEllipsis"/>
 
-                                        <StackPanel Grid.Column="3" Orientation="Horizontal" VerticalAlignment="Center" Margin="16,0">
-                                            <Viewbox Width="14" Height="14" Margin="0,0,8,0">
-                                                <Path Data="M12,22C17.52,22 22,17.52 22,12C22,6.48 17.52,2 12,2C6.48,2 2,6.48 2,12C2,17.52 6.48,22 12,22M12,20C9.64,20 7.54,18.9 6.22,17.1C6.25,15.17 10.07,14.1 12,14.1C13.93,14.1 17.75,15.17 17.78,17.1C16.46,18.9 14.36,20 12,20M12,6A3.5,3.5 0 0,1 15.5,9.5A3.5,3.5 0 0,1 12,13A3.5,3.5 0 0,1 8.5,9.5A3.5,3.5 0 0,1 12,6Z" Fill="{StaticResource OnSurfaceVariantBrush}"/>
-                                            </Viewbox>
-                                            <TextBlock Text="{Binding ResponsibleProcess}" FontSize="12" FontWeight="Bold" Foreground="{StaticResource OnSurfaceBrush}"/>
-                                        </StackPanel>
-
-                                        <Border Grid.Column="4" Background="{StaticResource SurfaceVariantBrush}" CornerRadius="16" Padding="12,4" HorizontalAlignment="Right" VerticalAlignment="Center">
-                                            <StackPanel Orientation="Horizontal">
-                                                <Ellipse Width="6" Height="6" Fill="#4edea3" Margin="0,0,8,0"/>
-                                                <TextBlock Text="{Binding EntropyScore, StringFormat={}{0:F2}}" FontWeight="Black" FontSize="11" Foreground="{StaticResource OnSurfaceBrush}"/>
+                                            <StackPanel Grid.Column="3" Orientation="Horizontal" VerticalAlignment="Center" Margin="12,0">
+                                                <Viewbox Width="12" Height="12" Margin="0,0,6,0">
+                                                    <Path Data="M12,22C17.52,22 22,17.52 22,12C22,6.48 17.52,2 12,2C6.48,2 2,6.48 2,12C2,17.52 6.48,22 12,22M12,20C9.64,20 7.54,18.9 6.22,17.1C6.25,15.17 10.07,14.1 12,14.1C13.93,14.1 17.75,15.17 17.78,17.1C16.46,18.9 14.36,20 12,20M12,6A3.5,3.5 0 0,1 15.5,9.5A3.5,3.5 0 0,1 12,13A3.5,3.5 0 0,1 8.5,9.5A3.5,3.5 0 0,1 12,6Z" Fill="{StaticResource OnSurfaceVariantBrush}"/>
+                                                </Viewbox>
+                                                <TextBlock Text="{Binding ResponsibleProcess}" FontSize="11" FontWeight="Bold" Foreground="{StaticResource OnSurfaceBrush}"/>
                                             </StackPanel>
-                                        </Border>
-                                    </Grid>
-                                </Border>
-                            </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
+
+                                            <Border Grid.Column="4" Background="{StaticResource SurfaceVariantBrush}" CornerRadius="12" Padding="10,2" HorizontalAlignment="Right" VerticalAlignment="Center">
+                                                <StackPanel Orientation="Horizontal">
+                                                    <Ellipse Width="5" Height="5" Fill="#4edea3" Margin="0,0,6,0"/>
+                                                    <TextBlock Text="{Binding EntropyScore, StringFormat={}{0:F2}}" FontWeight="Black" FontSize="10" Foreground="{StaticResource OnSurfaceBrush}"/>
+                                                </StackPanel>
+                                            </Border>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ListView.ItemTemplate>
+                        </ListView>
+
+                        <!-- No Activity Overlay -->
+                        <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Height="210"
+                                    Visibility="{Binding HasRecentActivity, Converter={StaticResource BooleanToVisibilityConverter}, ConverterParameter=Inverse}">
+                            <Viewbox Width="48" Height="48" Margin="0,0,0,16" Opacity="0.2">
+                                <Path Data="M13,9V3.5L18.5,9M6,2C4.89,2 4,2.89 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2H6Z" Fill="{StaticResource OnSurfaceBrush}"/>
+                            </Viewbox>
+                            <TextBlock Text="No recent activity detected" FontSize="14" Foreground="{StaticResource OnSurfaceVariantBrush}" Opacity="0.5"/>
+                            <TextBlock Text="Live monitoring is active..." FontSize="11" HorizontalAlignment="Center" Foreground="{StaticResource OnSurfaceVariantBrush}" Opacity="0.3" Margin="0,8,0,0"/>
+                        </StackPanel>
+                    </Grid>
                 </StackPanel>
             </Border>
 
@@ -210,17 +498,19 @@
                         
                         <!-- Visual Wave Distribution -->
                         <Grid Height="90" VerticalAlignment="Bottom">
-                            <StackPanel Orientation="Horizontal" VerticalAlignment="Bottom" Height="90">
-                                <Rectangle Width="24" Height="30" Fill="{StaticResource PrimaryBrush}" Opacity="0.2" Margin="0,0,4,0" VerticalAlignment="Bottom" RadiusX="2" RadiusY="2"/>
-                                <Rectangle Width="24" Height="45" Fill="{StaticResource PrimaryBrush}" Opacity="0.2" Margin="0,0,4,0" VerticalAlignment="Bottom" RadiusX="2" RadiusY="2"/>
-                                <Rectangle Width="24" Height="60" Fill="{StaticResource PrimaryBrush}" Opacity="0.3" Margin="0,0,4,0" VerticalAlignment="Bottom" RadiusX="2" RadiusY="2"/>
-                                <Rectangle Width="24" Height="85" Fill="{StaticResource PrimaryBrush}" Opacity="0.5" Margin="0,0,4,0" VerticalAlignment="Bottom" RadiusX="2" RadiusY="2"/>
-                                <Rectangle Width="24" Height="50" Fill="{StaticResource PrimaryBrush}" Opacity="0.3" Margin="0,0,4,0" VerticalAlignment="Bottom" RadiusX="2" RadiusY="2"/>
-                                <Rectangle Width="24" Height="95" Fill="{StaticResource TertiaryContainerBrush}" Margin="0,0,4,0" VerticalAlignment="Bottom" RadiusX="2" RadiusY="2">
-                                    <Rectangle.Effect><DropShadowEffect Color="{StaticResource Tertiary}" BlurRadius="10" ShadowDepth="0" Opacity="0.4"/></Rectangle.Effect>
-                                </Rectangle>
-                                <Rectangle Width="24" Height="25" Fill="{StaticResource PrimaryBrush}" Opacity="0.2" VerticalAlignment="Bottom" RadiusX="2" RadiusY="2"/>
-                            </StackPanel>
+                            <ItemsControl ItemsSource="{Binding EntropyDistribution}">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Bottom"/>
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Rectangle Width="24" Height="{Binding}" Fill="{StaticResource PrimaryBrush}" 
+                                                   Opacity="0.4" Margin="0,0,5,0" VerticalAlignment="Bottom" RadiusX="2" RadiusY="2"/>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
                         </Grid>
 
                         <Grid Margin="0,12,0,0">
@@ -235,31 +525,24 @@
                     <StackPanel>
                         <TextBlock Text="I/O INTENSIVE NODES" FontSize="10" FontWeight="Black" Foreground="{StaticResource OnSurfaceVariantBrush}" Margin="0,0,0,20"/>
                         
-                        <StackPanel Margin="0,0,0,16">
-                            <Grid Margin="0,0,0,8">
-                                <StackPanel Orientation="Horizontal">
-                                    <Border Width="24" Height="24" Background="{StaticResource SurfaceVariantBrush}" CornerRadius="4">
-                                        <TextBlock Text="01" FontSize="9" FontWeight="Bold" Foreground="{StaticResource PrimaryBrush}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                    </Border>
-                                    <TextBlock Text="msmpeng.exe" FontSize="12" FontWeight="Bold" Foreground="{StaticResource OnSurfaceBrush}" Margin="12,0,0,0" VerticalAlignment="Center"/>
-                                </StackPanel>
-                                <TextBlock Text="842MB/s" FontSize="10" FontFamily="Consolas" Foreground="{StaticResource OnSurfaceVariantBrush}" HorizontalAlignment="Right" VerticalAlignment="Center"/>
-                            </Grid>
-                            <ProgressBar Height="4" Value="80" Maximum="100" Background="{StaticResource SurfaceContainerHighestBrush}" Foreground="{StaticResource SecondaryBrush}" BorderThickness="0"/>
-                        </StackPanel>
-
-                        <StackPanel>
-                            <Grid Margin="0,0,0,8">
-                                <StackPanel Orientation="Horizontal">
-                                    <Border Width="24" Height="24" Background="{StaticResource SurfaceVariantBrush}" CornerRadius="4">
-                                        <TextBlock Text="02" FontSize="9" FontWeight="Bold" Foreground="{StaticResource PrimaryBrush}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                    </Border>
-                                    <TextBlock Text="backup_agent" FontSize="12" FontWeight="Bold" Foreground="{StaticResource OnSurfaceBrush}" Margin="12,0,0,0" VerticalAlignment="Center"/>
-                                </StackPanel>
-                                <TextBlock Text="211MB/s" FontSize="10" FontFamily="Consolas" Foreground="{StaticResource OnSurfaceVariantBrush}" HorizontalAlignment="Right" VerticalAlignment="Center"/>
-                            </Grid>
-                            <ProgressBar Height="4" Value="45" Maximum="100" Background="{StaticResource SurfaceContainerHighestBrush}" Foreground="{StaticResource PrimaryBrush}" BorderThickness="0"/>
-                        </StackPanel>
+                        <ItemsControl ItemsSource="{Binding IoIntensiveNodes}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <StackPanel Margin="0,0,0,16">
+                                        <Grid Margin="0,0,0,8">
+                                            <StackPanel Orientation="Horizontal">
+                                                <Border Width="24" Height="24" Background="{StaticResource SurfaceVariantBrush}" CornerRadius="4">
+                                                    <TextBlock Text="IO" FontSize="9" FontWeight="Bold" Foreground="{StaticResource PrimaryBrush}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                </Border>
+                                                <TextBlock Text="{Binding Name}" FontSize="12" FontWeight="Bold" Foreground="{StaticResource OnSurfaceBrush}" Margin="12,0,0,0" VerticalAlignment="Center"/>
+                                            </StackPanel>
+                                            <TextBlock Text="{Binding VolumeMb, StringFormat={}{0:F1}MB/s}" FontSize="10" FontFamily="Consolas" Foreground="{StaticResource OnSurfaceVariantBrush}" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                                        </Grid>
+                                        <ProgressBar Height="4" Value="{Binding ActivityCount}" Maximum="100" Background="{StaticResource SurfaceContainerHighestBrush}" Foreground="{StaticResource SecondaryBrush}" BorderThickness="0"/>
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
                     </StackPanel>
                 </Border>
 
@@ -267,7 +550,7 @@
                 <Border Grid.Column="4" Background="{StaticResource SurfaceContainerBrush}" CornerRadius="16" Padding="24" VerticalAlignment="Stretch">
                     <Grid>
                         <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
-                            <TextBlock Text="12.4k" FontSize="42" FontWeight="Black" Foreground="#ff5451" HorizontalAlignment="Center">
+                            <TextBlock Text="{Binding EventsPerMin}" FontSize="42" FontWeight="Black" Foreground="#ff5451" HorizontalAlignment="Center">
                                 <TextBlock.Effect><DropShadowEffect Color="#ff5451" BlurRadius="15" ShadowDepth="0" Opacity="0.3"/></TextBlock.Effect>
                             </TextBlock>
                             <TextBlock Text="EVENTS SCANNED / MIN" FontSize="10" FontWeight="Black" Foreground="{StaticResource OnSurfaceVariantBrush}" HorizontalAlignment="Center" Margin="0,4,0,0"/>

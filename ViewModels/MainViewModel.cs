@@ -51,6 +51,7 @@ namespace RansomGuard.ViewModels
         {
             // Initialize Services
             _monitorService = new ServicePipeClient();
+            ((ServicePipeClient)_monitorService).Start(); // Begin IPC connection loop to the background service
             IsServiceConnected = _monitorService.IsConnected;
             _connectionStatusHandler = (status) => IsServiceConnected = status;
             _monitorService.ConnectionStatusChanged += _connectionStatusHandler;

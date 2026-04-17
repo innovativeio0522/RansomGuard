@@ -1,0 +1,905 @@
+Using launch settings from RansomGuard.Service\Properties\launchSettings.json...
+Building...
+[SentinelEngine] Initializing engine. CWD: F:\Github Projects\RansomGuard\RansomGuard.Service
+[SentinelEngine] InitializeWatchers() called.
+[SentinelEngine] RealTimeProtection state: True
+[SentinelEngine] Initialized 6 file system watchers.
+[SentinelEngine] WATCHING: D:\Backup
+[SentinelEngine] WATCHING: D:\CSGO Raw Videos
+[SentinelEngine] WATCHING: C:\Users\slayer\Documents
+[SentinelEngine] WATCHING: C:\Users\slayer\Desktop
+[SentinelEngine] WATCHING: C:\Users\slayer\Pictures
+[SentinelEngine] WATCHING: C:\Users\slayer\Downloads
+info: RansomGuard.Service.Worker[0]
+      RansomGuard Sentinel Service starting...
+[HoneyPot] Warning: OS blocked deployment at C:\Users\slayer\Documents
+[HoneyPot] Warning: OS blocked deployment at C:\Users\slayer\Pictures
+VSS Shield Error: Access denied 
+info: RansomGuard.Service.Worker[0]
+      All proactive shields engaged.
+info: Microsoft.Hosting.Lifetime[0]
+      Application started. Press Ctrl+C to shut down.
+info: Microsoft.Hosting.Lifetime[0]
+      Hosting environment: Development
+info: Microsoft.Hosting.Lifetime[0]
+      Content root path: F:\Github Projects\RansomGuard\RansomGuard.Service
+[SentinelEngine] Process: Idle, PID=0, Trusted=True, Status=System Verified
+[SentinelEngine] Process: System, PID=4, Trusted=True, Status=System Verified
+[SentinelEngine] Process: Secure System, PID=188, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: Registry, PID=232, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: smss, PID=744, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: csrss, PID=1180, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: wininit, PID=1268, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: csrss, PID=1276, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: winlogon, PID=1376, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: services, PID=1400, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] GetActiveProcesses: Total=50, Trusted=20, Untrusted=30
+[SentinelEngine] Process: Idle, PID=0, Trusted=True, Status=System Verified
+[SentinelEngine] Process: System, PID=4, Trusted=True, Status=System Verified
+[SentinelEngine] Process: Secure System, PID=188, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: Registry, PID=232, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: smss, PID=744, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: csrss, PID=1180, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: wininit, PID=1268, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: csrss, PID=1276, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: winlogon, PID=1376, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: services, PID=1400, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] GetActiveProcesses: Total=50, Trusted=20, Untrusted=30
+[SentinelEngine] Process: Idle, PID=0, Trusted=True, Status=System Verified
+[SentinelEngine] Process: System, PID=4, Trusted=True, Status=System Verified
+[SentinelEngine] Process: Secure System, PID=188, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: Registry, PID=232, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: smss, PID=744, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: csrss, PID=1180, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: wininit, PID=1268, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: csrss, PID=1276, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: winlogon, PID=1376, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: services, PID=1400, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] GetActiveProcesses: Total=50, Trusted=20, Untrusted=30
+[SentinelEngine] Process: Idle, PID=0, Trusted=True, Status=System Verified
+[SentinelEngine] Process: System, PID=4, Trusted=True, Status=System Verified
+[SentinelEngine] Process: Secure System, PID=188, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: Registry, PID=232, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: smss, PID=744, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: csrss, PID=1180, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: wininit, PID=1268, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: csrss, PID=1276, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: winlogon, PID=1376, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: services, PID=1400, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] GetActiveProcesses: Total=50, Trusted=20, Untrusted=30
+[SentinelEngine] Process: Idle, PID=0, Trusted=True, Status=System Verified
+[SentinelEngine] Process: System, PID=4, Trusted=True, Status=System Verified
+[SentinelEngine] Process: Secure System, PID=188, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: Registry, PID=232, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: smss, PID=744, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: csrss, PID=1180, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: wininit, PID=1268, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: csrss, PID=1276, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: winlogon, PID=1376, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: services, PID=1400, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] GetActiveProcesses: Total=50, Trusted=20, Untrusted=30
+[SentinelEngine] Process: Idle, PID=0, Trusted=True, Status=System Verified
+[SentinelEngine] Process: System, PID=4, Trusted=True, Status=System Verified
+[SentinelEngine] Process: Secure System, PID=188, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: Registry, PID=232, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: smss, PID=744, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: csrss, PID=1180, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: wininit, PID=1268, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: csrss, PID=1276, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: winlogon, PID=1376, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: services, PID=1400, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] GetActiveProcesses: Total=50, Trusted=20, Untrusted=30
+[SentinelEngine] Process: Idle, PID=0, Trusted=True, Status=System Verified
+[SentinelEngine] Process: System, PID=4, Trusted=True, Status=System Verified
+[SentinelEngine] Process: Secure System, PID=188, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: Registry, PID=232, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: smss, PID=744, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: csrss, PID=1180, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: wininit, PID=1268, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: csrss, PID=1276, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: winlogon, PID=1376, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: services, PID=1400, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] GetActiveProcesses: Total=50, Trusted=20, Untrusted=30
+[SentinelEngine] Process: Idle, PID=0, Trusted=True, Status=System Verified
+[SentinelEngine] Process: System, PID=4, Trusted=True, Status=System Verified
+[SentinelEngine] Process: Secure System, PID=188, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: Registry, PID=232, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: smss, PID=744, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: csrss, PID=1180, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: wininit, PID=1268, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: csrss, PID=1276, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: winlogon, PID=1376, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: services, PID=1400, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] GetActiveProcesses: Total=50, Trusted=20, Untrusted=30
+[SentinelEngine] Process: Idle, PID=0, Trusted=True, Status=System Verified
+[SentinelEngine] Process: System, PID=4, Trusted=True, Status=System Verified
+[SentinelEngine] Process: Secure System, PID=188, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: Registry, PID=232, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: smss, PID=744, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: csrss, PID=1180, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: wininit, PID=1268, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: csrss, PID=1276, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: winlogon, PID=1376, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: services, PID=1400, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] GetActiveProcesses: Total=50, Trusted=20, Untrusted=30
+[SentinelEngine] Process: Idle, PID=0, Trusted=True, Status=System Verified
+[SentinelEngine] Process: System, PID=4, Trusted=True, Status=System Verified
+[SentinelEngine] Process: Secure System, PID=188, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: Registry, PID=232, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: smss, PID=744, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: csrss, PID=1180, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: wininit, PID=1268, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: csrss, PID=1276, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: winlogon, PID=1376, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: services, PID=1400, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] GetActiveProcesses: Total=50, Trusted=20, Untrusted=30
+[SentinelEngine] Process: Idle, PID=0, Trusted=True, Status=System Verified
+[SentinelEngine] Process: System, PID=4, Trusted=True, Status=System Verified
+[SentinelEngine] Process: Secure System, PID=188, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: Registry, PID=232, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: smss, PID=744, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: csrss, PID=1180, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: wininit, PID=1268, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: csrss, PID=1276, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: winlogon, PID=1376, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: services, PID=1400, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] GetActiveProcesses: Total=50, Trusted=20, Untrusted=30
+[SentinelEngine] Process: Idle, PID=0, Trusted=True, Status=System Verified
+[SentinelEngine] Process: System, PID=4, Trusted=True, Status=System Verified
+[SentinelEngine] Process: Secure System, PID=188, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: Registry, PID=232, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: smss, PID=744, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: csrss, PID=1180, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: wininit, PID=1268, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: csrss, PID=1276, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: winlogon, PID=1376, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: services, PID=1400, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] GetActiveProcesses: Total=50, Trusted=20, Untrusted=30
+[SentinelEngine] Process: Idle, PID=0, Trusted=True, Status=System Verified
+[SentinelEngine] Process: System, PID=4, Trusted=True, Status=System Verified
+[SentinelEngine] Process: Secure System, PID=188, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: Registry, PID=232, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: smss, PID=744, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: csrss, PID=1180, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: wininit, PID=1268, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: csrss, PID=1276, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: winlogon, PID=1376, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: services, PID=1400, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] GetActiveProcesses: Total=50, Trusted=20, Untrusted=30
+[SentinelEngine] Process: Idle, PID=0, Trusted=True, Status=System Verified
+[SentinelEngine] Process: System, PID=4, Trusted=True, Status=System Verified
+[SentinelEngine] Process: Secure System, PID=188, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: Registry, PID=232, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: smss, PID=744, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: csrss, PID=1180, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: wininit, PID=1268, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: csrss, PID=1276, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: winlogon, PID=1376, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: services, PID=1400, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] GetActiveProcesses: Total=50, Trusted=20, Untrusted=30
+[SentinelEngine] Process: Idle, PID=0, Trusted=True, Status=System Verified
+[SentinelEngine] Process: System, PID=4, Trusted=True, Status=System Verified
+[SentinelEngine] Process: Secure System, PID=188, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: Registry, PID=232, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: smss, PID=744, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: csrss, PID=1180, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: wininit, PID=1268, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: csrss, PID=1276, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: winlogon, PID=1376, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: services, PID=1400, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] GetActiveProcesses: Total=50, Trusted=20, Untrusted=30
+[SentinelEngine] Process: Idle, PID=0, Trusted=True, Status=System Verified
+[SentinelEngine] Process: System, PID=4, Trusted=True, Status=System Verified
+[SentinelEngine] Process: Secure System, PID=188, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: Registry, PID=232, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: smss, PID=744, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: csrss, PID=1180, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: wininit, PID=1268, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: csrss, PID=1276, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: winlogon, PID=1376, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: services, PID=1400, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] GetActiveProcesses: Total=50, Trusted=20, Untrusted=30
+[SentinelEngine] Process: Idle, PID=0, Trusted=True, Status=System Verified
+[SentinelEngine] Process: System, PID=4, Trusted=True, Status=System Verified
+[SentinelEngine] Process: Secure System, PID=188, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: Registry, PID=232, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: smss, PID=744, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: csrss, PID=1180, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: wininit, PID=1268, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: csrss, PID=1276, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: winlogon, PID=1376, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: services, PID=1400, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] GetActiveProcesses: Total=50, Trusted=20, Untrusted=30
+[SentinelEngine] Process: Idle, PID=0, Trusted=True, Status=System Verified
+[SentinelEngine] Process: System, PID=4, Trusted=True, Status=System Verified
+[SentinelEngine] Process: Secure System, PID=188, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: Registry, PID=232, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: smss, PID=744, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: csrss, PID=1180, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: wininit, PID=1268, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: csrss, PID=1276, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: winlogon, PID=1376, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: services, PID=1400, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] GetActiveProcesses: Total=50, Trusted=20, Untrusted=30
+[SentinelEngine] Process: Idle, PID=0, Trusted=True, Status=System Verified
+[SentinelEngine] Process: System, PID=4, Trusted=True, Status=System Verified
+[SentinelEngine] Process: Secure System, PID=188, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: Registry, PID=232, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: smss, PID=744, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: csrss, PID=1180, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: wininit, PID=1268, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: csrss, PID=1276, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: winlogon, PID=1376, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: services, PID=1400, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] GetActiveProcesses: Total=50, Trusted=20, Untrusted=30
+[SentinelEngine] Process: Idle, PID=0, Trusted=True, Status=System Verified
+[SentinelEngine] Process: System, PID=4, Trusted=True, Status=System Verified
+[SentinelEngine] Process: Secure System, PID=188, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: Registry, PID=232, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: smss, PID=744, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: csrss, PID=1180, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: wininit, PID=1268, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: csrss, PID=1276, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: winlogon, PID=1376, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: services, PID=1400, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] GetActiveProcesses: Total=50, Trusted=20, Untrusted=30
+[SentinelEngine] Process: Idle, PID=0, Trusted=True, Status=System Verified
+[SentinelEngine] Process: System, PID=4, Trusted=True, Status=System Verified
+[SentinelEngine] Process: Secure System, PID=188, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: Registry, PID=232, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: smss, PID=744, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: csrss, PID=1180, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: wininit, PID=1268, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: csrss, PID=1276, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: winlogon, PID=1376, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: services, PID=1400, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] GetActiveProcesses: Total=50, Trusted=20, Untrusted=30
+[SentinelEngine] Process: Idle, PID=0, Trusted=True, Status=System Verified
+[SentinelEngine] Process: System, PID=4, Trusted=True, Status=System Verified
+[SentinelEngine] Process: Secure System, PID=188, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: Registry, PID=232, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: smss, PID=744, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: csrss, PID=1180, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: wininit, PID=1268, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: csrss, PID=1276, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: winlogon, PID=1376, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: services, PID=1400, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] GetActiveProcesses: Total=50, Trusted=20, Untrusted=30
+[SentinelEngine] Process: Idle, PID=0, Trusted=True, Status=System Verified
+[SentinelEngine] Process: System, PID=4, Trusted=True, Status=System Verified
+[SentinelEngine] Process: Secure System, PID=188, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: Registry, PID=232, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: smss, PID=744, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: csrss, PID=1180, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: wininit, PID=1268, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: csrss, PID=1276, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: winlogon, PID=1376, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: services, PID=1400, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] GetActiveProcesses: Total=50, Trusted=20, Untrusted=30
+[SentinelEngine] Process: Idle, PID=0, Trusted=True, Status=System Verified
+[SentinelEngine] Process: System, PID=4, Trusted=True, Status=System Verified
+[SentinelEngine] Process: Secure System, PID=188, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: Registry, PID=232, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: smss, PID=744, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: csrss, PID=1180, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: wininit, PID=1268, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: csrss, PID=1276, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: winlogon, PID=1376, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: services, PID=1400, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] GetActiveProcesses: Total=50, Trusted=20, Untrusted=30
+[SentinelEngine] Process: Idle, PID=0, Trusted=True, Status=System Verified
+[SentinelEngine] Process: System, PID=4, Trusted=True, Status=System Verified
+[SentinelEngine] Process: Secure System, PID=188, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: Registry, PID=232, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: smss, PID=744, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: csrss, PID=1180, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: wininit, PID=1268, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: csrss, PID=1276, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: winlogon, PID=1376, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: services, PID=1400, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] GetActiveProcesses: Total=50, Trusted=20, Untrusted=30
+[SentinelEngine] Process: Idle, PID=0, Trusted=True, Status=System Verified
+[SentinelEngine] Process: System, PID=4, Trusted=True, Status=System Verified
+[SentinelEngine] Process: Secure System, PID=188, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: Registry, PID=232, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: smss, PID=744, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: csrss, PID=1180, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: wininit, PID=1268, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: csrss, PID=1276, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: winlogon, PID=1376, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: services, PID=1400, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] GetActiveProcesses: Total=50, Trusted=20, Untrusted=30
+[SentinelEngine] Process: Idle, PID=0, Trusted=True, Status=System Verified
+[SentinelEngine] Process: System, PID=4, Trusted=True, Status=System Verified
+[SentinelEngine] Process: Secure System, PID=188, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: Registry, PID=232, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: smss, PID=744, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: csrss, PID=1180, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: wininit, PID=1268, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: csrss, PID=1276, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: winlogon, PID=1376, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: services, PID=1400, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] GetActiveProcesses: Total=50, Trusted=20, Untrusted=30
+[SentinelEngine] Process: Idle, PID=0, Trusted=True, Status=System Verified
+[SentinelEngine] Process: System, PID=4, Trusted=True, Status=System Verified
+[SentinelEngine] Process: Secure System, PID=188, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: Registry, PID=232, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: smss, PID=744, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: csrss, PID=1180, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: wininit, PID=1268, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: csrss, PID=1276, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: winlogon, PID=1376, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: services, PID=1400, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] GetActiveProcesses: Total=50, Trusted=20, Untrusted=30
+[SentinelEngine] Process: Idle, PID=0, Trusted=True, Status=System Verified
+[SentinelEngine] Process: System, PID=4, Trusted=True, Status=System Verified
+[SentinelEngine] Process: Secure System, PID=188, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: Registry, PID=232, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: smss, PID=744, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: csrss, PID=1180, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: wininit, PID=1268, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: csrss, PID=1276, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: winlogon, PID=1376, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: services, PID=1400, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] GetActiveProcesses: Total=50, Trusted=20, Untrusted=30
+[SentinelEngine] Process: Idle, PID=0, Trusted=True, Status=System Verified
+[SentinelEngine] Process: System, PID=4, Trusted=True, Status=System Verified
+[SentinelEngine] Process: Secure System, PID=188, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: Registry, PID=232, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: smss, PID=744, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: csrss, PID=1180, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: wininit, PID=1268, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: csrss, PID=1276, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: winlogon, PID=1376, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: services, PID=1400, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] GetActiveProcesses: Total=50, Trusted=20, Untrusted=30
+[SentinelEngine] Process: Idle, PID=0, Trusted=True, Status=System Verified
+[SentinelEngine] Process: System, PID=4, Trusted=True, Status=System Verified
+[SentinelEngine] Process: Secure System, PID=188, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: Registry, PID=232, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: smss, PID=744, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: csrss, PID=1180, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: wininit, PID=1268, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: csrss, PID=1276, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: winlogon, PID=1376, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: services, PID=1400, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] GetActiveProcesses: Total=50, Trusted=20, Untrusted=30
+[SentinelEngine] Process: Idle, PID=0, Trusted=True, Status=System Verified
+[SentinelEngine] Process: System, PID=4, Trusted=True, Status=System Verified
+[SentinelEngine] Process: Secure System, PID=188, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: Registry, PID=232, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: smss, PID=744, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: csrss, PID=1180, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: wininit, PID=1268, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: csrss, PID=1276, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: winlogon, PID=1376, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: services, PID=1400, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] GetActiveProcesses: Total=50, Trusted=20, Untrusted=30
+[SentinelEngine] Process: Idle, PID=0, Trusted=True, Status=System Verified
+[SentinelEngine] Process: System, PID=4, Trusted=True, Status=System Verified
+[SentinelEngine] Process: Secure System, PID=188, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: Registry, PID=232, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: smss, PID=744, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: csrss, PID=1180, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: wininit, PID=1268, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: csrss, PID=1276, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: winlogon, PID=1376, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: services, PID=1400, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] GetActiveProcesses: Total=50, Trusted=20, Untrusted=30
+[SentinelEngine] Process: Idle, PID=0, Trusted=True, Status=System Verified
+[SentinelEngine] Process: System, PID=4, Trusted=True, Status=System Verified
+[SentinelEngine] Process: Secure System, PID=188, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: Registry, PID=232, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: smss, PID=744, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: csrss, PID=1180, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: wininit, PID=1268, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: csrss, PID=1276, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: winlogon, PID=1376, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: services, PID=1400, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] GetActiveProcesses: Total=50, Trusted=20, Untrusted=30
+[SentinelEngine] Process: Idle, PID=0, Trusted=True, Status=System Verified
+[SentinelEngine] Process: System, PID=4, Trusted=True, Status=System Verified
+[SentinelEngine] Process: Secure System, PID=188, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: Registry, PID=232, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: smss, PID=744, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: csrss, PID=1180, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: wininit, PID=1268, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: csrss, PID=1276, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: winlogon, PID=1376, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: services, PID=1400, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] GetActiveProcesses: Total=50, Trusted=20, Untrusted=30
+[SentinelEngine] Process: Idle, PID=0, Trusted=True, Status=System Verified
+[SentinelEngine] Process: System, PID=4, Trusted=True, Status=System Verified
+[SentinelEngine] Process: Secure System, PID=188, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: Registry, PID=232, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: smss, PID=744, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: csrss, PID=1180, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: wininit, PID=1268, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: csrss, PID=1276, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: winlogon, PID=1376, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: services, PID=1400, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] GetActiveProcesses: Total=50, Trusted=20, Untrusted=30
+[SentinelEngine] Process: Idle, PID=0, Trusted=True, Status=System Verified
+[SentinelEngine] Process: System, PID=4, Trusted=True, Status=System Verified
+[SentinelEngine] Process: Secure System, PID=188, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: Registry, PID=232, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: smss, PID=744, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: csrss, PID=1180, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: wininit, PID=1268, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: csrss, PID=1276, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: winlogon, PID=1376, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: services, PID=1400, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] GetActiveProcesses: Total=50, Trusted=20, Untrusted=30
+[SentinelEngine] Process: Idle, PID=0, Trusted=True, Status=System Verified
+[SentinelEngine] Process: System, PID=4, Trusted=True, Status=System Verified
+[SentinelEngine] Process: Secure System, PID=188, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: Registry, PID=232, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: smss, PID=744, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: csrss, PID=1180, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: wininit, PID=1268, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: csrss, PID=1276, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: winlogon, PID=1376, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: services, PID=1400, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] GetActiveProcesses: Total=50, Trusted=20, Untrusted=30
+[SentinelEngine] Process: Idle, PID=0, Trusted=True, Status=System Verified
+[SentinelEngine] Process: System, PID=4, Trusted=True, Status=System Verified
+[SentinelEngine] Process: Secure System, PID=188, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: Registry, PID=232, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: smss, PID=744, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: csrss, PID=1180, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: wininit, PID=1268, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: csrss, PID=1276, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: winlogon, PID=1376, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: services, PID=1400, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] GetActiveProcesses: Total=50, Trusted=20, Untrusted=30
+[SentinelEngine] Process: Idle, PID=0, Trusted=True, Status=System Verified
+[SentinelEngine] Process: System, PID=4, Trusted=True, Status=System Verified
+[SentinelEngine] Process: Secure System, PID=188, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: Registry, PID=232, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: smss, PID=744, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: csrss, PID=1180, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: wininit, PID=1268, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: csrss, PID=1276, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: winlogon, PID=1376, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: services, PID=1400, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] GetActiveProcesses: Total=50, Trusted=20, Untrusted=30
+[SentinelEngine] Process: Idle, PID=0, Trusted=True, Status=System Verified
+[SentinelEngine] Process: System, PID=4, Trusted=True, Status=System Verified
+[SentinelEngine] Process: Secure System, PID=188, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: Registry, PID=232, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: smss, PID=744, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: csrss, PID=1180, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: wininit, PID=1268, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: csrss, PID=1276, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: winlogon, PID=1376, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: services, PID=1400, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] GetActiveProcesses: Total=50, Trusted=20, Untrusted=30
+[SentinelEngine] Process: Idle, PID=0, Trusted=True, Status=System Verified
+[SentinelEngine] Process: System, PID=4, Trusted=True, Status=System Verified
+[SentinelEngine] Process: Secure System, PID=188, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: Registry, PID=232, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: smss, PID=744, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: csrss, PID=1180, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: wininit, PID=1268, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: csrss, PID=1276, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: winlogon, PID=1376, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: services, PID=1400, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] GetActiveProcesses: Total=50, Trusted=20, Untrusted=30
+[SentinelEngine] Process: Idle, PID=0, Trusted=True, Status=System Verified
+[SentinelEngine] Process: System, PID=4, Trusted=True, Status=System Verified
+[SentinelEngine] Process: Secure System, PID=188, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: Registry, PID=232, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: smss, PID=744, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: csrss, PID=1180, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: wininit, PID=1268, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: csrss, PID=1276, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: winlogon, PID=1376, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: services, PID=1400, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] GetActiveProcesses: Total=50, Trusted=20, Untrusted=30
+[SentinelEngine] Process: Idle, PID=0, Trusted=True, Status=System Verified
+[SentinelEngine] Process: System, PID=4, Trusted=True, Status=System Verified
+[SentinelEngine] Process: Secure System, PID=188, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: Registry, PID=232, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: smss, PID=744, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: csrss, PID=1180, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: wininit, PID=1268, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: csrss, PID=1276, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: winlogon, PID=1376, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: services, PID=1400, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] GetActiveProcesses: Total=50, Trusted=20, Untrusted=30
+[SentinelEngine] Process: Idle, PID=0, Trusted=True, Status=System Verified
+[SentinelEngine] Process: System, PID=4, Trusted=True, Status=System Verified
+[SentinelEngine] Process: Secure System, PID=188, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: Registry, PID=232, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: smss, PID=744, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: csrss, PID=1180, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: wininit, PID=1268, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: csrss, PID=1276, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: winlogon, PID=1376, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: services, PID=1400, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] GetActiveProcesses: Total=50, Trusted=20, Untrusted=30
+[SentinelEngine] Process: Idle, PID=0, Trusted=True, Status=System Verified
+[SentinelEngine] Process: System, PID=4, Trusted=True, Status=System Verified
+[SentinelEngine] Process: Secure System, PID=188, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: Registry, PID=232, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: smss, PID=744, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: csrss, PID=1180, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: wininit, PID=1268, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: csrss, PID=1276, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: winlogon, PID=1376, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: services, PID=1400, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] GetActiveProcesses: Total=50, Trusted=20, Untrusted=30
+[SentinelEngine] Process: Idle, PID=0, Trusted=True, Status=System Verified
+[SentinelEngine] Process: System, PID=4, Trusted=True, Status=System Verified
+[SentinelEngine] Process: Secure System, PID=188, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: Registry, PID=232, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: smss, PID=744, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: csrss, PID=1180, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: wininit, PID=1268, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: csrss, PID=1276, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: winlogon, PID=1376, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: services, PID=1400, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] GetActiveProcesses: Total=50, Trusted=20, Untrusted=30
+[SentinelEngine] Process: Idle, PID=0, Trusted=True, Status=System Verified
+[SentinelEngine] Process: System, PID=4, Trusted=True, Status=System Verified
+[SentinelEngine] Process: Secure System, PID=188, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: Registry, PID=232, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: smss, PID=744, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: csrss, PID=1180, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: wininit, PID=1268, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: csrss, PID=1276, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: winlogon, PID=1376, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: services, PID=1400, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] GetActiveProcesses: Total=50, Trusted=20, Untrusted=30
+[SentinelEngine] Process: Idle, PID=0, Trusted=True, Status=System Verified
+[SentinelEngine] Process: System, PID=4, Trusted=True, Status=System Verified
+[SentinelEngine] Process: Secure System, PID=188, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: Registry, PID=232, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: smss, PID=744, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: csrss, PID=1180, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: wininit, PID=1268, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: csrss, PID=1276, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: winlogon, PID=1376, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: services, PID=1400, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] GetActiveProcesses: Total=50, Trusted=20, Untrusted=30
+[SentinelEngine] Process: Idle, PID=0, Trusted=True, Status=System Verified
+[SentinelEngine] Process: System, PID=4, Trusted=True, Status=System Verified
+[SentinelEngine] Process: Secure System, PID=188, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: Registry, PID=232, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: smss, PID=744, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: csrss, PID=1180, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: wininit, PID=1268, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: csrss, PID=1276, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: winlogon, PID=1376, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: services, PID=1400, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] GetActiveProcesses: Total=50, Trusted=20, Untrusted=30
+[SentinelEngine] Process: Idle, PID=0, Trusted=True, Status=System Verified
+[SentinelEngine] Process: System, PID=4, Trusted=True, Status=System Verified
+[SentinelEngine] Process: Secure System, PID=188, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: Registry, PID=232, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: smss, PID=744, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: csrss, PID=1180, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: wininit, PID=1268, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: csrss, PID=1276, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: winlogon, PID=1376, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: services, PID=1400, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] GetActiveProcesses: Total=50, Trusted=20, Untrusted=30
+[SentinelEngine] Process: Idle, PID=0, Trusted=True, Status=System Verified
+[SentinelEngine] Process: System, PID=4, Trusted=True, Status=System Verified
+[SentinelEngine] Process: Secure System, PID=188, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: Registry, PID=232, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: smss, PID=744, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: csrss, PID=1180, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: wininit, PID=1268, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: csrss, PID=1276, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: winlogon, PID=1376, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: services, PID=1400, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] GetActiveProcesses: Total=50, Trusted=20, Untrusted=30
+[SentinelEngine] Process: Idle, PID=0, Trusted=True, Status=System Verified
+[SentinelEngine] Process: System, PID=4, Trusted=True, Status=System Verified
+[SentinelEngine] Process: Secure System, PID=188, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: Registry, PID=232, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: smss, PID=744, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: csrss, PID=1180, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: wininit, PID=1268, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: csrss, PID=1276, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: winlogon, PID=1376, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: services, PID=1400, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] GetActiveProcesses: Total=50, Trusted=20, Untrusted=30
+[SentinelEngine] Process: Idle, PID=0, Trusted=True, Status=System Verified
+[SentinelEngine] Process: System, PID=4, Trusted=True, Status=System Verified
+[SentinelEngine] Process: Secure System, PID=188, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: Registry, PID=232, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: smss, PID=744, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: csrss, PID=1180, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: wininit, PID=1268, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: csrss, PID=1276, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: winlogon, PID=1376, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: services, PID=1400, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] GetActiveProcesses: Total=50, Trusted=20, Untrusted=30
+[SentinelEngine] Process: Idle, PID=0, Trusted=True, Status=System Verified
+[SentinelEngine] Process: System, PID=4, Trusted=True, Status=System Verified
+[SentinelEngine] Process: Secure System, PID=188, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: Registry, PID=232, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: smss, PID=744, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: csrss, PID=1180, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: wininit, PID=1268, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: csrss, PID=1276, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: winlogon, PID=1376, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: services, PID=1400, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] GetActiveProcesses: Total=50, Trusted=20, Untrusted=30
+[SentinelEngine] Process: Idle, PID=0, Trusted=True, Status=System Verified
+[SentinelEngine] Process: System, PID=4, Trusted=True, Status=System Verified
+[SentinelEngine] Process: Secure System, PID=188, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: Registry, PID=232, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: smss, PID=744, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: csrss, PID=1180, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: wininit, PID=1268, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: csrss, PID=1276, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: winlogon, PID=1376, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: services, PID=1400, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] GetActiveProcesses: Total=50, Trusted=20, Untrusted=30
+[SentinelEngine] Process: Idle, PID=0, Trusted=True, Status=System Verified
+[SentinelEngine] Process: System, PID=4, Trusted=True, Status=System Verified
+[SentinelEngine] Process: Secure System, PID=188, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: Registry, PID=232, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: smss, PID=744, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: csrss, PID=1180, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: wininit, PID=1268, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: csrss, PID=1276, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: winlogon, PID=1376, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: services, PID=1400, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] GetActiveProcesses: Total=50, Trusted=20, Untrusted=30
+[SentinelEngine] Process: Idle, PID=0, Trusted=True, Status=System Verified
+[SentinelEngine] Process: System, PID=4, Trusted=True, Status=System Verified
+[SentinelEngine] Process: Secure System, PID=188, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: Registry, PID=232, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: smss, PID=744, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: csrss, PID=1180, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: wininit, PID=1268, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: csrss, PID=1276, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: winlogon, PID=1376, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: services, PID=1400, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] GetActiveProcesses: Total=50, Trusted=20, Untrusted=30
+[SentinelEngine] Process: Idle, PID=0, Trusted=True, Status=System Verified
+[SentinelEngine] Process: System, PID=4, Trusted=True, Status=System Verified
+[SentinelEngine] Process: Secure System, PID=188, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: Registry, PID=232, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: smss, PID=744, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: csrss, PID=1180, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: wininit, PID=1268, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: csrss, PID=1276, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: winlogon, PID=1376, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: services, PID=1400, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] GetActiveProcesses: Total=50, Trusted=20, Untrusted=30
+[SentinelEngine] Process: Idle, PID=0, Trusted=True, Status=System Verified
+[SentinelEngine] Process: System, PID=4, Trusted=True, Status=System Verified
+[SentinelEngine] Process: Secure System, PID=188, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: Registry, PID=232, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: smss, PID=744, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: csrss, PID=1180, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: wininit, PID=1268, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: csrss, PID=1276, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: winlogon, PID=1376, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: services, PID=1400, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] GetActiveProcesses: Total=50, Trusted=20, Untrusted=30
+[SentinelEngine] Process: Idle, PID=0, Trusted=True, Status=System Verified
+[SentinelEngine] Process: System, PID=4, Trusted=True, Status=System Verified
+[SentinelEngine] Process: Secure System, PID=188, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: Registry, PID=232, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: smss, PID=744, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: csrss, PID=1180, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: wininit, PID=1268, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: csrss, PID=1276, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: winlogon, PID=1376, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: services, PID=1400, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] GetActiveProcesses: Total=50, Trusted=20, Untrusted=30
+[SentinelEngine] Process: Idle, PID=0, Trusted=True, Status=System Verified
+[SentinelEngine] Process: System, PID=4, Trusted=True, Status=System Verified
+[SentinelEngine] Process: Secure System, PID=188, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: Registry, PID=232, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: smss, PID=744, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: csrss, PID=1180, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: wininit, PID=1268, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: csrss, PID=1276, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: winlogon, PID=1376, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: services, PID=1400, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] GetActiveProcesses: Total=50, Trusted=20, Untrusted=30
+[SentinelEngine] Process: Idle, PID=0, Trusted=True, Status=System Verified
+[SentinelEngine] Process: System, PID=4, Trusted=True, Status=System Verified
+[SentinelEngine] Process: Secure System, PID=188, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: Registry, PID=232, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: smss, PID=744, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: csrss, PID=1180, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: wininit, PID=1268, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: csrss, PID=1276, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: winlogon, PID=1376, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: services, PID=1400, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] GetActiveProcesses: Total=50, Trusted=20, Untrusted=30
+[SentinelEngine] Process: Idle, PID=0, Trusted=True, Status=System Verified
+[SentinelEngine] Process: System, PID=4, Trusted=True, Status=System Verified
+[SentinelEngine] Process: Secure System, PID=188, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: Registry, PID=232, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: smss, PID=744, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: csrss, PID=1180, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: wininit, PID=1268, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: csrss, PID=1276, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: winlogon, PID=1376, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: services, PID=1400, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] GetActiveProcesses: Total=50, Trusted=20, Untrusted=30
+[SentinelEngine] Process: Idle, PID=0, Trusted=True, Status=System Verified
+[SentinelEngine] Process: System, PID=4, Trusted=True, Status=System Verified
+[SentinelEngine] Process: Secure System, PID=188, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: Registry, PID=232, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: smss, PID=744, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: csrss, PID=1180, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: wininit, PID=1268, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: csrss, PID=1276, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: winlogon, PID=1376, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: services, PID=1400, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] GetActiveProcesses: Total=50, Trusted=20, Untrusted=30
+[SentinelEngine] Process: Idle, PID=0, Trusted=True, Status=System Verified
+[SentinelEngine] Process: System, PID=4, Trusted=True, Status=System Verified
+[SentinelEngine] Process: Secure System, PID=188, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: Registry, PID=232, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: smss, PID=744, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: csrss, PID=1180, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: wininit, PID=1268, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: csrss, PID=1276, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: winlogon, PID=1376, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: services, PID=1400, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] GetActiveProcesses: Total=50, Trusted=20, Untrusted=30
+[SentinelEngine] Process: Idle, PID=0, Trusted=True, Status=System Verified
+[SentinelEngine] Process: System, PID=4, Trusted=True, Status=System Verified
+[SentinelEngine] Process: Secure System, PID=188, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: Registry, PID=232, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: smss, PID=744, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: csrss, PID=1180, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: wininit, PID=1268, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: csrss, PID=1276, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: winlogon, PID=1376, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: services, PID=1400, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] GetActiveProcesses: Total=50, Trusted=20, Untrusted=30
+[SentinelEngine] Process: Idle, PID=0, Trusted=True, Status=System Verified
+[SentinelEngine] Process: System, PID=4, Trusted=True, Status=System Verified
+[SentinelEngine] Process: Secure System, PID=188, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: Registry, PID=232, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: smss, PID=744, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: csrss, PID=1180, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: wininit, PID=1268, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: csrss, PID=1276, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: winlogon, PID=1376, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: services, PID=1400, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] GetActiveProcesses: Total=50, Trusted=20, Untrusted=30
+[SentinelEngine] Process: Idle, PID=0, Trusted=True, Status=System Verified
+[SentinelEngine] Process: System, PID=4, Trusted=True, Status=System Verified
+[SentinelEngine] Process: Secure System, PID=188, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: Registry, PID=232, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: smss, PID=744, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: csrss, PID=1180, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: wininit, PID=1268, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: csrss, PID=1276, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: winlogon, PID=1376, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: services, PID=1400, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] GetActiveProcesses: Total=50, Trusted=20, Untrusted=30
+[SentinelEngine] Process: Idle, PID=0, Trusted=True, Status=System Verified
+[SentinelEngine] Process: System, PID=4, Trusted=True, Status=System Verified
+[SentinelEngine] Process: Secure System, PID=188, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: Registry, PID=232, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: smss, PID=744, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: csrss, PID=1180, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: wininit, PID=1268, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: csrss, PID=1276, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: winlogon, PID=1376, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: services, PID=1400, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] GetActiveProcesses: Total=50, Trusted=20, Untrusted=30
+[SentinelEngine] Process: Idle, PID=0, Trusted=True, Status=System Verified
+[SentinelEngine] Process: System, PID=4, Trusted=True, Status=System Verified
+[SentinelEngine] Process: Secure System, PID=188, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: Registry, PID=232, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: smss, PID=744, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: csrss, PID=1180, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: wininit, PID=1268, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: csrss, PID=1276, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: winlogon, PID=1376, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: services, PID=1400, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] GetActiveProcesses: Total=50, Trusted=20, Untrusted=30
+[SentinelEngine] Process: Idle, PID=0, Trusted=True, Status=System Verified
+[SentinelEngine] Process: System, PID=4, Trusted=True, Status=System Verified
+[SentinelEngine] Process: Secure System, PID=188, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: Registry, PID=232, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: smss, PID=744, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: csrss, PID=1180, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: wininit, PID=1268, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: csrss, PID=1276, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: winlogon, PID=1376, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: services, PID=1400, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] GetActiveProcesses: Total=50, Trusted=20, Untrusted=30
+[SentinelEngine] Process: Idle, PID=0, Trusted=True, Status=System Verified
+[SentinelEngine] Process: System, PID=4, Trusted=True, Status=System Verified
+[SentinelEngine] Process: Secure System, PID=188, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: Registry, PID=232, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: smss, PID=744, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: csrss, PID=1180, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: wininit, PID=1268, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: csrss, PID=1276, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: winlogon, PID=1376, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: services, PID=1400, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] GetActiveProcesses: Total=50, Trusted=20, Untrusted=30
+[SentinelEngine] Process: Idle, PID=0, Trusted=True, Status=System Verified
+[SentinelEngine] Process: System, PID=4, Trusted=True, Status=System Verified
+[SentinelEngine] Process: Secure System, PID=188, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: Registry, PID=232, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: smss, PID=744, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: csrss, PID=1180, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: wininit, PID=1268, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: csrss, PID=1276, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: winlogon, PID=1376, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: services, PID=1400, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] GetActiveProcesses: Total=50, Trusted=20, Untrusted=30
+[SentinelEngine] Process: Idle, PID=0, Trusted=True, Status=System Verified
+[SentinelEngine] Process: System, PID=4, Trusted=True, Status=System Verified
+[SentinelEngine] Process: Secure System, PID=188, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: Registry, PID=232, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: smss, PID=744, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: csrss, PID=1180, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: wininit, PID=1268, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: csrss, PID=1276, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: winlogon, PID=1376, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: services, PID=1400, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] GetActiveProcesses: Total=50, Trusted=20, Untrusted=30
+[SentinelEngine] Process: Idle, PID=0, Trusted=True, Status=System Verified
+[SentinelEngine] Process: System, PID=4, Trusted=True, Status=System Verified
+[SentinelEngine] Process: Secure System, PID=188, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: Registry, PID=232, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: smss, PID=744, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: csrss, PID=1180, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: wininit, PID=1268, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: csrss, PID=1276, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: winlogon, PID=1376, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: services, PID=1400, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] GetActiveProcesses: Total=50, Trusted=20, Untrusted=30
+[SentinelEngine] Process: Idle, PID=0, Trusted=True, Status=System Verified
+[SentinelEngine] Process: System, PID=4, Trusted=True, Status=System Verified
+[SentinelEngine] Process: Secure System, PID=188, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: Registry, PID=232, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: smss, PID=744, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: csrss, PID=1180, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: wininit, PID=1268, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: csrss, PID=1276, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: winlogon, PID=1376, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: services, PID=1400, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] GetActiveProcesses: Total=50, Trusted=20, Untrusted=30
+[SentinelEngine] Process: Idle, PID=0, Trusted=True, Status=System Verified
+[SentinelEngine] Process: System, PID=4, Trusted=True, Status=System Verified
+[SentinelEngine] Process: Secure System, PID=188, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: Registry, PID=232, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: smss, PID=744, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: csrss, PID=1180, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: wininit, PID=1268, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: csrss, PID=1276, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: winlogon, PID=1376, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: services, PID=1400, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] GetActiveProcesses: Total=50, Trusted=20, Untrusted=30
+[SentinelEngine] Process: Idle, PID=0, Trusted=True, Status=System Verified
+[SentinelEngine] Process: System, PID=4, Trusted=True, Status=System Verified
+[SentinelEngine] Process: Secure System, PID=188, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: Registry, PID=232, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: smss, PID=744, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: csrss, PID=1180, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: wininit, PID=1268, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: csrss, PID=1276, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: winlogon, PID=1376, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: services, PID=1400, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] GetActiveProcesses: Total=50, Trusted=20, Untrusted=30
+[SentinelEngine] Process: Idle, PID=0, Trusted=True, Status=System Verified
+[SentinelEngine] Process: System, PID=4, Trusted=True, Status=System Verified
+[SentinelEngine] Process: Secure System, PID=188, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: Registry, PID=232, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: smss, PID=744, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: csrss, PID=1180, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: wininit, PID=1268, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: csrss, PID=1276, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: winlogon, PID=1376, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] Process: services, PID=1400, Trusted=False, Status=Unknown Issuer
+[SentinelEngine] GetActiveProcesses: Total=50, Trusted=20, Untrusted=30

@@ -27,6 +27,7 @@
             <converters:IoToStatusConverter x:Key="IoToStatusConverter"/>
             <converters:TrustToBrushConverter x:Key="TrustToBrushConverter"/>
             <converters:TrustToTextConverter x:Key="TrustToTextConverter"/>
+            <converters:BooleanToPauseTextConverter x:Key="BooleanToPauseTextConverter"/>
         </ResourceDictionary>
     </Application.Resources>
 </Application>

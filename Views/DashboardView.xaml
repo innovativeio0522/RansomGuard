@@ -7,12 +7,12 @@
         <StackPanel Margin="16">
             
             <!-- Stats Row (4 cards) -->
-            <Grid Margin="0,0,0,12">
+            <Grid Margin="0,0,0,8">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="24"/>
+                    <ColumnDefinition Width="12"/>
                     <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="24"/>
+                    <ColumnDefinition Width="12"/>
                     <ColumnDefinition Width="*"/>
                 </Grid.ColumnDefinitions>
 
@@ -22,17 +22,17 @@
                     <Grid>
                         <Path Data="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z" 
                               Fill="{StaticResource OnSurfaceBrush}" Opacity="0.05" Stretch="Uniform"
-                              HorizontalAlignment="Right" VerticalAlignment="Top" Width="48" Margin="0,8,8,0"/>
-                        <StackPanel Margin="16">
-                            <TextBlock Text="FILES MONITORED" Style="{StaticResource TextLabel}"/>
-                            <TextBlock Text="{Binding FilesMonitoredCount}" FontSize="28" FontWeight="Black" 
-                                      Foreground="{StaticResource OnSurfaceBrush}" Margin="0,8,0,0"/>
-                            <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
-                                <Viewbox Width="12" Height="12" Margin="0,0,4,0">
+                              HorizontalAlignment="Right" VerticalAlignment="Top" Width="32" Margin="0,4,4,0"/>
+                        <StackPanel Margin="10,8">
+                            <TextBlock Text="DIRECTORIES MONITORED" Style="{StaticResource TextLabel}" FontSize="8"/>
+                            <TextBlock Text="{Binding FilesMonitoredCount}" FontSize="20" FontWeight="Black" 
+                                      Foreground="{StaticResource OnSurfaceBrush}" Margin="0,4,0,0"/>
+                            <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
+                                <Viewbox Width="9" Height="9" Margin="0,0,3,0">
                                     <Path Data="M16 6l2.29 2.29-4.88 4.88-4-4L2 16.59 3.41 18l6-6 4 4 6.3-6.29L22 12V6z" 
                                           Fill="{StaticResource SecondaryBrush}"/>
                                 </Viewbox>
-                                <TextBlock Text="{Binding FilesPerHourText}" Style="{StaticResource TextStatusSafe}"/>
+                                <TextBlock Text="{Binding FilesPerHourText}" Style="{StaticResource TextStatusSafe}" FontSize="8"/>
                             </StackPanel>
                         </StackPanel>
                     </Grid>
@@ -45,17 +45,17 @@
                     <Grid>
                         <Path Data="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z" 
                               Fill="{StaticResource OnSurfaceBrush}" Opacity="0.05" Stretch="Uniform"
-                              HorizontalAlignment="Right" VerticalAlignment="Top" Width="48" Margin="0,8,8,0"/>
-                        <StackPanel Margin="16">
-                            <TextBlock Text="THREATS BLOCKED" Style="{StaticResource TextLabel}"/>
-                            <TextBlock Text="{Binding ThreatsBlockedCount}" FontSize="28" FontWeight="Black" 
-                                      Foreground="{StaticResource PrimaryBrush}" Margin="0,8,0,0"/>
-                            <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
-                                <Viewbox Width="12" Height="12" Margin="0,0,4,0">
+                              HorizontalAlignment="Right" VerticalAlignment="Top" Width="32" Margin="0,4,4,0"/>
+                        <StackPanel Margin="10,8">
+                            <TextBlock Text="THREATS BLOCKED" Style="{StaticResource TextLabel}" FontSize="8"/>
+                            <TextBlock Text="{Binding ThreatsBlockedCount}" FontSize="20" FontWeight="Black" 
+                                      Foreground="{StaticResource PrimaryBrush}" Margin="0,4,0,0"/>
+                            <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
+                                <Viewbox Width="9" Height="9" Margin="0,0,3,0">
                                     <Path Data="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z" 
                                           Fill="{StaticResource OnSurfaceVariantBrush}"/>
                                 </Viewbox>
-                                <TextBlock Text="SINCE LAST REBOOT" Style="{StaticResource TextSmall}"/>
+                                <TextBlock Text="SINCE LAST REBOOT" Style="{StaticResource TextSmall}" FontSize="8"/>
                             </StackPanel>
                         </StackPanel>
                     </Grid>
@@ -67,18 +67,18 @@
                     <Grid>
                         <Path Data="M21 10.12h-6.78l2.74-2.82c-2.73-2.7-7.15-2.8-9.88-.1-2.73 2.71-2.73 7.08 0 9.79 s7.15 2.71 9.88 0C18.32 15.65 19 14.08 19 12.1h2c0 2.5-.98 4.81-2.73 6.56-3.52 3.49-9.21 3.49-12.73 0-3.52-3.5-3.52-9.18 0-12.68 3.52-3.5 9.21-3.5 12.73 0l2.84-2.92V10.12z" 
                               Fill="{StaticResource OnSurfaceBrush}" Opacity="0.05" Stretch="Uniform"
-                              HorizontalAlignment="Right" VerticalAlignment="Top" Width="48" Margin="0,8,8,0"/>
-                        <StackPanel Margin="16">
-                            <TextBlock Text="LAST SCAN" Style="{StaticResource TextLabel}"/>
-                            <StackPanel Orientation="Horizontal" Margin="0,8,0,0" Height="40">
-                                <TextBlock Text="{Binding LastScanText}" FontSize="20" FontWeight="Black" 
+                              HorizontalAlignment="Right" VerticalAlignment="Top" Width="32" Margin="0,4,4,0"/>
+                        <StackPanel Margin="10,8">
+                            <TextBlock Text="LAST SCAN" Style="{StaticResource TextLabel}" FontSize="8"/>
+                            <StackPanel Orientation="Horizontal" Margin="0,4,0,0" Height="26">
+                                <TextBlock Text="{Binding LastScanText}" FontSize="16" FontWeight="Black" 
                                           Foreground="{StaticResource OnSurfaceBrush}" VerticalAlignment="Center"/>
                             </StackPanel>
-                            <Grid Margin="0,12,0,0">
-                                <TextBlock Text="SYSTEM SECURED" Style="{StaticResource TextStatusSafe}" FontWeight="Bold" VerticalAlignment="Center"/>
+                            <Grid Margin="0,6,0,0">
+                                <TextBlock Text="SYSTEM SECURED" Style="{StaticResource TextStatusSafe}" FontWeight="Bold" VerticalAlignment="Center" FontSize="8"/>
                                 <Button Content="{Binding RescanButtonText}" Style="{StaticResource PrimaryButton}" 
                                        Command="{Binding RescanCommand}"
-                                       HorizontalAlignment="Right" Padding="12,6"/>
+                                       HorizontalAlignment="Right" Padding="8,4" FontSize="9"/>
                             </Grid>
                         </StackPanel>
                     </Grid>
@@ -86,53 +86,53 @@
             </Grid>
             
             <!-- Active Defense Shields -->
-            <Grid Margin="0,0,0,12">
+            <Grid Margin="0,0,0,8">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="24"/>
+                    <ColumnDefinition Width="16"/>
                     <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="24"/>
+                    <ColumnDefinition Width="16"/>
                     <ColumnDefinition Width="*"/>
                 </Grid.ColumnDefinitions>
 
                 <!-- Honey Pot Trap -->
-                <Border Grid.Column="0" Background="{StaticResource SurfaceContainerLowBrush}" CornerRadius="8" Padding="12">
+                <Border Grid.Column="0" Background="{StaticResource SurfaceContainerLowBrush}" CornerRadius="8" Padding="10,8">
                     <StackPanel Orientation="Horizontal">
-                        <Ellipse Width="12" Height="12" Margin="0,0,12,0"
+                        <Ellipse Width="10" Height="10" Margin="0,0,8,0"
                                  Fill="{Binding IsHoneyPotActive, Converter={StaticResource BooleanToBrushConverter}, ConverterParameter=SecondaryBrush}">
                             <Ellipse.Effect>
-                                <DropShadowEffect BlurRadius="8" ShadowDepth="0" Color="#4edea3" Opacity="0.5"/>
+                                <DropShadowEffect BlurRadius="6" ShadowDepth="0" Color="#4edea3" Opacity="0.5"/>
                             </Ellipse.Effect>
                         </Ellipse>
                         <StackPanel>
-                            <TextBlock Text="HONEY POT TRIPWIRE" Style="{StaticResource TextLabel}"/>
+                            <TextBlock Text="HONEY POT TRIPWIRE" Style="{StaticResource TextLabel}" FontSize="9"/>
                             <TextBlock Text="{Binding IsHoneyPotActive, Converter={StaticResource BooleanToStatusConverter}, ConverterParameter='ARMED;DISARMED'}" 
-                                      FontSize="14" FontWeight="Bold" Foreground="{Binding IsHoneyPotActive, Converter={StaticResource BooleanToBrushConverter}, ConverterParameter=SecondaryBrush}"/>
+                                      FontSize="12" FontWeight="Bold" Foreground="{Binding IsHoneyPotActive, Converter={StaticResource BooleanToBrushConverter}, ConverterParameter=SecondaryBrush}"/>
                         </StackPanel>
                     </StackPanel>
                 </Border>
 
                 <!-- VSS Shield -->
-                <Border Grid.Column="2" Background="{StaticResource SurfaceContainerLowBrush}" CornerRadius="8" Padding="12">
+                <Border Grid.Column="2" Background="{StaticResource SurfaceContainerLowBrush}" CornerRadius="8" Padding="10,8">
                     <StackPanel Orientation="Horizontal">
-                        <Ellipse Width="12" Height="12" Margin="0,0,12,0"
+                        <Ellipse Width="10" Height="10" Margin="0,0,8,0"
                                  Fill="{Binding IsVssShieldActive, Converter={StaticResource BooleanToBrushConverter}, ConverterParameter=SecondaryBrush}">
                             <Ellipse.Effect>
-                                <DropShadowEffect BlurRadius="8" ShadowDepth="0" Color="#4edea3" Opacity="0.5"/>
+                                <DropShadowEffect BlurRadius="6" ShadowDepth="0" Color="#4edea3" Opacity="0.5"/>
                             </Ellipse.Effect>
                         </Ellipse>
                         <StackPanel>
-                            <TextBlock Text="VSS SHADOW PROTECTION" Style="{StaticResource TextLabel}"/>
+                            <TextBlock Text="VSS SHADOW PROTECTION" Style="{StaticResource TextLabel}" FontSize="9"/>
                             <TextBlock Text="{Binding IsVssShieldActive, Converter={StaticResource BooleanToStatusConverter}, ConverterParameter='LOCKED;UNPROTECTED'}" 
-                                      FontSize="14" FontWeight="Bold" Foreground="{Binding IsVssShieldActive, Converter={StaticResource BooleanToBrushConverter}, ConverterParameter=SecondaryBrush}"/>
+                                      FontSize="12" FontWeight="Bold" Foreground="{Binding IsVssShieldActive, Converter={StaticResource BooleanToBrushConverter}, ConverterParameter=SecondaryBrush}"/>
                         </StackPanel>
                     </StackPanel>
                 </Border>
 
                 <!-- Panic Mode -->
-                <Border Grid.Column="4" Background="{StaticResource SurfaceContainerLowBrush}" CornerRadius="8" Padding="12">
+                <Border Grid.Column="4" Background="{StaticResource SurfaceContainerLowBrush}" CornerRadius="8" Padding="10,8">
                     <StackPanel Orientation="Horizontal">
-                        <Ellipse Width="12" Height="12" Margin="0,0,12,0"
+                        <Ellipse Width="10" Height="10" Margin="0,0,8,0"
                                  Fill="{Binding IsPanicModeEngaged, Converter={StaticResource BooleanToBrushConverter}, ConverterParameter=TertiaryBrush}">
                             <Ellipse.Style>
                                 <Style TargetType="Ellipse">
@@ -151,9 +151,9 @@
                             </Ellipse.Style>
                         </Ellipse>
                         <StackPanel>
-                            <TextBlock Text="EMERGENCY LOCKDOWN" Style="{StaticResource TextLabel}"/>
+                            <TextBlock Text="EMERGENCY LOCKDOWN" Style="{StaticResource TextLabel}" FontSize="9"/>
                             <TextBlock Text="{Binding IsPanicModeEngaged, Converter={StaticResource BooleanToStatusConverter}, ConverterParameter='ENGAGED;STANDBY'}" 
-                                      FontSize="14" FontWeight="Bold" Foreground="{Binding IsPanicModeEngaged, Converter={StaticResource BooleanToBrushConverter}, ConverterParameter=TertiaryBrush}"/>
+                                      FontSize="12" FontWeight="Bold" Foreground="{Binding IsPanicModeEngaged, Converter={StaticResource BooleanToBrushConverter}, ConverterParameter=TertiaryBrush}"/>
                         </StackPanel>
                     </StackPanel>
                 </Border>
@@ -164,20 +164,26 @@
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="24"/>
-                    <ColumnDefinition Width="2*"/>
+                    <ColumnDefinition Width="1.5*"/>
                     <ColumnDefinition Width="24"/>
                     <ColumnDefinition Width="*"/>
                 </Grid.ColumnDefinitions>
 
                 <!-- LEFT: Real-time File Activity -->
                 <Border Grid.Column="0" Background="{StaticResource SurfaceContainerLowBrush}" 
-                        CornerRadius="8">
-                    <StackPanel>
-                        <Border Background="{StaticResource SurfaceContainerHighestBrush}" 
-                               Padding="16" CornerRadius="8,8,0,0">
+                        CornerRadius="8" Height="300">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+                        
+                        <!-- Header -->
+                        <Border Grid.Row="0" Background="{StaticResource SurfaceContainerHighestBrush}" 
+                               Padding="12,8" CornerRadius="8,8,0,0">
                             <StackPanel Orientation="Horizontal">
-                                <Ellipse Width="8" Height="8" Fill="{StaticResource SecondaryBrush}" 
-                                        Margin="0,0,8,0">
+                                <Ellipse Width="6" Height="6" Fill="{StaticResource SecondaryBrush}" 
+                                        Margin="0,0,8,0" VerticalAlignment="Center">
                                     <Ellipse.Triggers>
                                         <EventTrigger RoutedEvent="Loaded">
                                             <BeginStoryboard>
@@ -190,28 +196,43 @@
                                         </EventTrigger>
                                     </Ellipse.Triggers>
                                 </Ellipse>
-                                <TextBlock Text="REAL-TIME FILE ACTIVITY" Style="{StaticResource TextLabel}"/>
+                                <TextBlock Text="REAL-TIME FILE ACTIVITY" Style="{StaticResource TextLabel}" FontSize="10"/>
                             </StackPanel>
                         </Border>
 
-                        <ItemsControl ItemsSource="{Binding RecentActivities}" Margin="12">
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate>
-                                    <Border BorderBrush="{Binding IsSuspicious, Converter={StaticResource BooleanToBrushConverter}, ConverterParameter=SecondaryBrush}" 
-                                            BorderThickness="2,0,0,0" 
-                                            Background="{StaticResource SurfaceContainerBrush}" 
-                                            Padding="12" Margin="0,0,0,8" CornerRadius="0,4,4,0">
-                                        <StackPanel>
-                                            <TextBlock Text="{Binding FilePath}" 
-                                                      Style="{StaticResource TextBody}" FontSize="11"/>
-                                            <TextBlock Text="{Binding Action, StringFormat='{}{0} ACTION'}" 
-                                                      Style="{StaticResource TextSmall}" Margin="0,4,0,0"/>
-                                        </StackPanel>
-                                    </Border>
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
-                    </StackPanel>
+                        <!-- Scrollable Activity List -->
+                        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" 
+                                     HorizontalScrollBarVisibility="Disabled" 
+                                     Padding="8">
+                            <ItemsControl ItemsSource="{Binding RecentActivities}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border BorderBrush="{Binding IsSuspicious, Converter={StaticResource BooleanToBrushConverter}, ConverterParameter=SecondaryBrush}" 
+                                                BorderThickness="2,0,0,0" 
+                                                Background="{StaticResource SurfaceContainerBrush}" 
+                                                Padding="8,6" Margin="0,0,0,4" CornerRadius="0,4,4,0">
+                                            <Grid>
+                                                <Grid.RowDefinitions>
+                                                    <RowDefinition Height="Auto"/>
+                                                    <RowDefinition Height="Auto"/>
+                                                </Grid.RowDefinitions>
+                                                <TextBlock Grid.Row="0" Text="{Binding FilePath}" 
+                                                          Style="{StaticResource TextBody}" 
+                                                          FontSize="10" 
+                                                          TextTrimming="CharacterEllipsis"
+                                                          ToolTip="{Binding FilePath}"/>
+                                                <TextBlock Grid.Row="1" Text="{Binding Action, StringFormat='{}{0} ACTION'}" 
+                                                          Style="{StaticResource TextSmall}" 
+                                                          FontSize="9"
+                                                          Margin="0,2,0,0"
+                                                          Opacity="0.7"/>
+                                            </Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </ScrollViewer>
+                    </Grid>
                 </Border>
 
                 <!-- CENTER: Threat Risk Gauge -->
@@ -336,114 +357,123 @@
 
                 <!-- RIGHT: Active Alerts -->
                 <Border Grid.Column="4" Background="{StaticResource SurfaceContainerLowBrush}" 
-                        CornerRadius="8">
-                    <StackPanel>
-                        <Border Background="{StaticResource SurfaceContainerHighestBrush}" 
-                               Padding="16" CornerRadius="8,8,0,0">
+                        CornerRadius="8" Height="300">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+                        
+                        <Border Grid.Row="0" Background="{StaticResource SurfaceContainerHighestBrush}" 
+                               Padding="10,6" CornerRadius="8,8,0,0">
                             <Grid>
-                                <TextBlock Text="ACTIVE ALERTS" Style="{StaticResource TextLabel}"/>
+                                <TextBlock Text="ACTIVE ALERTS" Style="{StaticResource TextLabel}" FontSize="10"/>
                                 <Border Background="{StaticResource TertiaryContainerBrush}" 
-                                       Padding="8,4" CornerRadius="4" HorizontalAlignment="Right">
+                                       Padding="6,3" CornerRadius="3" HorizontalAlignment="Right">
                                     <TextBlock Text="{Binding NewAlertsText}" Foreground="{StaticResource OnTertiaryContainerBrush}" 
                                               FontWeight="Bold" FontSize="10"/>
                                 </Border>
                             </Grid>
                         </Border>
 
-                        <ItemsControl ItemsSource="{Binding ActiveAlerts}" Margin="12">
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate>
-                                    <Border Background="{StaticResource SurfaceContainerBrush}" 
-                                           Margin="0,0,0,12" CornerRadius="8" ClipToBounds="True">
-                                        <Grid>
-                                            <StackPanel Margin="16">
-                                                <Grid Margin="0,0,0,8">
-                                                    <StackPanel Orientation="Horizontal">
-                                                        <Viewbox Width="16" Height="16" Margin="0,0,8,0">
-                                                            <Path Data="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z" 
-                                                                  Fill="{StaticResource TertiaryBrush}"/>
-                                                        </Viewbox>
-                                                        <TextBlock Text="{Binding Name}" 
-                                                                  Style="{StaticResource TextBody}" FontWeight="Bold"/>
-                                                    </StackPanel>
-                                                </Grid>
-                                                <TextBlock Text="{Binding Path, StringFormat='Target: {0}'}" 
-                                                          Style="{StaticResource TextSmall}" TextWrapping="Wrap"/>
-                                                <Grid Margin="0,12,0,0">
-                                                    <Grid.ColumnDefinitions>
-                                                        <ColumnDefinition Width="*"/>
-                                                        <ColumnDefinition Width="8"/>
-                                                        <ColumnDefinition Width="*"/>
-                                                    </Grid.ColumnDefinitions>
-                                                    <Button Content="IGNORE" Grid.Column="0" 
-                                                           Style="{StaticResource NativeButton}" Padding="8,6"
-                                                           Command="{Binding DataContext.IgnoreAlertCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
-                                                           CommandParameter="{Binding}"/>
-                                                    <Button Content="QUARANTINE" Grid.Column="2" 
-                                                           Style="{StaticResource DangerButton}" Padding="8,6"
-                                                           Command="{Binding DataContext.QuarantineAlertCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
-                                                           CommandParameter="{Binding}"/>
-                                                </Grid>
-                                            </StackPanel>
-                                            
-                                            <Border Background="{StaticResource TertiaryBrush}" Opacity="0.1" CornerRadius="0,0,0,8" 
-                                                    HorizontalAlignment="Right" VerticalAlignment="Top">
-                                                <TextBlock Text="{Binding Severity}" Foreground="Transparent" 
-                                                           FontWeight="Black" FontSize="9" Padding="12,4"/>
-                                            </Border>
-                                            <TextBlock Text="{Binding Severity}" Foreground="{StaticResource TertiaryBrush}" 
-                                                       FontWeight="Black" FontSize="9" Padding="12,4" 
-                                                       HorizontalAlignment="Right" VerticalAlignment="Top"/>
-                                        </Grid>
-                                    </Border>
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
+                        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" 
+                                     HorizontalScrollBarVisibility="Disabled">
+                            <ItemsControl ItemsSource="{Binding ActiveAlerts}" Margin="8">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border Background="{StaticResource SurfaceContainerBrush}" 
+                                               Margin="0,0,0,8" CornerRadius="6" ClipToBounds="True">
+                                            <Grid>
+                                                <StackPanel Margin="10,8">
+                                                    <Grid Margin="0,0,0,6">
+                                                        <StackPanel Orientation="Horizontal" Margin="0,0,80,0">
+                                                            <Viewbox Width="12" Height="12" Margin="0,0,6,0">
+                                                                <Path Data="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z" 
+                                                                      Fill="{StaticResource TertiaryBrush}"/>
+                                                            </Viewbox>
+                                                            <TextBlock Text="{Binding Name}" 
+                                                                      Style="{StaticResource TextBody}" FontWeight="Bold" FontSize="12"/>
+                                                        </StackPanel>
+                                                    </Grid>
+                                                    <TextBlock Text="{Binding Path, StringFormat='Target: {0}'}" 
+                                                              Style="{StaticResource TextSmall}" TextWrapping="Wrap" FontSize="10"/>
+                                                    <Grid Margin="0,8,0,0" HorizontalAlignment="Right">
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="Auto"/>
+                                                            <ColumnDefinition Width="6"/>
+                                                            <ColumnDefinition Width="Auto"/>
+                                                        </Grid.ColumnDefinitions>
+                                                        <Button Content="IGNORE" Grid.Column="0" Width="60"
+                                                               Style="{StaticResource NativeButton}" Padding="4,3" FontSize="9"
+                                                               Command="{Binding DataContext.IgnoreAlertCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                               CommandParameter="{Binding}"/>
+                                                        <Button Content="QUARANTINE" Grid.Column="2" Width="85"
+                                                               Style="{StaticResource DangerButton}" Padding="4,3" FontSize="9"
+                                                               Command="{Binding DataContext.QuarantineAlertCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                               CommandParameter="{Binding}"/>
+                                                    </Grid>
+                                                </StackPanel>
+                                                
+                                                <Border Background="{StaticResource TertiaryBrush}" Opacity="0.1" CornerRadius="0,0,0,6" 
+                                                        HorizontalAlignment="Right" VerticalAlignment="Top">
+                                                    <TextBlock Text="{Binding Severity}" Foreground="Transparent" 
+                                                               FontWeight="Black" FontSize="9" Padding="8,3"/>
+                                                </Border>
+                                                <TextBlock Text="{Binding Severity}" Foreground="{StaticResource TertiaryBrush}" 
+                                                           FontWeight="Black" FontSize="9" Padding="8,3" 
+                                                           HorizontalAlignment="Right" VerticalAlignment="Top"/>
+                                            </Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </ScrollViewer>
 
-                        <Button Content="VIEW ALL INCIDENT LOGS" Style="{StaticResource NativeButton}" 
+                        <Button Grid.Row="2" Content="VIEW ALL INCIDENT LOGS" Style="{StaticResource NativeButton}" 
                                Command="{Binding ViewAllLogsCommand}"
-                               Margin="12" HorizontalAlignment="Center"/>
-                    </StackPanel>
+                               Margin="8" HorizontalAlignment="Center" Padding="10,5" FontSize="10"/>
+                    </Grid>
                 </Border>
             </Grid>
 
             <!-- System Architecture Visualization (Decorative Section) -->
-            <Border Background="{StaticResource SurfaceContainerLowBrush}" CornerRadius="8" ClipToBounds="True" MinHeight="200">
+            <Border Background="{StaticResource SurfaceContainerLowBrush}" CornerRadius="8" ClipToBounds="True" MinHeight="140">
                 <Grid>
                     <!-- Simulated Background Map / Data Flow placeholder -->
                     <Path Data="M0,0 L100,100" Stretch="Fill" Stroke="{StaticResource SurfaceContainerHighestBrush}" Opacity="0.1"/>
                     
-                    <Grid Margin="32">
+                    <Grid Margin="20,16">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="3*"/>
                             <ColumnDefinition Width="1*"/>
                         </Grid.ColumnDefinitions>
                         
                         <StackPanel Grid.Column="0">
-                            <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
-                                <TextBlock Text="Neural Protection Engine " FontSize="20" FontWeight="Bold" Foreground="{StaticResource OnSurfaceBrush}"/>
-                                <TextBlock Text="v4.2.0" FontSize="20" FontWeight="Bold" Foreground="{StaticResource PrimaryBrush}"/>
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+                                <TextBlock Text="Neural Protection Engine " FontSize="16" FontWeight="Bold" Foreground="{StaticResource OnSurfaceBrush}"/>
+                                <TextBlock Text="v4.2.0" FontSize="16" FontWeight="Bold" Foreground="{StaticResource PrimaryBrush}"/>
                             </StackPanel>
                             <TextBlock Text="The Sentinel is currently employing deep-packet inspection and behavioral heuristics across all active network nodes. Protection is optimized for the current threat landscape." 
-                                       Style="{StaticResource TextSmall}" TextWrapping="Wrap" MaxWidth="600" HorizontalAlignment="Left" Foreground="{StaticResource OnSurfaceVariantBrush}"/>
+                                       Style="{StaticResource TextSmall}" TextWrapping="Wrap" MaxWidth="600" HorizontalAlignment="Left" Foreground="{StaticResource OnSurfaceVariantBrush}" FontSize="9"/>
                             
-                            <StackPanel Orientation="Horizontal" Margin="0,24,0,0">
-                                <Border Background="{StaticResource SurfaceContainerHighestBrush}" Padding="12,6" CornerRadius="4" Margin="0,0,16,0">
+                            <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
+                                <Border Background="{StaticResource SurfaceContainerHighestBrush}" Padding="10,5" CornerRadius="4" Margin="0,0,12,0">
                                     <StackPanel Orientation="Horizontal">
-                                        <Viewbox Width="14" Height="14" Margin="0,0,8,0">
+                                        <Viewbox Width="12" Height="12" Margin="0,0,6,0">
                                             <Path Data="M19 15v4H5v-4h14m1-2H4c-.55 0-1 .45-1 1v6c0 .55.45 1 1 1h16c.55 0 1-.45 1-1v-6c0-.55-.45-1-1-1zM7 18.5c-.82 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zM19 5v4H5V5h14m1-2H4c-.55 0-1 .45-1 1v6c0 .55.45 1 1 1h16c.55 0 1-.45 1-1V4c0-.55-.45-1-1-1zM7 8.5c-.82 0-1.5-.68-1.5-1.5S6.18 5.5 7 5.5s1.5.68 1.5 1.5S7.83 8.5 7 8.5z" Fill="{StaticResource SecondaryBrush}"/>
                                         </Viewbox>
-                                        <TextBlock Text="{Binding ActiveEndpoints, StringFormat='{}{0} ENDPOINTS ACTIVE'}" FontSize="10" FontWeight="Bold" Foreground="{StaticResource OnSurfaceBrush}"/>
+                                        <TextBlock Text="{Binding ActiveEndpoints, StringFormat='{}{0} ENDPOINTS ACTIVE'}" FontSize="9" FontWeight="Bold" Foreground="{StaticResource OnSurfaceBrush}"/>
                                     </StackPanel>
                                 </Border>
-                                <Border Background="{StaticResource SurfaceContainerHighestBrush}" Padding="12,6" CornerRadius="4">
+                                <Border Background="{StaticResource SurfaceContainerHighestBrush}" Padding="10,5" CornerRadius="4">
                                     <StackPanel Orientation="Horizontal">
-                                        <Viewbox Width="14" Height="14" Margin="0,0,8,0">
+                                        <Viewbox Width="12" Height="12" Margin="0,0,6,0">
                                             <Path Data="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM10 17l-3.5-3.5 1.41-1.41L10 14.17 15.18 9l1.41 1.41L10 17z" Fill="{StaticResource PrimaryBrush}"/>
                                         </Viewbox>
-                                        <TextBlock Text="RAM USAGE" FontSize="10" FontWeight="Bold"
-                                                   Foreground="{StaticResource OnSurfaceBrush}" Margin="0,0,8,0"/>
-                                        <TextBlock Text="{Binding RamUsageText}" FontSize="10" FontWeight="Bold"
+                                        <TextBlock Text="RAM USAGE" FontSize="9" FontWeight="Bold"
+                                                   Foreground="{StaticResource OnSurfaceBrush}" Margin="0,0,6,0"/>
+                                        <TextBlock Text="{Binding RamUsageText}" FontSize="9" FontWeight="Bold"
                                                    Foreground="{StaticResource SecondaryBrush}"/>
                                     </StackPanel>
                                 </Border>
@@ -451,11 +481,11 @@
                         </StackPanel>
                         
                         <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                            <TextBlock Text="NETWORK LATENCY" Style="{StaticResource TextLabel}" HorizontalAlignment="Right"/>
-                            <TextBlock Text="{Binding NetworkLatency}" FontSize="24" FontWeight="Bold" Foreground="{StaticResource SecondaryBrush}" HorizontalAlignment="Right" Margin="0,0,0,16"/>
+                            <TextBlock Text="NETWORK LATENCY" Style="{StaticResource TextLabel}" HorizontalAlignment="Right" FontSize="8"/>
+                            <TextBlock Text="{Binding NetworkLatency}" FontSize="20" FontWeight="Bold" Foreground="{StaticResource SecondaryBrush}" HorizontalAlignment="Right" Margin="0,0,0,12"/>
                             
-                            <TextBlock Text="ENCRYPTION LEVEL" Style="{StaticResource TextLabel}" HorizontalAlignment="Right"/>
-                            <TextBlock Text="{Binding EncryptionLevel}" FontSize="24" FontWeight="Bold" Foreground="{StaticResource OnSurfaceBrush}" HorizontalAlignment="Right"/>
+                            <TextBlock Text="ENCRYPTION LEVEL" Style="{StaticResource TextLabel}" HorizontalAlignment="Right" FontSize="8"/>
+                            <TextBlock Text="{Binding EncryptionLevel}" FontSize="20" FontWeight="Bold" Foreground="{StaticResource OnSurfaceBrush}" HorizontalAlignment="Right"/>
                         </StackPanel>
                     </Grid>
                 </Grid>
