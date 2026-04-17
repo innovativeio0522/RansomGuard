@@ -51,6 +51,8 @@ namespace RansomGuard.Core.IPC
         public string EncryptionLevel { get; set; } = "AES-256";
         public int FilesPerHour { get; set; }
         public string[] MonitoredPaths { get; set; } = Array.Empty<string>();
+        public DateTime LastScanTime { get; set; } = DateTime.MinValue;
+        public int TotalScansCount { get; set; }
     }
 
 

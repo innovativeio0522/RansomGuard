@@ -18,24 +18,24 @@
                 <Border Grid.Column="0" Background="{StaticResource SurfaceContainerLowBrush}" 
                         CornerRadius="12" Padding="24" BorderBrush="{StaticResource OutlineVariantBrush}" BorderThickness="0">
                     <StackPanel>
-                        <Grid Margin="0,0,0,24">
+                        <Grid Margin="0,0,0,8">
                             <StackPanel>
-                                <TextBlock Text="Quarantine Storage" FontSize="26" FontWeight="Black" 
+                                <TextBlock Text="Quarantine Storage" FontSize="16" FontWeight="Black" 
                                           Foreground="{StaticResource OnSurfaceBrush}"/>
                                 <TextBlock Text="Encrypted silo status and volume metrics" 
-                                          FontSize="13" Foreground="{StaticResource OnSurfaceVariantBrush}" Margin="0,4,0,0"/>
+                                          FontSize="9" Foreground="{StaticResource OnSurfaceVariantBrush}" Margin="0,1,0,0" Opacity="0.7"/>
                             </StackPanel>
                             <StackPanel HorizontalAlignment="Right" VerticalAlignment="Bottom" Orientation="Horizontal">
-                                <TextBlock Text="{Binding StorageUsedMb, StringFormat='{}{0:F1}'}" FontSize="36" FontWeight="Light" 
+                                <TextBlock Text="{Binding StorageUsedMb, StringFormat='{}{0:F1}'}" FontSize="20" FontWeight="Light" 
                                           Foreground="{StaticResource PrimaryBrush}"/>
-                                <TextBlock Text=" MB" FontSize="14" FontWeight="Bold" Foreground="{StaticResource OnSurfaceVariantBrush}" Margin="2,0,8,6" VerticalAlignment="Bottom"/>
-                                <TextBlock Text="/" FontSize="16" Foreground="{StaticResource OnSurfaceVariantBrush}" Margin="0,0,8,6" VerticalAlignment="Bottom" Opacity="0.5"/>
-                                <TextBlock Text="{Binding TotalStorageText}" FontSize="13" Foreground="{StaticResource OnSurfaceVariantBrush}" Margin="0,0,0,6" VerticalAlignment="Bottom"/>
+                                <TextBlock Text=" MB" FontSize="10" FontWeight="Bold" Foreground="{StaticResource OnSurfaceVariantBrush}" Margin="2,0,4,2" VerticalAlignment="Bottom"/>
+                                <TextBlock Text="/" FontSize="10" Foreground="{StaticResource OnSurfaceVariantBrush}" Margin="0,0,4,2" VerticalAlignment="Bottom" Opacity="0.5"/>
+                                <TextBlock Text="{Binding TotalStorageText}" FontSize="9" Foreground="{StaticResource OnSurfaceVariantBrush}" Margin="0,0,0,2" VerticalAlignment="Bottom"/>
                             </StackPanel>
                         </Grid>
                         
-                        <Grid Height="14">
-                            <ProgressBar Height="14" Value="{Binding StoragePercent}" Maximum="100"
+                        <Grid Height="6">
+                            <ProgressBar Height="6" Value="{Binding StoragePercent}" Maximum="100"
                                         Background="{StaticResource SurfaceContainerHighestBrush}"
                                         BorderThickness="0">
                                 <ProgressBar.Foreground>
@@ -45,19 +45,19 @@
                                     </LinearGradientBrush>
                                 </ProgressBar.Foreground>
                                 <ProgressBar.Effect>
-                                    <DropShadowEffect Color="{StaticResource Primary}" BlurRadius="15" ShadowDepth="0" Opacity="0.4"/>
+                                    <DropShadowEffect Color="{StaticResource Primary}" BlurRadius="8" ShadowDepth="0" Opacity="0.3"/>
                                 </ProgressBar.Effect>
                             </ProgressBar>
                         </Grid>
 
-                        <StackPanel Orientation="Horizontal" Margin="0,24,0,0">
-                            <StackPanel Orientation="Horizontal" Margin="0,0,32,0">
-                                <Ellipse Width="8" Height="8" Fill="{StaticResource SecondaryBrush}" Margin="0,0,10,0" VerticalAlignment="Center"/>
-                                <TextBlock Text="SYSTEM INTEGRITY: NOMINAL" FontSize="10" FontWeight="Bold" Foreground="{StaticResource OnSurfaceVariantBrush}"/>
+                        <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                            <StackPanel Orientation="Horizontal" Margin="0,0,16,0">
+                                <Ellipse Width="4" Height="4" Fill="{StaticResource SecondaryBrush}" Margin="0,0,5,0" VerticalAlignment="Center"/>
+                                <TextBlock Text="SYSTEM INTEGRITY: NOMINAL" FontSize="7" FontWeight="Bold" Foreground="{StaticResource OnSurfaceVariantBrush}"/>
                             </StackPanel>
                             <StackPanel Orientation="Horizontal">
-                                <Ellipse Width="8" Height="8" Fill="{StaticResource TertiaryBrush}" Margin="0,0,10,0" VerticalAlignment="Center"/>
-                                <TextBlock Text="AUTO-PURGE: DISABLED" FontSize="10" FontWeight="Bold" Foreground="{StaticResource OnSurfaceVariantBrush}"/>
+                                <Ellipse Width="4" Height="4" Fill="{StaticResource TertiaryBrush}" Margin="0,0,5,0" VerticalAlignment="Center"/>
+                                <TextBlock Text="AUTO-PURGE: DISABLED" FontSize="7" FontWeight="Bold" Foreground="{StaticResource OnSurfaceVariantBrush}"/>
                             </StackPanel>
                         </StackPanel>
                     </StackPanel>
@@ -65,30 +65,30 @@
 
                 <!-- Action Hub Bento -->
                 <Border Grid.Column="2" Background="{StaticResource SurfaceContainerHighBrush}" 
-                        CornerRadius="12" Padding="24"
+                        CornerRadius="12" Padding="20"
                         BorderBrush="#1affffff" BorderThickness="1">
                     <StackPanel>
-                        <TextBlock Text="BULK CONTROL" FontSize="10" FontWeight="Bold" Margin="0,0,0,20"
+                        <TextBlock Text="BULK CONTROL" FontSize="9" FontWeight="Bold" Margin="0,0,0,16"
                                   Foreground="{StaticResource PrimaryBrush}"/>
                         
-                        <Button Style="{StaticResource PrimaryButton}" Margin="0,0,0,12" Height="48" HorizontalContentAlignment="Stretch"
+                        <Button Style="{StaticResource PrimaryButton}" Margin="0,0,0,10" Height="42" HorizontalContentAlignment="Stretch"
                                 Command="{Binding ScanAllRepositoriesCommand}"
                                 IsEnabled="{Binding IsScanning, Converter={StaticResource InverseBooleanConverter}, FallbackValue=True}">
                             <Grid>
                                 <TextBlock Text="{Binding IsScanning, Converter={StaticResource BoolToStringConverter}, ConverterParameter='Scanning...|Scan All Repositories'}" 
-                                          VerticalAlignment="Center" HorizontalAlignment="Left"/>
-                                <Viewbox Width="18" Height="18" HorizontalAlignment="Right">
+                                          FontSize="11" VerticalAlignment="Center" HorizontalAlignment="Left"/>
+                                <Viewbox Width="16" Height="16" HorizontalAlignment="Right">
                                     <Path Data="M15.5,14L20.5,19L19,20.5L14,15.5V14.71L13.73,14.44C12.59,15.41 11.11,16 9.5,16A6.5,6.5 0 0,1 3,9.5A6.5,6.5 0 0,1 9.5,3A6.5,6.5 0 0,1 16,9.5C16,11.11 15.41,12.59 14.44,13.73L14.71,14H15.5M9.5,14C12,14 14,12 14,9.5C14,7 12,5 9.5,5C7,5 5,7 5,9.5C5,12 7,14 9.5,14M12,10H10V12H9V10H7V9H9V7H10V9H12V10Z" 
                                           Fill="{StaticResource OnPrimaryContainerBrush}"/>
                                 </Viewbox>
                             </Grid>
                         </Button>
 
-                        <Button Style="{StaticResource NativeButton}" Height="48" Background="{StaticResource SurfaceContainerHighestBrush}" HorizontalContentAlignment="Stretch"
+                        <Button Style="{StaticResource NativeButton}" Height="42" Background="{StaticResource SurfaceContainerHighestBrush}" HorizontalContentAlignment="Stretch"
                                 Command="{Binding ClearSafeFilesCommand}">
                             <Grid>
-                                <TextBlock Text="Clear Safe Files" VerticalAlignment="Center" HorizontalAlignment="Left"/>
-                                <Viewbox Width="18" Height="18" HorizontalAlignment="Right">
+                                <TextBlock Text="Clear Safe Files" FontSize="11" VerticalAlignment="Center" HorizontalAlignment="Left"/>
+                                <Viewbox Width="16" Height="16" HorizontalAlignment="Right">
                                     <Path Data="M19,4H15.5L14.5,3H9.5L8.5,4H5V6H19M6,19A2,2 0 0,0 8,21H16A2,2 0 0,0 18,19V7H6V19Z" 
                                           Fill="{StaticResource OnSurfaceVariantBrush}"/>
                                 </Viewbox>
