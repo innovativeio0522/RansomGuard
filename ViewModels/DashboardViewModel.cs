@@ -105,7 +105,9 @@ namespace RansomGuard.ViewModels
         public DashboardViewModel(ISystemMonitorService monitorService)
         {
             _monitorService = monitorService;
-            LoadData();
+            
+            // Delay LoadData to ensure UI is fully initialized
+            Application.Current.Dispatcher.BeginInvoke(new Action(() => LoadData()), System.Windows.Threading.DispatcherPriority.Loaded);
 
             // Subscribe to live updates
             _monitorService.FileActivityDetected += OnFileActivityDetected;
@@ -133,18 +135,36 @@ namespace RansomGuard.ViewModels
 
         private void LoadData()
         {
-            FilesMonitoredCount = _monitorService.GetMonitoredFilesCount().ToString("N0");
-            
-            var threats = _monitorService.GetRecentThreats().ToList();
-            ThreatsBlockedCount = threats.Count;
-            ActiveAlerts.Clear();
-            foreach (var threat in threats) ActiveAlerts.Add(threat);
+            try
+            {
+                FilesMonitoredCount = _monitorService.GetMonitoredFilesCount().ToString("N0");
+                
+                var threats = _monitorService.GetRecentThreats()?.ToList() ?? new List<Threat>();
+                ThreatsBlockedCount = threats.Count;
+                ActiveAlerts.Clear();
+                foreach (var threat in threats)
+                {
+                    if (threat != null)
+                        ActiveAlerts.Add(threat);
+                }
 
-            var activities = _monitorService.GetRecentFileActivities();
-            RecentActivities.Clear();
-            foreach (var activity in activities) RecentActivities.Add(activity);
+                var activities = _monitorService.GetRecentFileActivities()?.ToList() ?? new List<FileActivity>();
+                RecentActivities.Clear();
+                foreach (var activity in activities)
+                {
+                    if (activity != null)
+                        RecentActivities.Add(activity);
+                }
 
-            UpdateTelemetry();
+                UpdateTelemetry();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"LoadData error: {ex.Message}\n{ex.StackTrace}");
+                // Initialize with empty data on error
+                FilesMonitoredCount = "0";
+                ThreatsBlockedCount = 0;
+            }
         }
 
         private void ProcessActivityBuffer()
@@ -282,6 +302,9 @@ namespace RansomGuard.ViewModels
         private void IgnoreAlert(Threat threat)
         {
             if (threat == null) return;
+            
+            // Note: Ignore is a UI-level action - threat remains in database as "Active"
+            // but is removed from the active alerts display
             ActiveAlerts.Remove(threat);
             UpdateRiskScore();
         }

@@ -35,6 +35,7 @@ namespace RansomGuard.Services
         public event Action<bool>? ConnectionStatusChanged;
         public event Action<ScanSummary>? ScanCompleted;
         public event Action? ProcessListUpdated;
+        public event Action<TelemetryData>? TelemetryUpdated;
 
         public bool IsConnected { get; private set; }
 
@@ -50,9 +51,13 @@ namespace RansomGuard.Services
 
         // Local fallback CPU/RAM counters (used when service is not connected)
         private PerformanceCounter? _localCpuCounter;
+        private PerformanceCounter? _localKernelCpuCounter;
+        private PerformanceCounter? _localUserCpuCounter;
         private PerformanceCounter? _localRamCounter;
         private readonly System.Timers.Timer _localTelemetryTimer;
         private double _localCpuUsage = 0;
+        private double _localKernelCpuUsage = 0;
+        private double _localUserCpuUsage = 0;
         private long _localMemoryUsage = 0;
         private double _systemRamTotalMb = 0;
         private double _systemRamUsedMb = 0;
@@ -91,7 +96,14 @@ namespace RansomGuard.Services
                 if (OperatingSystem.IsWindows())
                 {
                     _localCpuCounter = new PerformanceCounter("Processor", "% Processor Time", "_Total");
-                    _localCpuCounter.NextValue(); // First call always returns 0, warm it up
+                    _localCpuCounter.NextValue(); 
+                    
+                    _localKernelCpuCounter = new PerformanceCounter("Processor", "% Privileged Time", "_Total");
+                    _localKernelCpuCounter.NextValue();
+                    
+                    _localUserCpuCounter = new PerformanceCounter("Processor", "% User Time", "_Total");
+                    _localUserCpuCounter.NextValue();
+                    
                     _localRamCounter = new PerformanceCounter("Memory", "Available MBytes");
                     _localRamCounter.NextValue();
                 }
@@ -173,6 +185,8 @@ namespace RansomGuard.Services
             try
             {
                 _localCpuUsage = _localCpuCounter?.NextValue() ?? 0;
+                _localKernelCpuUsage = _localKernelCpuCounter?.NextValue() ?? 0;
+                _localUserCpuUsage = _localUserCpuCounter?.NextValue() ?? 0;
                 _localMemoryUsage = Process.GetCurrentProcess().WorkingSet64;
 
                 // Use Win32 for accurate RAM figures
@@ -209,6 +223,8 @@ namespace RansomGuard.Services
                 lock (_telemetryLock)
                 {
                     _lastTelemetry.CpuUsage = _localCpuUsage;
+                    _lastTelemetry.KernelCpuUsage = _localKernelCpuUsage;
+                    _lastTelemetry.UserCpuUsage = _localUserCpuUsage;
                     _lastTelemetry.MemoryUsage = _localMemoryUsage;
                     _lastTelemetry.SystemRamUsedMb = _systemRamUsedMb;
                     _lastTelemetry.SystemRamTotalMb = _systemRamTotalMb;
@@ -219,6 +235,10 @@ namespace RansomGuard.Services
                     int suspiciousCount = 0;
                     if (!IsConnected)
                     {
+                        // Update kernel/user usage for timeline when not connected
+                        _lastTelemetry.KernelCpuUsage = _localKernelCpuUsage;
+                        _lastTelemetry.UserCpuUsage = _localUserCpuUsage;
+
                         var procs = Process.GetProcesses();
                         foreach(var p in procs) {
                             try {
@@ -242,6 +262,15 @@ namespace RansomGuard.Services
                         _lastTelemetry.ActiveThreadsCount = threads;
                         _lastTelemetry.TrustedProcessPercent = trustedPercent;
                         _lastTelemetry.SuspiciousProcessCount = suspiciousCount;
+                    }
+                    
+                    // Robustness: If the service is connected but sending 0.0% for everything, 
+                    // it likely means the service's counters failed.
+                    // We prefer local counters in that case if they are working.
+                    if (IsConnected && _lastTelemetry.KernelCpuUsage < 0.01 && _lastTelemetry.UserCpuUsage < 0.01 && (_localKernelCpuUsage > 0.01 || _localUserCpuUsage > 0.01))
+                    {
+                        _lastTelemetry.KernelCpuUsage = _localKernelCpuUsage;
+                        _lastTelemetry.UserCpuUsage = _localUserCpuUsage;
                     }
 
                     _lastTelemetry.NetworkLatencyMs = _networkLatencyMs;
@@ -354,6 +383,7 @@ namespace RansomGuard.Services
                                 _recentActivities.Insert(0, activity);
                                 if (_recentActivities.Count > MaxRecentActivities) _recentActivities.RemoveAt(_recentActivities.Count - 1);
                             }
+                            System.Diagnostics.Debug.WriteLine($"[IPC] Received FileActivity: {activity.FilePath} ({activity.Action})");
                             FileActivityDetected?.Invoke(activity);
                         }
                         break;
@@ -375,6 +405,7 @@ namespace RansomGuard.Services
                         if (tele != null)
                         {
                             lock (_telemetryLock) { _lastTelemetry = tele; }
+                            TelemetryUpdated?.Invoke(tele);
                         }
                         break;
                     case MessageType.ScanCompleted:

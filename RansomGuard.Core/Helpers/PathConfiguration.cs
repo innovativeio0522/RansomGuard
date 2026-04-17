@@ -28,6 +28,11 @@ namespace RansomGuard.Core.Helpers
         /// Gets the path to the log directory for application logs and diagnostic information.
         /// </summary>
         public static string LogPath => Path.Combine(BaseDirectory, "Logs");
+
+        /// <summary>
+        /// Gets the path to the activity log database.
+        /// </summary>
+        public static string ActivityLogDatabasePath => Path.Combine(BaseDirectory, "activity_log.db");
         
         /// <summary>
         /// Ensures all required application directories exist, creating them if necessary.
