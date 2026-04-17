@@ -387,13 +387,14 @@
                                             <Grid>
                                                 <StackPanel Margin="10,8">
                                                     <Grid Margin="0,0,0,6">
-                                                        <StackPanel Orientation="Horizontal" Margin="0,0,80,0">
-                                                            <Viewbox Width="12" Height="12" Margin="0,0,6,0">
+                                                        <StackPanel Orientation="Horizontal" Margin="0,0,50,0">
+                                                            <Viewbox Width="12" Height="12" Margin="0,0,6,0" VerticalAlignment="Top" FlowDirection="LeftToRight">
                                                                 <Path Data="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z" 
                                                                       Fill="{StaticResource TertiaryBrush}"/>
                                                             </Viewbox>
                                                             <TextBlock Text="{Binding Name}" 
-                                                                      Style="{StaticResource TextBody}" FontWeight="Bold" FontSize="12"/>
+                                                                      Style="{StaticResource TextBody}" FontWeight="Bold" FontSize="12"
+                                                                      TextWrapping="Wrap"/>
                                                         </StackPanel>
                                                     </Grid>
                                                     <TextBlock Text="{Binding Path, StringFormat='Target: {0}'}" 
@@ -405,11 +406,11 @@
                                                             <ColumnDefinition Width="Auto"/>
                                                         </Grid.ColumnDefinitions>
                                                         <Button Content="IGNORE" Grid.Column="0" Width="60"
-                                                               Style="{StaticResource NativeButton}" Padding="4,3" FontSize="9"
+                                                               Style="{StaticResource SleekGhostButton}"
                                                                Command="{Binding DataContext.IgnoreAlertCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
                                                                CommandParameter="{Binding}"/>
                                                         <Button Content="QUARANTINE" Grid.Column="2" Width="85"
-                                                               Style="{StaticResource DangerButton}" Padding="4,3" FontSize="9"
+                                                               Style="{StaticResource SleekDangerButton}"
                                                                Command="{Binding DataContext.QuarantineAlertCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
                                                                CommandParameter="{Binding}"/>
                                                     </Grid>

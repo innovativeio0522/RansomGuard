@@ -569,7 +569,9 @@ namespace RansomGuard.Service.Engine
                 QuarantinedFilesCount = GetQuarantinedFiles().Count(),
                 QuarantineStorageMb = GetQuarantineStorageUsage(),
                 IsRealTimeProtectionEnabled = ConfigurationService.Instance.RealTimeProtection,
-                MonitoredPaths = _watchers.Select(w => w.Path).ToArray()
+                MonitoredPaths = _watchers.Select(w => w.Path).ToArray(),
+                LastScanTime = _lastScanTime,
+                TotalScansCount = ConfigurationService.Instance.TotalScansCount
             };
         }
 

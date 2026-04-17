@@ -4,14 +4,13 @@
         xmlns:views="clr-namespace:RansomGuard.Views"
         xmlns:vm="clr-namespace:RansomGuard.ViewModels"
         Title="RansomGuard - DETECT. PROTECT. RECOVER." 
-        Height="768" Width="1280"
         x:Name="RootWindow"
-        WindowStartupLocation="CenterScreen"
+        WindowStartupLocation="Manual"
         Background="{StaticResource BackgroundBrush}"
         FontFamily="Segoe UI"
         TextOptions.TextFormattingMode="Display"
         TextOptions.TextRenderingMode="ClearType"
-        MinWidth="1024" MinHeight="700"
+        MinWidth="900" MinHeight="600"
         WindowStyle="None"
         Icon="/Assets/Icons/RansomGuard.png">
 
@@ -47,7 +46,7 @@
         </DataTemplate>
 
         <Style x:Key="SidebarMenuButtonStyle" TargetType="Button">
-            <Setter Property="Height" Value="56"/>
+            <Setter Property="Height" Value="44"/>
             <Setter Property="Background" Value="Transparent"/>
             <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="Cursor" Value="Hand"/>
@@ -59,7 +58,7 @@
                                     BorderThickness="{TemplateBinding BorderThickness}" 
                                     BorderBrush="{TemplateBinding BorderBrush}"/>
                             <Border x:Name="HoverOverlay" Background="White" Opacity="0" CornerRadius="8"/>
-                            <ContentPresenter x:Name="Content" HorizontalAlignment="Stretch" VerticalAlignment="Center" Margin="16,0"/>
+                            <ContentPresenter x:Name="Content" HorizontalAlignment="Stretch" VerticalAlignment="Center" Margin="14,0"/>
                         </Grid>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
@@ -197,21 +196,21 @@
             </Style>
         </Grid.Style>
         <Grid.ColumnDefinitions>
-            <!-- Left Sidebar: 256px as per wide spec -->
-            <ColumnDefinition Width="256"/>
+            <!-- Left Sidebar: Reduced from 256px to 220px -->
+            <ColumnDefinition Width="180"/>
             <!-- Main Content Area -->
             <ColumnDefinition Width="*"/>
         </Grid.ColumnDefinitions>
         
         <Grid.RowDefinitions>
-            <!-- Custom Title Bar: 32px -->
-            <RowDefinition Height="32"/>
-            <!-- Header Bar: 64px -->
-            <RowDefinition Height="64"/>
+            <!-- Custom Title Bar: 28px -->
+            <RowDefinition Height="28"/>
+            <!-- Header Bar: 52px -->
+            <RowDefinition Height="52"/>
             <!-- Main Content -->
             <RowDefinition Height="*"/>
-            <!-- Status Bar: 32px -->
-            <RowDefinition Height="32"/>
+            <!-- Status Bar: 26px -->
+            <RowDefinition Height="26"/>
         </Grid.RowDefinitions>
 
         <!-- LEFT SIDEBAR NAVIGATION -->
@@ -228,30 +227,30 @@
                 </Grid.RowDefinitions>
 
                 <!-- Logo Area -->
-                <Border Grid.Row="0" Height="96" Padding="24" BorderBrush="{StaticResource OutlineVariantBrush}" BorderThickness="0,0,0,1">
+                <Border Grid.Row="0" Height="72" Padding="16" BorderBrush="{StaticResource OutlineVariantBrush}" BorderThickness="0,0,0,1">
                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                        <Image Source="/Assets/Icons/RansomGuard.png" Width="40" Height="40" Margin="0,0,16,0"/>
+                        <Image Source="/Assets/Icons/RansomGuard.png" Width="32" Height="32" Margin="0,0,12,0"/>
                         <StackPanel VerticalAlignment="Center">
                             <TextBlock Text="THE SENTINEL" Foreground="{StaticResource PrimaryBrush}" 
-                                       FontWeight="Black" FontSize="20"/>
+                                       FontWeight="Black" FontSize="14"/>
                             <TextBlock Text="CYBERSECURITY NODE" Foreground="{StaticResource OnSurfaceVariantBrush}" 
-                                       FontSize="9" FontWeight="Bold" Opacity="0.5" Margin="0,4,0,0"/>
+                                       FontSize="8" FontWeight="Bold" Opacity="0.5" Margin="0,3,0,0"/>
                         </StackPanel>
                     </StackPanel>
                 </Border>
 
                 <!-- Navigation Buttons -->
-                <StackPanel Grid.Row="1" Margin="0,8,0,0">
+                <StackPanel Grid.Row="1" Margin="0,4,0,0">
                     <!-- Dashboard -->
                     <Button x:Name="BtnDashboard" Style="{StaticResource SidebarMenuButtonStyle}" 
                             Command="{Binding NavigateCommand}" CommandParameter="Dashboard">
                         <StackPanel Orientation="Horizontal">
-                            <Viewbox Width="20" Height="20">
+                            <Viewbox Width="16" Height="16">
                                 <Path Data="M13 3V11H21V3H13ZM19 9H15V5H19V9ZM3 13V21H11V13H3ZM9 19H5V15H9V19ZM3 3V11H11V3H3ZM9 9H5V5H9V9ZM13 13V21H21V13H13ZM19 19H15V15H19V19Z" 
                                       Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
                             </Viewbox>
-                            <TextBlock Text="Dashboard" FontWeight="Bold" 
-                                       VerticalAlignment="Center" Margin="12,0,0,0"/>
+                            <TextBlock Text="Dashboard" FontWeight="Bold" FontSize="12"
+                                       VerticalAlignment="Center" Margin="10,0,0,0"/>
                         </StackPanel>
                     </Button>
 
@@ -259,12 +258,12 @@
                     <Button x:Name="BtnThreatAlerts" Style="{StaticResource SidebarMenuButtonStyle}" 
                              Command="{Binding NavigateCommand}" CommandParameter="ThreatAlerts">
                         <StackPanel Orientation="Horizontal">
-                            <Viewbox Width="20" Height="20">
+                            <Viewbox Width="16" Height="16">
                                 <Path Data="M12 5.99L19.53 19H4.47L12 5.99ZM12 2L1 21H23L12 2ZM13 16H11V18H13V16ZM13 10H11V14H13V10Z" 
                                       Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
                             </Viewbox>
-                            <TextBlock Text="Threat Alerts" 
-                                       VerticalAlignment="Center" Margin="12,0,0,0"/>
+                            <TextBlock Text="Threat Alerts" FontSize="12"
+                                       VerticalAlignment="Center" Margin="10,0,0,0"/>
                         </StackPanel>
                     </Button>
 
@@ -272,12 +271,12 @@
                     <Button x:Name="BtnQuarantine" Style="{StaticResource SidebarMenuButtonStyle}" 
                             Command="{Binding NavigateCommand}" CommandParameter="Quarantine">
                         <StackPanel Orientation="Horizontal">
-                            <Viewbox Width="20" Height="20">
+                            <Viewbox Width="16" Height="16">
                                 <Path Data="M12 4.14L10.09 5.09L5 7.64V12.22C5 15.63 7.82 18.77 12 20.31C16.18 18.77 19 15.63 19 12.22V7.64L13.91 5.09L12 4.14ZM12 2L20 6V12.22C20 16.59 16.63 20.45 12 22C7.37 20.45 4 16.59 4 12.22V6L12 2ZM11 11V7H13V11H11ZM11 13V15H13V13H11Z" 
                                       Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
                             </Viewbox>
-                            <TextBlock Text="Quarantine" 
-                                       VerticalAlignment="Center" Margin="12,0,0,0"/>
+                            <TextBlock Text="Quarantine" FontSize="12"
+                                       VerticalAlignment="Center" Margin="10,0,0,0"/>
                         </StackPanel>
                     </Button>
 
@@ -285,12 +284,12 @@
                     <Button x:Name="BtnProcessMonitor" Style="{StaticResource SidebarMenuButtonStyle}" 
                             Command="{Binding NavigateCommand}" CommandParameter="ProcessMonitor">
                         <StackPanel Orientation="Horizontal">
-                            <Viewbox Width="20" Height="20">
+                            <Viewbox Width="16" Height="16">
                                 <Path Data="M19 3H5C3.9 3 3 3.9 3 5V19C3 20.1 3.9 21 5 21H19C20.1 21 21 20.1 21 19V5C21 3.9 20.1 3 19 3ZM19 19H5V5H19V19ZM7 11V17H9V11H7ZM11 6V17H13V6H11ZM15 14V17H17V14H15Z" 
                                       Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
                             </Viewbox>
-                            <TextBlock Text="Process Monitor" 
-                                       VerticalAlignment="Center" Margin="12,0,0,0"/>
+                            <TextBlock Text="Process Monitor" FontSize="12"
+                                       VerticalAlignment="Center" Margin="10,0,0,0"/>
                         </StackPanel>
                     </Button>
 
@@ -298,12 +297,12 @@
                     <Button x:Name="BtnFileActivity" Style="{StaticResource SidebarMenuButtonStyle}" 
                             Command="{Binding NavigateCommand}" CommandParameter="FileActivity">
                         <StackPanel Orientation="Horizontal">
-                            <Viewbox Width="20" Height="20">
+                            <Viewbox Width="16" Height="16">
                                 <Path Data="M14 2H6C4.9 2 4.01 2.9 4.01 4L4 20C4 21.1 4.89 22 5.99 22H18C19.1 22 20 21.1 20 20V8L14 2ZM18 20H6V4H13V9H18V20ZM16 11V13H8V11H16ZM16 15V17H8V15H16Z" 
                                       Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
                             </Viewbox>
-                            <TextBlock Text="File Activity" 
-                                       VerticalAlignment="Center" Margin="12,0,0,0"/>
+                            <TextBlock Text="File Activity" FontSize="12"
+                                       VerticalAlignment="Center" Margin="10,0,0,0"/>
                         </StackPanel>
                     </Button>
 
@@ -311,12 +310,12 @@
                     <Button x:Name="BtnReports" Style="{StaticResource SidebarMenuButtonStyle}" 
                             Command="{Binding NavigateCommand}" CommandParameter="Reports">
                         <StackPanel Orientation="Horizontal">
-                            <Viewbox Width="20" Height="20">
+                            <Viewbox Width="16" Height="16">
                                 <Path Data="M19 3H5C3.9 3 3 3.9 3 5V19C3 20.1 3.9 21 5 21H19C20.1 21 21 20.1 21 19V5C21 3.9 20.1 3 19 3ZM19 19H5V5H19V19ZM11 17V7H13V17H11ZM15 17V13H17V17H15ZM7 17V11H9V17H7Z" 
                                       Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
                             </Viewbox>
-                            <TextBlock Text="Reports" 
-                                       VerticalAlignment="Center" Margin="12,0,0,0"/>
+                            <TextBlock Text="Reports" FontSize="12"
+                                       VerticalAlignment="Center" Margin="10,0,0,0"/>
                         </StackPanel>
                     </Button>
 
@@ -324,38 +323,38 @@
                     <Button x:Name="BtnSettings" Style="{StaticResource SidebarMenuButtonStyle}" 
                             Command="{Binding NavigateCommand}" CommandParameter="Settings">
                         <StackPanel Orientation="Horizontal">
-                            <Viewbox Width="20" Height="20">
+                            <Viewbox Width="16" Height="16">
                                 <Path Data="M19.43 12.98C19.48 12.66 19.5 12.34 19.5 12C19.5 11.66 19.48 11.34 19.43 11.02L21.54 9.37C21.73 9.22 21.78 8.95 21.66 8.73L19.66 5.27C19.54 5.05 19.27 4.96 19.05 5.05L16.56 6.05C16.04 5.65 15.48 5.32 14.87 5.07L14.49 2.42C14.46 2.18 14.25 2 14 2H10C9.75 2 9.54 2.18 9.51 2.42L9.13 5.07C8.52 5.32 7.96 5.66 7.44 6.05L4.95 5.05C4.73 4.96 4.46 5.05 4.34 5.27L2.34 8.73C2.21 8.95 2.27 9.22 2.46 9.37L4.57 11.02C4.52 11.34 4.5 11.66 4.5 12C4.5 12.34 4.52 12.66 4.57 12.98L2.46 14.63C2.27 14.78 2.21 15.05 2.34 15.27L4.34 18.73C4.46 18.95 4.73 19.04 4.95 18.95L7.44 17.95C7.96 18.35 8.52 18.68 9.13 18.93L9.51 21.58C9.54 21.82 9.75 22 10 22H14C14.25 22 14.46 21.82 14.49 21.58L14.87 18.93C15.48 18.68 16.04 18.35 16.56 17.95L19.05 18.95C19.27 19.04 19.54 18.95 19.66 18.73L21.66 15.27C21.78 15.05 21.73 14.78 21.54 14.63L19.43 12.98ZM12 15.5C10.07 15.5 8.5 13.93 8.5 12C8.5 10.07 10.07 8.5 12 8.5C13.93 8.5 15.5 10.07 15.5 12C15.5 13.93 13.93 15.5 12 15.5Z" 
                                       Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
                             </Viewbox>
-                            <TextBlock Text="Settings" 
-                                       VerticalAlignment="Center" Margin="12,0,0,0"/>
+                            <TextBlock Text="Settings" FontSize="12"
+                                       VerticalAlignment="Center" Margin="10,0,0,0"/>
                         </StackPanel>
                     </Button>
                 </StackPanel>
 
                 <!-- Profile Area -->
-                <Border Grid.Row="2" Margin="16,0,16,24" Padding="12" 
+                <Border Grid.Row="2" Margin="12,0,12,16" Padding="10" 
                         Background="#171b26" BorderBrush="#1affffff" BorderThickness="1" 
-                        CornerRadius="12">
+                        CornerRadius="10">
                     <Grid>
                         <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="40"/>
+                            <ColumnDefinition Width="32"/>
                             <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
                         <!-- Avatar -->
-                        <Border Grid.Column="0" Width="40" Height="40" CornerRadius="20" 
+                        <Border Grid.Column="0" Width="32" Height="32" CornerRadius="16" 
                                 Background="#33adc6ff">
                             <TextBlock Text="NA" Foreground="{StaticResource PrimaryBrush}" 
-                                       FontSize="12" FontWeight="Bold" 
+                                       FontSize="10" FontWeight="Bold" 
                                        HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
                         <!-- Text -->
-                        <StackPanel Grid.Column="1" Margin="12,0,0,0" VerticalAlignment="Center">
+                        <StackPanel Grid.Column="1" Margin="10,0,0,0" VerticalAlignment="Center">
                             <TextBlock Text="Node_Admin_01" Foreground="{StaticResource OnSurfaceBrush}" 
-                                       FontWeight="Bold" FontSize="11" TextTrimming="CharacterEllipsis"/>
+                                       FontWeight="Bold" FontSize="10" TextTrimming="CharacterEllipsis"/>
                             <TextBlock Text="Level 4 Clearance" Foreground="{StaticResource OnSurfaceVariantBrush}" 
-                                       FontSize="9" Opacity="0.7"/>
+                                       FontSize="8" Opacity="0.7"/>
                         </StackPanel>
                     </Grid>
                 </Border>
@@ -393,15 +392,15 @@
                 Background="#0f131d" 
                 BorderBrush="{StaticResource OutlineVariantBrush}" 
                 BorderThickness="0,0,0,1">
-            <Grid Margin="32,0">
+            <Grid Margin="20,0">
                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                     <TextBlock x:Name="TxtHeaderTitle" Text="{Binding HeaderTitle}" Style="{StaticResource TextTitle}" 
-                              Foreground="{StaticResource PrimaryBrush}" FontWeight="Bold"/>
+                              Foreground="{StaticResource PrimaryBrush}" FontWeight="Bold" FontSize="14"/>
                     <!-- System Live Badge -->
                     <Border x:Name="BrdHeaderStatus" Background="#1a4edea3" BorderBrush="#334edea3" BorderThickness="1" 
-                            CornerRadius="4" Margin="16,0,0,0" Padding="8,2">
+                            CornerRadius="4" Margin="12,0,0,0" Padding="6,2">
                         <TextBlock x:Name="TxtHeaderStatus" Text="{Binding HeaderStatus}" Foreground="#4edea3" 
-                                   FontWeight="Bold" FontSize="10"/>
+                                   FontWeight="Bold" FontSize="9"/>
                     </Border>
                 </StackPanel>
                 
@@ -409,15 +408,15 @@
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
                     <!-- Search Box -->
                     <Border Background="{StaticResource SurfaceContainerHighestBrush}" 
-                            CornerRadius="16" 
-                            Width="256" Height="32">
+                            CornerRadius="14" 
+                            Width="210" Height="28">
                         <Grid>
                             <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="36"/>
+                                <ColumnDefinition Width="32"/>
                                 <ColumnDefinition Width="*"/>
                             </Grid.ColumnDefinitions>
                             <!-- Search Icon -->
-                            <Viewbox Grid.Column="0" Width="14" Height="14" Margin="12,0,0,0" HorizontalAlignment="Left">
+                            <Viewbox Grid.Column="0" Width="12" Height="12" Margin="10,0,0,0" HorizontalAlignment="Left">
                                 <Path Data="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z" 
                                       Fill="{StaticResource OutlineVariantBrush}"/>
                             </Viewbox>
@@ -430,14 +429,14 @@
                     </Border>
                     
                     <!-- Notification Icon -->
-                    <Button Style="{StaticResource IconButton}" Margin="24,0,0,0">
+                    <Button Style="{StaticResource IconButton}" Margin="16,0,0,0">
                         <Grid>
-                            <Viewbox Width="18" Height="18" Margin="0,0,4,0">
+                            <Viewbox Width="16" Height="16" Margin="0,0,4,0">
                                 <Path Data="M12 22C13.1 22 14 21.1 14 20H10C10 21.1 10.9 22 12 22ZM18 16V11C18 7.93 16.36 5.36 13.5 4.68V4C13.5 3.17 12.83 2.5 12 2.5C11.17 2.5 10.5 3.17 10.5 4V4.68C7.63 5.36 6 7.92 6 11V16L4 18V19H20V18L18 16ZM16 17H8V11C8 8.52 9.51 6.5 12 6.5C14.49 6.5 16 8.52 16 11V17Z" 
                                       Fill="#c2c6d6"/>
                             </Viewbox>
                             <!-- Red Dot Badge -->
-                            <Ellipse Width="8" Height="8" Fill="{StaticResource TertiaryContainerBrush}" 
+                            <Ellipse Width="7" Height="7" Fill="{StaticResource TertiaryContainerBrush}" 
                                      Stroke="#0f131d" StrokeThickness="2"
                                      HorizontalAlignment="Right" VerticalAlignment="Top" 
                                      Margin="0,-2,2,0"/>
@@ -445,8 +444,8 @@
                     </Button>
                     
                     <!-- User Icon -->
-                    <Button Style="{StaticResource IconButton}" Margin="16,0,0,0">
-                        <Viewbox Width="18" Height="18">
+                    <Button Style="{StaticResource IconButton}" Margin="12,0,0,0">
+                        <Viewbox Width="16" Height="16">
                             <Path Data="M12 2C6.48 2 2 6.48 2 12C2 17.52 6.48 22 12 22C17.52 22 22 17.52 22 12C22 6.48 17.52 2 12 2ZM12 6C13.93 6 15.5 7.57 15.5 9.5C15.5 11.43 13.93 13 12 13C10.07 13 8.5 11.43 8.5 9.5C8.5 7.57 10.07 6 12 6ZM12 20C9.97 20 7.57 19.18 5.86 17.12C7.55 15.8 9.68 15 12 15C14.32 15 16.45 15.8 18.14 17.12C16.43 19.18 14.03 20 12 20Z" 
                                   Fill="#c2c6d6"/>
                         </Viewbox>
@@ -502,20 +501,20 @@
                 Background="#0a0e18" 
                 BorderBrush="{StaticResource OutlineVariantBrush}" 
                 BorderThickness="0,1,0,0">
-            <Grid Margin="12,0">
+            <Grid Margin="10,0">
                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                    <TextBlock Text="System Protected" Foreground="#4edea3" Style="{StaticResource TextSmall}" FontWeight="Bold"/>
-                    <TextBlock Text="|" Foreground="#c2c6d6" Style="{StaticResource TextSmall}" Margin="8,0" Opacity="0.4"/>
-                    <TextBlock Text="{Binding CpuUsageText}" Style="{StaticResource TextSmall}"/>
-                    <TextBlock Text="|" Foreground="#c2c6d6" Style="{StaticResource TextSmall}" Margin="8,0" Opacity="0.4"/>
-                    <TextBlock Text="{Binding MemoryUsageText}" Style="{StaticResource TextSmall}"/>
-                    <TextBlock Text="|" Foreground="#c2c6d6" Style="{StaticResource TextSmall}" Margin="8,0" Opacity="0.4"/>
-                    <TextBlock Text="Protection: ON" Foreground="#4edea3" Style="{StaticResource TextSmall}"/>
+                    <TextBlock Text="System Protected" Foreground="#4edea3" Style="{StaticResource TextSmall}" FontWeight="Bold" FontSize="9"/>
+                    <TextBlock Text="|" Foreground="#c2c6d6" Style="{StaticResource TextSmall}" Margin="6,0" Opacity="0.4" FontSize="9"/>
+                    <TextBlock Text="{Binding CpuUsageText}" Style="{StaticResource TextSmall}" FontSize="9"/>
+                    <TextBlock Text="|" Foreground="#c2c6d6" Style="{StaticResource TextSmall}" Margin="6,0" Opacity="0.4" FontSize="9"/>
+                    <TextBlock Text="{Binding MemoryUsageText}" Style="{StaticResource TextSmall}" FontSize="9"/>
+                    <TextBlock Text="|" Foreground="#c2c6d6" Style="{StaticResource TextSmall}" Margin="6,0" Opacity="0.4" FontSize="9"/>
+                    <TextBlock Text="Protection: ON" Foreground="#4edea3" Style="{StaticResource TextSmall}" FontSize="9"/>
                 </StackPanel>
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
-                    <TextBlock Text="Documentation" Style="{StaticResource TextSmall}" Opacity="0.5"/>
-                    <TextBlock Text="|" Style="{StaticResource TextSmall}" Margin="12,0" Opacity="0.2"/>
-                    <TextBlock Text="Support" Style="{StaticResource TextSmall}" Opacity="0.5"/>
+                    <TextBlock Text="Documentation" Style="{StaticResource TextSmall}" Opacity="0.5" FontSize="9"/>
+                    <TextBlock Text="|" Style="{StaticResource TextSmall}" Margin="10,0" Opacity="0.2" FontSize="9"/>
+                    <TextBlock Text="Support" Style="{StaticResource TextSmall}" Opacity="0.5" FontSize="9"/>
                 </StackPanel>
             </Grid>
         </Border>
