@@ -13,7 +13,7 @@ namespace RansomGuard.ViewModels
     public partial class MainViewModel : ViewModelBase, IDisposable
     {
         [ObservableProperty]
-        private ViewModelBase _currentView;
+        private ViewModelBase _currentView = null!;
 
         [ObservableProperty]
         private string _headerTitle = "Dashboard";
@@ -25,7 +25,7 @@ namespace RansomGuard.ViewModels
         private string _searchPlaceholder = "Search system nodes...";
         
         [ObservableProperty]
-        private bool _isServiceConnected = true;
+        private bool _isServiceConnected = true; // Start as true to give grace period
 
         [ObservableProperty]
         private string _cpuUsageText = "CPU: --%";
@@ -33,51 +33,89 @@ namespace RansomGuard.ViewModels
         [ObservableProperty]
         private string _memoryUsageText = "MEM: --GB";
 
-        private readonly ISystemMonitorService _monitorService;
-        private readonly DispatcherTimer _statusBarTimer;
-        private readonly Action<bool> _connectionStatusHandler;
+        private readonly ISystemMonitorService _monitorService = null!;
+        private readonly DispatcherTimer _statusBarTimer = null!;
+        private readonly DispatcherTimer _connectionGraceTimer = null!;
+        private readonly Action<bool> _connectionStatusHandler = null!;
         private bool _disposed;
+        private bool _gracePeriodExpired = false;
 
         // View instances to preserve state
-        private readonly DashboardViewModel _dashboardVM;
-        private readonly ThreatAlertsViewModel _threatAlertsVM;
-        private readonly QuarantineViewModel _quarantineVM;
-        private readonly ProcessMonitorViewModel _processMonitorVM;
-        private readonly FileActivityViewModel _fileActivityVM;
-        private readonly ReportsViewModel _reportsVM;
-        private readonly SettingsViewModel _settingsVM;
+        private readonly DashboardViewModel _dashboardVM = null!;
+        private readonly ThreatAlertsViewModel _threatAlertsVM = null!;
+        private readonly QuarantineViewModel _quarantineVM = null!;
+        private readonly ProcessMonitorViewModel _processMonitorVM = null!;
+        private readonly FileActivityViewModel _fileActivityVM = null!;
+        private readonly ReportsViewModel _reportsVM = null!;
+        private readonly SettingsViewModel _settingsVM = null!;
 
         public MainViewModel()
         {
-            // Initialize Services
-            _monitorService = new ServicePipeClient();
-            ((ServicePipeClient)_monitorService).Start(); // Begin IPC connection loop to the background service
-            IsServiceConnected = _monitorService.IsConnected;
-            _connectionStatusHandler = (status) => IsServiceConnected = status;
-            _monitorService.ConnectionStatusChanged += _connectionStatusHandler;
-
-            // Initialize ViewModels
-            _dashboardVM = new DashboardViewModel(_monitorService);
-            _dashboardVM.NavigationRequested = destination => Navigate(destination);
-            _threatAlertsVM = new ThreatAlertsViewModel(_monitorService);
-            _quarantineVM = new QuarantineViewModel(_monitorService);
-            _processMonitorVM = new ProcessMonitorViewModel(_monitorService);
-            _fileActivityVM = new FileActivityViewModel(_monitorService);
-            _reportsVM = new ReportsViewModel(_monitorService);
-            _settingsVM = new SettingsViewModel();
-
-            // Set default view
-            CurrentView = _dashboardVM;
-
-            // Setup global status bar timer (3 second interval for background task)
-            _statusBarTimer = new DispatcherTimer
+            try
             {
-                Interval = TimeSpan.FromSeconds(3)
-            };
-            _statusBarTimer.Tick += (s, e) => UpdateStatusBarTelemetry();
-            _statusBarTimer.Start();
+                // Initialize Services
+                _monitorService = new ServicePipeClient();
+                ((ServicePipeClient)_monitorService).Start(); // Begin IPC connection loop to the background service
+                
+                // Start with IsServiceConnected = true to avoid showing banner during initial connection
+                IsServiceConnected = true;
+                
+                _connectionStatusHandler = (status) =>
+                {
+                    // Marshal to UI thread to update binding
+                    Application.Current.Dispatcher.Invoke(() => 
+                    {
+                        // Only update if grace period expired or connection is successful
+                        if (_gracePeriodExpired || status)
+                        {
+                            IsServiceConnected = status;
+                        }
+                    });
+                };
+                _monitorService.ConnectionStatusChanged += _connectionStatusHandler;
 
-            UpdateStatusBarTelemetry();
+                // Grace period timer: After 6 seconds, allow showing offline status
+                _connectionGraceTimer = new DispatcherTimer
+                {
+                    Interval = TimeSpan.FromSeconds(6)
+                };
+                _connectionGraceTimer.Tick += (s, e) =>
+                {
+                    _gracePeriodExpired = true;
+                    _connectionGraceTimer.Stop();
+                    
+                    // Now check actual connection status
+                    IsServiceConnected = _monitorService.IsConnected;
+                };
+                _connectionGraceTimer.Start();
+
+                // Initialize ViewModels
+                _dashboardVM = new DashboardViewModel(_monitorService);
+                _dashboardVM.NavigationRequested = destination => Navigate(destination);
+                _threatAlertsVM = new ThreatAlertsViewModel(_monitorService);
+                _quarantineVM = new QuarantineViewModel(_monitorService);
+                _processMonitorVM = new ProcessMonitorViewModel(_monitorService);
+                _fileActivityVM = new FileActivityViewModel(_monitorService);
+                _reportsVM = new ReportsViewModel(_monitorService);
+                _settingsVM = new SettingsViewModel();
+
+                // Set default view
+                CurrentView = _dashboardVM;
+
+                // Setup global status bar timer (3 second interval for background task)
+                _statusBarTimer = new DispatcherTimer
+                {
+                    Interval = TimeSpan.FromSeconds(3)
+                };
+                _statusBarTimer.Tick += (s, e) => UpdateStatusBarTelemetry();
+                _statusBarTimer.Start();
+
+                UpdateStatusBarTelemetry();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"MainViewModel init error: {ex.Message}");
+            }
         }
 
         private void UpdateStatusBarTelemetry()
@@ -152,8 +190,9 @@ namespace RansomGuard.ViewModels
             if (_disposed) return;
             _disposed = true;
 
-            // Stop and dispose timer
+            // Stop and dispose timers
             _statusBarTimer?.Stop();
+            _connectionGraceTimer?.Stop();
 
             // Unsubscribe from events using stored delegate reference
             if (_monitorService != null)

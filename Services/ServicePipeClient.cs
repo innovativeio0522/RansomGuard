@@ -534,7 +534,14 @@ namespace RansomGuard.Services
             }
         }
         
-        public DateTime GetLastScanTime() => _lastScanTime;
+        public DateTime GetLastScanTime()
+        {
+            if (IsConnected)
+            {
+                lock (_telemetryLock) { return _lastTelemetry.LastScanTime; }
+            }
+            return _lastScanTime;
+        }
         private DateTime _lastScanTime = ConfigurationService.Instance.LastScanTime;
 
         public async Task PerformQuickScan()

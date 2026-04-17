@@ -12,6 +12,16 @@ namespace RansomGuard
         {
             InitializeComponent();
             DataContext = new MainViewModel();
+            ApplyScreenPercentageSize();
+        }
+
+        private void ApplyScreenPercentageSize()
+        {
+            var screen = SystemParameters.WorkArea; // Excludes taskbar
+            Width  = screen.Width  * 0.63;
+            Height = screen.Height * 0.72;
+            Left   = screen.Left + (screen.Width  - Width)  / 2;
+            Top    = screen.Top  + (screen.Height - Height) / 2;
         }
 
         private void MinButton_Click(object sender, RoutedEventArgs e)
