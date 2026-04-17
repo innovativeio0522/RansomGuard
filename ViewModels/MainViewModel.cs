@@ -28,6 +28,9 @@ namespace RansomGuard.ViewModels
         private bool _isServiceConnected = true; // Start as true to give grace period
 
         [ObservableProperty]
+        private bool _isSidebarCollapsed = false;
+
+        [ObservableProperty]
         private string _cpuUsageText = "CPU: --%";
 
         [ObservableProperty]
@@ -136,6 +139,12 @@ namespace RansomGuard.ViewModels
         }
 
         [RelayCommand]
+        private void ToggleSidebar()
+        {
+            IsSidebarCollapsed = !IsSidebarCollapsed;
+        }
+
+        [RelayCommand]
         private void Navigate(string destination)
         {
             switch (destination)
@@ -171,6 +180,7 @@ namespace RansomGuard.ViewModels
                     SearchPlaceholder = "Search file logs...";
                     break;
                 case "Reports":
+                    _reportsVM.Refresh();
                     CurrentView = _reportsVM;
                     HeaderTitle = "Security Reports";
                     HeaderStatus = "IDLE";

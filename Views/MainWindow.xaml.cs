@@ -31,9 +31,19 @@ namespace RansomGuard
         public MainWindow()
         {
             InitializeComponent();
-            DataContext = new MainViewModel();
+            var vm = new MainViewModel();
+            DataContext = vm;
             Loaded += (s, e) => ApplyScreenPercentageSize();
             LocationChanged += OnLocationChanged;
+
+            // Listen for sidebar collapse toggle to update ColumnDefinition width
+            vm.PropertyChanged += (s, e) =>
+            {
+                if (e.PropertyName == nameof(MainViewModel.IsSidebarCollapsed))
+                    SidebarColumn.Width = vm.IsSidebarCollapsed
+                        ? new GridLength(48)
+                        : new GridLength(180);
+            };
         }
 
         private void OnLocationChanged(object? sender, EventArgs e)
