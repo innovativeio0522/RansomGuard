@@ -116,13 +116,22 @@
                         <Grid>
                             <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                                 <TextBlock Text="Active System Processes" FontSize="13" FontWeight="Bold" Foreground="{StaticResource OnSurfaceBrush}"/>
-                                <TextBlock Text=" (" FontSize="13" FontWeight="Bold" Foreground="{StaticResource OnSurfaceBrush}"/>
-                                <TextBlock Text="{Binding ActiveProcesses.Count}" FontSize="13" FontWeight="Bold" Foreground="{StaticResource PrimaryBrush}"/>
-                                <TextBlock Text=")" FontSize="13" FontWeight="Bold" Foreground="{StaticResource OnSurfaceBrush}"/>
+                                <Border Background="{StaticResource PrimaryBrush}" CornerRadius="10" Padding="8,2" Margin="12,0,0,0" VerticalAlignment="Center">
+                                    <TextBlock Text="{Binding ActiveProcesses.Count}" FontSize="10" FontWeight="Black" Foreground="White"/>
+                                </Border>
                             </StackPanel>
                             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                <TextBlock Text="Auto-refresh: 3s" FontSize="9" Foreground="{StaticResource OnSurfaceVariantBrush}" VerticalAlignment="Center" Margin="0,0,16,0" Opacity="0.7"/>
                                 <Button Content="EXPORT LOGS" Command="{Binding ExportLogsCommand}" Style="{StaticResource NativeButton}" FontSize="10" FontWeight="Bold" Padding="16,8" Margin="0,0,12,0" Background="Transparent" BorderThickness="0"/>
-                                <Button Content="REFRESH (3S)" Command="{Binding RefreshCommand}" Style="{StaticResource PrimaryButton}" FontSize="10" FontWeight="Bold" Padding="16,8" Background="#ff4d8eff"/>
+                                <Button Command="{Binding RefreshCommand}" Style="{StaticResource PrimaryButton}" Padding="16,8" Background="#ff4d8eff">
+                                    <StackPanel Orientation="Horizontal">
+                                        <Viewbox Width="12" Height="12" Margin="0,0,8,0">
+                                            <Path Data="M17.65,6.35C16.2,4.9 14.21,4 12,4A8,8 0 0,0 4,12A8,8 0 0,0 12,20C15.73,20 18.84,17.45 19.73,14H17.65C16.83,16.33 14.61,18 12,18A6,6 0 0,1 6,12A6,6 0 0,1 12,6C13.66,6 15.14,6.69 16.22,7.78L13,11H20V4L17.65,6.35Z" 
+                                                  Fill="White"/>
+                                        </Viewbox>
+                                        <TextBlock Text="REFRESH" FontSize="10" FontWeight="Bold"/>
+                                    </StackPanel>
+                                </Button>
                             </StackPanel>
                         </Grid>
                     </Border>

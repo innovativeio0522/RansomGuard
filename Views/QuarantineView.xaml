@@ -258,71 +258,69 @@
                             <!-- Vertical Line -->
                             <Rectangle Fill="{StaticResource OutlineVariantBrush}" Width="2" HorizontalAlignment="Left" Margin="11,8,0,8" Opacity="0.3"/>
                             
-                            <StackPanel>
-                                <!-- Event 1: Detected -->
-                                <Grid Margin="0,0,0,32">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="24"/>
-                                        <ColumnDefinition Width="*"/>
-                                    </Grid.ColumnDefinitions>
-                                    
-                                    <Border Width="24" Height="24" Background="{StaticResource BackgroundBrush}" BorderBrush="{StaticResource SecondaryBrush}" BorderThickness="2" CornerRadius="12" VerticalAlignment="Top">
-                                        <Ellipse Width="8" Height="8" Fill="{StaticResource SecondaryBrush}">
-                                            <Ellipse.Style>
-                                                <Style TargetType="Ellipse">
-                                                    <Style.Triggers>
-                                                        <EventTrigger RoutedEvent="Loaded">
-                                                            <BeginStoryboard>
-                                                                <Storyboard RepeatBehavior="Forever">
-                                                                    <DoubleAnimation Storyboard.TargetProperty="Opacity" From="1" To="0.3" Duration="0:0:1" AutoReverse="True"/>
-                                                                </Storyboard>
-                                                            </BeginStoryboard>
-                                                        </EventTrigger>
-                                                    </Style.Triggers>
-                                                </Style>
-                                            </Ellipse.Style>
-                                        </Ellipse>
-                                    </Border>
-                                    
-                                    <StackPanel Grid.Column="1" Margin="16,0,0,0">
-                                        <StackPanel Orientation="Horizontal">
-                                            <TextBlock Text="14:22:01 — DETECTED" FontSize="10" FontWeight="Black" Foreground="{StaticResource SecondaryBrush}" VerticalAlignment="Center" Width="180"/>
-                                            <Border Background="{StaticResource SurfaceContainerBrush}" Padding="16" CornerRadius="8" BorderBrush="{StaticResource SecondaryBrush}" BorderThickness="4,0,0,0" HorizontalAlignment="Stretch">
-                                                <StackPanel>
-                                                    <TextBlock Text="Auto-Containment Triggered" FontSize="14" FontWeight="Bold" Foreground="{StaticResource OnSurfaceBrush}"/>
-                                                    <TextBlock Text="System process 'invoice_alpha_882.exe' attempted unauthorized encryption on VSS writers. Quarantined immediately." 
-                                                              FontSize="12" Foreground="{StaticResource OnSurfaceVariantBrush}" Margin="0,4,0,0" TextWrapping="Wrap" Opacity="0.7"/>
-                                                </StackPanel>
+                            <!-- Dynamic Timeline Events -->
+                            <ItemsControl ItemsSource="{Binding TimelineEvents}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Grid Margin="0,0,0,32">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="24"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+                                            
+                                            <Border Width="24" Height="24" Background="{StaticResource BackgroundBrush}" 
+                                                   BorderBrush="{Binding Severity, Converter={StaticResource SeverityToBrushConverter}}" 
+                                                   BorderThickness="2" CornerRadius="12" VerticalAlignment="Top">
+                                                <Ellipse Width="8" Height="8" 
+                                                        Fill="{Binding Severity, Converter={StaticResource SeverityToBrushConverter}}">
+                                                    <Ellipse.Style>
+                                                        <Style TargetType="Ellipse">
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding Severity}" Value="Critical">
+                                                                    <DataTrigger.EnterActions>
+                                                                        <BeginStoryboard>
+                                                                            <Storyboard RepeatBehavior="Forever">
+                                                                                <DoubleAnimation Storyboard.TargetProperty="Opacity" From="1" To="0.3" Duration="0:0:1" AutoReverse="True"/>
+                                                                            </Storyboard>
+                                                                        </BeginStoryboard>
+                                                                    </DataTrigger.EnterActions>
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </Ellipse.Style>
+                                                </Ellipse>
                                             </Border>
-                                        </StackPanel>
-                                    </StackPanel>
-                                </Grid>
-
-                                <!-- Event 2: Analyzed -->
-                                <Grid>
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="24"/>
-                                        <ColumnDefinition Width="*"/>
-                                    </Grid.ColumnDefinitions>
-                                    
-                                    <Border Width="24" Height="24" Background="{StaticResource BackgroundBrush}" BorderBrush="{StaticResource PrimaryBrush}" BorderThickness="2" CornerRadius="12" VerticalAlignment="Top">
-                                        <Ellipse Width="8" Height="8" Fill="{StaticResource PrimaryBrush}"/>
-                                    </Border>
-                                    
-                                    <StackPanel Grid.Column="1" Margin="16,0,0,0">
-                                        <StackPanel Orientation="Horizontal">
-                                            <TextBlock Text="14:22:05 — ANALYZED" FontSize="10" FontWeight="Black" Foreground="{StaticResource PrimaryBrush}" VerticalAlignment="Center" Width="180"/>
-                                            <Border Background="{StaticResource SurfaceContainerBrush}" Padding="16" CornerRadius="8" BorderBrush="{StaticResource PrimaryBrush}" BorderThickness="4,0,0,0" HorizontalAlignment="Stretch">
-                                                <StackPanel>
-                                                    <TextBlock Text="Heuristic Signature Match" FontSize="14" FontWeight="Bold" Foreground="{StaticResource OnSurfaceBrush}"/>
-                                                    <TextBlock Text="Pattern match 99.4% for Ransomware.Locky variant. Metadata uploaded to global node for verification." 
-                                                              FontSize="12" Foreground="{StaticResource OnSurfaceVariantBrush}" Margin="0,4,0,0" TextWrapping="Wrap" Opacity="0.7"/>
+                                            
+                                            <StackPanel Grid.Column="1" Margin="16,0,0,0">
+                                                <StackPanel Orientation="Horizontal">
+                                                    <TextBlock FontSize="10" FontWeight="Black" 
+                                                              Foreground="{Binding Severity, Converter={StaticResource SeverityToBrushConverter}}" 
+                                                              VerticalAlignment="Center" Width="180">
+                                                        <Run Text="{Binding Timestamp, StringFormat='{}{0:HH:mm:ss}'}"/>
+                                                        <Run Text=" — DETECTED"/>
+                                                    </TextBlock>
+                                                    <Border Background="{StaticResource SurfaceContainerBrush}" Padding="16" CornerRadius="8" 
+                                                           BorderBrush="{Binding Severity, Converter={StaticResource SeverityToBrushConverter}}" 
+                                                           BorderThickness="4,0,0,0" HorizontalAlignment="Stretch">
+                                                        <StackPanel>
+                                                            <TextBlock Text="{Binding Name}" FontSize="14" FontWeight="Bold" 
+                                                                      Foreground="{StaticResource OnSurfaceBrush}"/>
+                                                            <TextBlock Text="{Binding Description}" 
+                                                                      FontSize="12" Foreground="{StaticResource OnSurfaceVariantBrush}" 
+                                                                      Margin="0,4,0,0" TextWrapping="Wrap" Opacity="0.7"/>
+                                                            <TextBlock FontSize="11" Foreground="{StaticResource OnSurfaceVariantBrush}" 
+                                                                      Margin="0,4,0,0" Opacity="0.6">
+                                                                <Run Text="Target:"/>
+                                                                <Run Text="{Binding Path}" FontWeight="SemiBold"/>
+                                                            </TextBlock>
+                                                        </StackPanel>
+                                                    </Border>
                                                 </StackPanel>
-                                            </Border>
-                                        </StackPanel>
-                                    </StackPanel>
-                                </Grid>
-                            </StackPanel>
+                                            </StackPanel>
+                                        </Grid>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
                         </Grid>
                     </StackPanel>
                 </Border>

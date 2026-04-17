@@ -10,13 +10,25 @@ using RansomGuard.Core.Services;
 
 namespace RansomGuard.ViewModels
 {
+    public partial class MonitoredPathItem : ObservableObject
+    {
+        [ObservableProperty] private string _path;
+        [ObservableProperty] private bool _isStandard;
+
+        public MonitoredPathItem(string path)
+        {
+            _path = path;
+            _isStandard = ConfigurationService.IsStandardProtectedFolder(path);
+        }
+    }
+
     public partial class SettingsViewModel : ViewModelBase, IDisposable
     {
         private readonly DispatcherTimer _saveDebounceTimer;
         private bool _disposed;
 
         [ObservableProperty]
-        private ObservableCollection<string> _monitoredPaths;
+        private ObservableCollection<MonitoredPathItem> _monitoredPaths;
 
         [ObservableProperty]
         [NotifyPropertyChangedFor(nameof(SensitivityLabel))]
@@ -51,7 +63,9 @@ namespace RansomGuard.ViewModels
             };
 
             // Map config to properties
-            MonitoredPaths = new ObservableCollection<string>(ConfigurationService.Instance.MonitoredPaths);
+            _monitoredPaths = new ObservableCollection<MonitoredPathItem>(
+                ConfigurationService.Instance.MonitoredPaths.Select(p => new MonitoredPathItem(p)));
+            
             SensitivityLevel = ConfigurationService.Instance.SensitivityLevel;
             IsRealTimeProtectionEnabled = ConfigurationService.Instance.RealTimeProtection;
             IsAutoQuarantineEnabled = ConfigurationService.Instance.AutoQuarantine;
@@ -87,7 +101,7 @@ namespace RansomGuard.ViewModels
 
         private void SaveConfigImmediate()
         {
-            ConfigurationService.Instance.MonitoredPaths = MonitoredPaths.ToList();
+            ConfigurationService.Instance.MonitoredPaths = MonitoredPaths.Select(m => m.Path).ToList();
             ConfigurationService.Instance.SensitivityLevel = SensitivityLevel;
             ConfigurationService.Instance.RealTimeProtection = IsRealTimeProtectionEnabled;
             ConfigurationService.Instance.AutoQuarantine = IsAutoQuarantineEnabled;
@@ -108,9 +122,9 @@ namespace RansomGuard.ViewModels
 
             if (dialog.ShowDialog() == true)
             {
-                if (!MonitoredPaths.Contains(dialog.FolderName))
+                if (!MonitoredPaths.Any(m => string.Equals(m.Path, dialog.FolderName, StringComparison.OrdinalIgnoreCase)))
                 {
-                    MonitoredPaths.Add(dialog.FolderName);
+                    MonitoredPaths.Add(new MonitoredPathItem(dialog.FolderName));
                 }
             }
         }
@@ -118,9 +132,13 @@ namespace RansomGuard.ViewModels
         [RelayCommand]
         private void RemovePath(object parameter)
         {
-            if (parameter is string path && MonitoredPaths.Contains(path))
+            if (parameter is MonitoredPathItem item)
             {
-                MonitoredPaths.Remove(path);
+                // Only allow removal of non-standard folders
+                if (!item.IsStandard)
+                {
+                    MonitoredPaths.Remove(item);
+                }
             }
         }
 

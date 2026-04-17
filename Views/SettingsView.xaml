@@ -250,15 +250,48 @@
                                                     <ColumnDefinition Width="*"/>
                                                     <ColumnDefinition Width="Auto"/>
                                                 </Grid.ColumnDefinitions>
-                                                <Viewbox Grid.Column="0" Width="16" Height="16" Margin="0,0,16,0">
-                                                    <Path Data="M20,18V10H18V13H16V10H14V13H12V10H10V18H20M20,6A2,2 0 0,1 22,8V18A2,2 0 0,1 20,20H4A2,2 0 0,1 2,18V6A2,2 0 0,1 4,4H10L12,6H20Z" Fill="{StaticResource OnSurfaceVariantBrush}" Opacity="0.2"/>
+                                                
+                                                <Viewbox Grid.Column="0" Width="16" Height="16" Margin="0,0,16,0" Opacity="0.5">
+                                                    <Path Data="M10,4H4C2.89,4 2,4.89 2,6V18A2,2 0 0,0 4,20H20A2,2 0 0,0 22,18V8C22,6.89 21.1,6 20,6H12L10,4Z" Fill="{StaticResource OnSurfaceBrush}"/>
                                                 </Viewbox>
-                                                <TextBlock Grid.Column="1" Text="{Binding}" FontSize="11" Foreground="{StaticResource OnSurfaceVariantBrush}" VerticalAlignment="Center" FontFamily="Consolas"/>
-                                                <Button Grid.Column="2" Style="{StaticResource IconButton}" Width="20" Height="20" Opacity="0.2"
-                                                        Command="{Binding DataContext.RemovePathCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
-                                                        CommandParameter="{Binding}">
-                                                    <Path Data="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z" Fill="{StaticResource OnSurfaceBrush}" Width="10" Height="10" Stretch="Uniform"/>
-                                                </Button>
+                                                
+                                                <TextBlock Grid.Column="1" Text="{Binding Path}" FontSize="12" Foreground="{StaticResource OnSurfaceBrush}" VerticalAlignment="Center" FontFamily="Consolas"/>
+                                                
+                                                <Grid Grid.Column="2" VerticalAlignment="Center" Margin="16,0,0,0">
+                                                    <Border Background="{StaticResource SurfaceContainerHighestBrush}" Padding="8,4" CornerRadius="4" HorizontalAlignment="Right">
+                                                        <Border.Style>
+                                                            <Style TargetType="Border">
+                                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                                                <Style.Triggers>
+                                                                    <DataTrigger Binding="{Binding IsStandard}" Value="True">
+                                                                        <Setter Property="Visibility" Value="Visible"/>
+                                                                    </DataTrigger>
+                                                                </Style.Triggers>
+                                                            </Style>
+                                                        </Border.Style>
+                                                        <TextBlock Text="STANDARD" FontSize="9" FontWeight="Black" Foreground="{StaticResource SecondaryBrush}" Opacity="0.8"/>
+                                                    </Border>
+
+                                                    <Button Command="{Binding DataContext.RemovePathCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}" 
+                                                            CommandParameter="{Binding}"
+                                                            ToolTip="Remove this folder from protection"
+                                                            HorizontalAlignment="Right"
+                                                            VerticalAlignment="Center">
+                                                        <Button.Style>
+                                                            <Style TargetType="Button" BasedOn="{StaticResource IconButton}">
+                                                                <Setter Property="Visibility" Value="Visible"/>
+                                                                <Style.Triggers>
+                                                                    <DataTrigger Binding="{Binding IsStandard}" Value="True">
+                                                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                                                    </DataTrigger>
+                                                                </Style.Triggers>
+                                                            </Style>
+                                                        </Button.Style>
+                                                        <Viewbox Width="14" Height="14" Opacity="0.4">
+                                                            <Path Data="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z" Fill="{StaticResource OnSurfaceBrush}"/>
+                                                        </Viewbox>
+                                                    </Button>
+                                                </Grid>
                                             </Grid>
                                         </Border>
                                     </DataTemplate>
