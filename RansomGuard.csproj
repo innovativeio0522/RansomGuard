@@ -6,12 +6,19 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
+    <UseWindowsForms>false</UseWindowsForms>
     <!-- <ApplicationIcon>Assets\Icons\RansomGuard.ico</ApplicationIcon> -->
     <AssemblyName>RansomGuard</AssemblyName>
     <RootNamespace>RansomGuard</RootNamespace>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <DefaultItemExcludes>$(DefaultItemExcludes);RansomGuard.Core\**;RansomGuard.Service\**;RansomGuard.Tests\**</DefaultItemExcludes>
   </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Remove conflicting implicit usings brought in by net8.0-windows target -->
+    <Using Remove="System.Drawing" />
+    <Using Remove="System.Windows.Forms" />
+  </ItemGroup>
 
   <ItemGroup>
     <!-- NuGet Packages -->

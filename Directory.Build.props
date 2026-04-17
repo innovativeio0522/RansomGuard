@@ -1,0 +1,7 @@
+<Project>
+  <!-- Remove conflicting implicit usings caused by net8.0-windows + LiveChartsCore/SkiaSharp transitive deps -->
+  <ItemGroup>
+    <Using Remove="System.Drawing" />
+    <Using Remove="System.Windows.Forms" />
+  </ItemGroup>
+</Project>
