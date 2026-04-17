@@ -162,8 +162,14 @@ TestResults/
 *.rej
 *.swp
 *#
+*.log
+process_debug.log
+app_output.txt
 
 # ─── Scratch / Temporary Scripts ─────────────────────────────────────────────
 scratch_app/
 scratch_test.cs
 scratch_test.exe
+insert_test_threats.ps1
+insert_threats.sql
+temp.sql
