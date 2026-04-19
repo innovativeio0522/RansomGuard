@@ -8,7 +8,7 @@ using RansomGuard.Core.Helpers;
 
 namespace RansomGuard.Service.Services
 {
-    public class HistoryStore
+    public class HistoryStore : IHistoryStore
     {
         private readonly string _connectionString;
 
@@ -75,7 +75,7 @@ namespace RansomGuard.Service.Services
             try
             {
                 using var connection = new SqliteConnection(_connectionString);
-                await connection.OpenAsync();
+                await connection.OpenAsync().ConfigureAwait(false);
 
                 var command = connection.CreateCommand();
                 command.CommandText = @"
@@ -89,7 +89,7 @@ namespace RansomGuard.Service.Services
                 command.Parameters.AddWithValue("$isSuspicious", activity.IsSuspicious ? 1 : 0);
                 command.Parameters.AddWithValue("$processName", activity.ProcessName);
 
-                await command.ExecuteNonQueryAsync();
+                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
             }
             catch (Exception ex)
             {
@@ -103,14 +103,14 @@ namespace RansomGuard.Service.Services
             try
             {
                 using var connection = new SqliteConnection(_connectionString);
-                await connection.OpenAsync();
+                await connection.OpenAsync().ConfigureAwait(false);
 
                 var command = connection.CreateCommand();
                 command.CommandText = "SELECT * FROM FileActivities ORDER BY Timestamp DESC LIMIT $limit";
                 command.Parameters.AddWithValue("$limit", limit);
 
-                using var reader = await command.ExecuteReaderAsync();
-                while (await reader.ReadAsync())
+                using var reader = await command.ExecuteReaderAsync().ConfigureAwait(false);
+                while (await reader.ReadAsync().ConfigureAwait(false))
                 {
                     results.Add(new FileActivity
                     {
@@ -135,7 +135,7 @@ namespace RansomGuard.Service.Services
             try
             {
                 using var connection = new SqliteConnection(_connectionString);
-                await connection.OpenAsync();
+                await connection.OpenAsync().ConfigureAwait(false);
 
                 var command = connection.CreateCommand();
                 command.CommandText = @"
@@ -151,7 +151,7 @@ namespace RansomGuard.Service.Services
                 command.Parameters.AddWithValue("$severity", threat.Severity);
                 command.Parameters.AddWithValue("$status", "Active");
 
-                await command.ExecuteNonQueryAsync();
+                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
             }
             catch (Exception ex)
             {
@@ -165,13 +165,13 @@ namespace RansomGuard.Service.Services
             try
             {
                 using var connection = new SqliteConnection(_connectionString);
-                await connection.OpenAsync();
+                await connection.OpenAsync().ConfigureAwait(false);
 
                 var command = connection.CreateCommand();
                 command.CommandText = "SELECT * FROM Threats WHERE Status = 'Active' ORDER BY Timestamp DESC";
 
-                using var reader = await command.ExecuteReaderAsync();
-                while (await reader.ReadAsync())
+                using var reader = await command.ExecuteReaderAsync().ConfigureAwait(false);
+                while (await reader.ReadAsync().ConfigureAwait(false))
                 {
                     string severityStr = reader.GetString(7);
                     ThreatSeverity severity = ThreatSeverity.Medium; // Default
@@ -204,7 +204,7 @@ namespace RansomGuard.Service.Services
             try
             {
                 using var connection = new SqliteConnection(_connectionString);
-                await connection.OpenAsync();
+                await connection.OpenAsync().ConfigureAwait(false);
 
                 var command = connection.CreateCommand();
                 command.CommandText = @"
@@ -215,7 +215,7 @@ namespace RansomGuard.Service.Services
                 command.Parameters.AddWithValue("$status", status);
                 command.Parameters.AddWithValue("$path", path);
 
-                await command.ExecuteNonQueryAsync();
+                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
             }
             catch (Exception ex)
             {

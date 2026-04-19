@@ -6,16 +6,17 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
-    <UseWindowsForms>false</UseWindowsForms>
+    <UseWindowsForms>true</UseWindowsForms>
     <!-- <ApplicationIcon>Assets\Icons\RansomGuard.ico</ApplicationIcon> -->
     <AssemblyName>RansomGuard</AssemblyName>
     <RootNamespace>RansomGuard</RootNamespace>
     <ApplicationManifest>app.manifest</ApplicationManifest>
-    <DefaultItemExcludes>$(DefaultItemExcludes);RansomGuard.Core\**;RansomGuard.Service\**;RansomGuard.Tests\**</DefaultItemExcludes>
+    <DefaultItemExcludes>$(DefaultItemExcludes);RansomGuard.Core\**;RansomGuard.Service\**;RansomGuard.Tests\**;scratch\**</DefaultItemExcludes>
   </PropertyGroup>
 
   <ItemGroup>
-    <!-- Remove conflicting implicit usings brought in by net8.0-windows target -->
+    <!-- Suppress the global implicit usings that conflict with WPF types.
+         TrayIconService uses System.Windows.Forms via fully-qualified names only. -->
     <Using Remove="System.Drawing" />
     <Using Remove="System.Windows.Forms" />
   </ItemGroup>

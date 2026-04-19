@@ -4,6 +4,7 @@ using System.Collections.ObjectModel;
 using System.Linq;
 using System.ComponentModel;
 using System.Windows.Threading;
+using System.IO;
 using Microsoft.Win32;
 using RansomGuard.Services;
 using RansomGuard.Core.Services;
@@ -26,6 +27,7 @@ namespace RansomGuard.ViewModels
     {
         private readonly DispatcherTimer _saveDebounceTimer;
         private bool _disposed;
+        private bool _isInitialized;
 
         [ObservableProperty]
         private ObservableCollection<MonitoredPathItem> _monitoredPaths;
@@ -62,9 +64,8 @@ namespace RansomGuard.ViewModels
                 SaveConfigImmediate();
             };
 
-            // Map config to properties
-            _monitoredPaths = new ObservableCollection<MonitoredPathItem>(
-                ConfigurationService.Instance.MonitoredPaths.Select(p => new MonitoredPathItem(p)));
+            _monitoredPaths = new ObservableCollection<MonitoredPathItem>();
+            LoadMonitoredPaths();
             
             SensitivityLevel = ConfigurationService.Instance.SensitivityLevel;
             IsRealTimeProtectionEnabled = ConfigurationService.Instance.RealTimeProtection;
@@ -92,8 +93,53 @@ namespace RansomGuard.ViewModels
             }
         }
 
+        private void LoadMonitoredPaths()
+        {
+            _isInitialized = false;
+            var config = ConfigurationService.Instance;
+
+            // Robust check: If we don't have ANY standard folders (Documents, Desktop, etc.), 
+            // we should try to discover them, regardless of what fallbacks are present.
+            bool hasAtLeastOneStandardFolder = config.MonitoredPaths.Any(p => ConfigurationService.IsStandardProtectedFolder(p));
+            
+            Console.WriteLine($"[ConfigurationService] hasAtLeastOneStandardFolder: {hasAtLeastOneStandardFolder}, HasAutoPopulated: {config.HasAutoPopulated}");
+            
+            if (!config.HasAutoPopulated && !hasAtLeastOneStandardFolder)
+            {
+                Console.WriteLine("[ConfigurationService] No standard folders found. Re-triggering discovery...");
+                config.PopulateDefaultFolders();
+                
+                // If we found something, mark as officially populated
+                if (config.MonitoredPaths.Any(p => ConfigurationService.IsStandardProtectedFolder(p)))
+                {
+                    config.HasAutoPopulated = true;
+                    
+                    // Cleanup: Remove the fallback App folder if we now have real folders.
+                    var baseDir = AppDomain.CurrentDomain.BaseDirectory.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+                    var fallbackPath = config.MonitoredPaths.FirstOrDefault(p => 
+                        p.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar).Equals(baseDir, StringComparison.OrdinalIgnoreCase));
+                    
+                    if (fallbackPath != null && config.MonitoredPaths.Count > 1)
+                    {
+                        config.MonitoredPaths.Remove(fallbackPath);
+                    }
+                }
+                
+                config.Save();
+            }
+
+            MonitoredPaths.Clear();
+            foreach (var path in config.MonitoredPaths)
+            {
+                MonitoredPaths.Add(new MonitoredPathItem(path));
+            }
+            _isInitialized = true;
+        }
+
         private void SaveConfig()
         {
+            if (!_isInitialized) return;
+
             // Debounce: reset timer on each change
             _saveDebounceTimer.Stop();
             _saveDebounceTimer.Start();

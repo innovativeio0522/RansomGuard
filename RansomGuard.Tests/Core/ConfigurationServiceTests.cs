@@ -6,6 +6,12 @@ namespace RansomGuard.Tests.Core;
 
 public class ConfigurationServiceTests
 {
+    public ConfigurationServiceTests()
+    {
+        ConfigurationService.Instance.IsTestingMode = true;
+        ConfigurationService.Instance.ResetToDefaults();
+    }
+
     [Fact]
     public void Instance_ShouldReturnSingleton()
     {

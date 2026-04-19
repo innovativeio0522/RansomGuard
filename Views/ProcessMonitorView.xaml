@@ -10,11 +10,16 @@
             <RowDefinition Height="*"/>    <!-- Main Content (Scrollable) -->
         </Grid.RowDefinitions>
 
-        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-            <StackPanel Margin="20,16">
+        <!-- Main Content Area -->
+        <Grid Grid.Row="1" Margin="20,16">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/> <!-- Metrics Bento Cluster -->
+                <RowDefinition Height="*"/>    <!-- Table Section (Fills Gap) -->
+                <RowDefinition Height="Auto"/> <!-- Bottom Dashboard Section -->
+            </Grid.RowDefinitions>
             
             <!-- Metrics Bento Cluster -->
-            <Grid Margin="0,0,0,12">
+            <Grid Grid.Row="0" Margin="0,0,0,12">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="12"/>
@@ -117,9 +122,15 @@
             </Grid>
 
             <!-- Table Section -->
-            <Border Background="{StaticResource SurfaceContainerLowBrush}" CornerRadius="12" ClipToBounds="True">
-                <StackPanel>
-                    <Border Padding="24,8" Background="{StaticResource SurfaceVariantBrush}" Opacity="0.5">
+            <Border Grid.Row="1" Background="{StaticResource SurfaceContainerLowBrush}" CornerRadius="12" ClipToBounds="True">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/> <!-- Status Bar -->
+                        <RowDefinition Height="Auto"/> <!-- Header -->
+                        <RowDefinition Height="*"/>    <!-- Data List -->
+                    </Grid.RowDefinitions>
+
+                    <Border Grid.Row="0" Padding="24,8" Background="{StaticResource SurfaceVariantBrush}" Opacity="0.5">
                         <Grid>
                             <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                                 <TextBlock Text="Active System Processes" FontSize="13" FontWeight="Bold" Foreground="{StaticResource OnSurfaceBrush}"/>
@@ -144,7 +155,7 @@
                     </Border>
 
                     <!-- Table Header -->
-                    <Border Padding="24,4" Background="{StaticResource SurfaceContainerBrush}">
+                    <Border Grid.Row="1" Padding="24,4" Background="{StaticResource SurfaceContainerBrush}">
                         <Grid>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="2*"/>
@@ -165,8 +176,8 @@
                         </Grid>
                     </Border>
 
-                    <ListBox ItemsSource="{Binding ActiveProcesses}" SelectedItem="{Binding SelectedProcess, Mode=TwoWay}"
-                             Background="Transparent" BorderThickness="0" MaxHeight="215"
+                    <ListBox Grid.Row="2" ItemsSource="{Binding ActiveProcesses}" SelectedItem="{Binding SelectedProcess, Mode=TwoWay}"
+                             Background="Transparent" BorderThickness="0"
                              ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                              ScrollViewer.VerticalScrollBarVisibility="Auto"
                              HorizontalContentAlignment="Stretch">
@@ -263,12 +274,11 @@
                             </DataTemplate>
                         </ListBox.ItemTemplate>
                     </ListBox>
-
-                </StackPanel>
+                </Grid>
             </Border>
 
             <!-- Bottom Dashboard Section -->
-            <Grid Margin="0,12,0,0">
+            <Grid Grid.Row="2" Margin="0,12,0,0">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="2*"/>
                     <ColumnDefinition Width="12"/>
@@ -473,8 +483,6 @@
                     </Grid>
                 </Border>
             </Grid>
-
-            </StackPanel>
-        </ScrollViewer>
+        </Grid>
     </Grid>
 </UserControl>

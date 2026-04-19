@@ -176,3 +176,152 @@ Identified during the Sentinel Design System (SDS) v4.2.0 audit on 2026-04-12 an
 | 21 | ✅ | UI Thread Saturation (FileActivity) | `FileActivityViewModel.cs` |
 | 22 | ✅ | Scan Count Miscalculation | `ReportsViewModel.cs` |
 | 23 | ✅ | Deadlock Risk in HoneyPotService | `HoneyPotService.cs` |
+| 24 | ✅ | Hardcoded Drive Paths | `ConfigurationService.cs`, `SentinelEngine.cs` |
+| 25 | ✅ | Sensitivity Level Disconnected from Heuristics | `SentinelEngine.cs`, `SettingsViewModel.cs` |
+| 26 | ✅ | Export to CSV / PDF Not Implemented | `ReportsViewModel.cs` |
+| 27 | ✅ | Exponential Backoff for IPC Reconnect | `ServicePipeClient.cs` |
+| 28 | ✅ | `GetTelemetry()` Calls `Process.GetProcesses()` Every 2s | `SentinelEngine.cs` |
+| 29 | ✅ | SentinelEngine God Object — Extract Sub-Services | `SentinelEngine.cs` |
+| 30 | ✅ | `ReportsViewModel` Missing `IDisposable` | `ReportsViewModel.cs` |
+| 31 | ✅ | `random` Allocated Per Call in `GetActiveProcesses()` | `SentinelEngine.cs` |
+| 32 | ✅ | `CheckSuspiciousExtension` / `IsMediaFile` Use Inline Arrays | `SentinelEngine.cs` |
+| 33 | ✅ | `NamedPipeServer` Unsafe Cast to `SentinelEngine` | `NamedPipeServer.cs` |
+
+---
+
+## 🔬 Deep Code Audit (Round 4 – 2026-04-18)
+
+Items identified during the April 18, 2026 full-codebase walkthrough.
+
+### 24. ✅ Hardcoded Drive Paths Cause Breakage on Other Machines
+- **Status**: COMPLETED
+- **Files**: `RansomGuard.Core/Services/ConfigurationService.cs`, `SentinelEngine.cs`
+- **Issue**: `ConfigurationService.PopulateDefaultFolders()` and `IsStandardProtectedFolder()` both contain hardcoded paths:
+  ```
+  MonitoredPaths.Add(@"F:\Github Projects\RansomGuard");
+  standardFolders.Add(@"F:\Github Projects\RansomGuard");
+  ```
+  This fallback path only exists on the original developer's machine. On any other machine the application will attempt to monitor a non-existent directory and fail silently.
+- **Fix**: Replace with `AppDomain.CurrentDomain.BaseDirectory` or `Environment.CurrentDirectory`.
+
+### 25. ✅ Sensitivity Level Setting is Wired to UI but Ignored by the Security Engine
+- **Status**: COMPLETED
+- **Files**: `RansomGuard.Service/Engine/SentinelEngine.cs`, `ViewModels/SettingsViewModel.cs`
+- **Issue**: `ConfigurationService.SensitivityLevel` is stored (1=Low … 4=Paranoid) and persisted, but `SentinelEngine.OnFileChanged()` uses **hardcoded thresholds** (`6.0` for normal files, `7.5` for media). Changing the sensitivity slider in Settings has zero effect on actual detection behaviour.
+- **Fix**: Derive the entropy threshold from `SensitivityLevel`:
+  ```
+  Level 1 (Low)     → threshold = 7.2
+  Level 2 (Medium)  → threshold = 6.5
+  Level 3 (High)    → threshold = 6.0  (current default)
+  Level 4 (Paranoid)→ threshold = 5.0
+  ```
+  Also update `ChangeThreshold` for `CheckMassChangeVelocity()` accordingly.
+
+### 26. ✅ Export to CSV / PDF Buttons Have No Implementation
+- **Status**: COMPLETED — CSV export fully implemented. PDF deferred pending QuestPDF dependency (shows friendly prompt offering CSV instead).
+- **File**: `ViewModels/ReportsViewModel.cs`
+- **Issue**: The "Export to CSV" and "Export to PDF" relay commands contain empty bodies. The buttons render correctly but clicking them does nothing.
+- **Fix**:
+  - **CSV**: Use `System.Text.StringBuilder` to serialize threat history and file activity; write to `%AppData%/RansomGuard/Exports/report_<datetime>.csv`.
+  - **PDF**: Use a lightweight PDF library (e.g., `QuestPDF` or `PdfSharp`) to generate a formatted report card.
+
+### 27. ✅ IPC Reconnection Uses a Fixed 2-Second Delay (No Exponential Backoff)
+- **Status**: COMPLETED — Implemented exponential backoff with ±10% jitter (2s → 4s → 8s → 16s → cap 30s). Resets to 2s on successful reconnect.
+- **File**: `Services/ServicePipeClient.cs` – `ConnectLoop()`
+- **Issue**: When the background service is absent, `ConnectLoop` will spin and fail every 2 seconds indefinitely, creating unnecessary CPU overhead and log noise.
+- **Fix**: Implement exponential backoff with jitter (e.g., 2s → 4s → 8s → 16s → cap at 30s) and reset on successful connection.
+
+### 28. ✅ `GetTelemetry()` Calls `Process.GetProcesses()` on Every Tick
+- **Status**: COMPLETED — Process/thread stats are now cached in 4 fields (`_cachedProcessCount`, `_cachedThreadCount`, `_cachedTrustedPercent`, `_cachedSuspiciousCount`) and updated inside the existing 2s telemetry timer. `GetTelemetry()` reads the cache — zero extra OS calls per IPC broadcast.
+- **File**: `RansomGuard.Service/Engine/SentinelEngine.cs` – `GetTelemetry()`
+- **Issue**: `GetTelemetry()` is called on a 2-second timer via `TelemetryBroadcastLoop`. Each call calls `Process.GetProcesses()` to count threads — a heavy OS call that is also being duplicated by `GetActiveProcesses()` in a separate 3-second loop.
+- **Fix**: Cache thread/process count in a shared field updated by the existing telemetry timer. Remove the duplicate `Process.GetProcesses()` call from `GetTelemetry()`.
+
+### 29. ✅ `SentinelEngine` is a God Object (850+ Lines)
+- **Status**: COMPLETED — Extracted three dedicated sub-services:
+  - `EntropyAnalysisService.cs` — Shannon entropy, extension & rename-pattern checks (uses `HashSet` for O(1) lookup, also fixes #32)
+  - `ProcessIdentityService.cs` — `DetermineProcessIdentity()` logic
+  - `QuarantineService.cs` — all quarantine I/O (isolate, restore, delete, purge)
+  - `SentinelEngine` delegates to all three and acts as a pure orchestrator
+  - Also fixed #31: replaced `new Random()` per-call with `Random.Shared`
+- **File**: `RansomGuard.Service/Engine/SentinelEngine.cs`
+- **Issue**: The `SentinelEngine` class manages: file-system watchers, CPU/memory counters, Shannon entropy calculation, process identity checks, heuristic threat scoring, quarantine I/O, VSS, and telemetry serialization — all in one 867-line class.
+- **Fix**: Extract into focused sub-services:
+  - `FileMonitorService` — Manages `FileSystemWatcher` instances.
+  - `ProcessIdentityService` — `DetermineProcessIdentity()` logic.
+  - `EntropyAnalysisService` — `CalculateShannonEntropy()` logic.
+  - `QuarantineService` — Quarantine/restore/delete operations.
+  `SentinelEngine` becomes an orchestrator only.
+
+### 30. 🟡 `ReportsViewModel` Does Not Implement `IDisposable` — Event Leak Risk
+- **Status**: PENDING
+- **File**: `ViewModels/ReportsViewModel.cs`
+- **Issue**: `ReportsViewModel` subscribes to telemetry events from `ISystemMonitorService` but never unsubscribes. When the user navigates away and back, a new subscription can be created on top of the old one (in `Refresh()`), leading to duplicate UI updates and a potential memory leak over time.
+- **Fix**: Implement `IDisposable`, unsubscribe from all events in `Dispose()`. Have `MainViewModel.Dispose()` call it.
+
+### 31. 🔵 `new Random()` Allocated Per Iteration Inside `GetActiveProcesses()`
+- **Status**: PENDING
+- **File**: `RansomGuard.Service/Engine/SentinelEngine.cs` – Line ~486
+- **Issue**: `IoRate = Math.Round(new Random().NextDouble() * 5, 2)` allocates a new `Random` instance for every process on every 3-second broadcast. This also means all processes may get the same `IoRate` value (since consecutive `Random` instances seeded by the system clock can produce identical sequences).
+### 30. ✅ `ReportsViewModel` Misses Event Unsubscription During Dispose
+- **Status**: COMPLETED — MainViewModel now correctly casts and calls `Dispose()` on the `_reportsVM` instance during app shutdown.
+- **File**: `ViewModels/MainViewModel.cs`, `ViewModels/ReportsViewModel.cs`
+- **Issue**: `ReportsViewModel` declares `IDisposable` and implements `Dispose()` to unsubscribe from service events, but `MainViewModel` fails to call it alongside the other child ViewModels.
+- **Fix**: Added `(_reportsVM as IDisposable)?.Dispose();` to `MainViewModel.Dispose()`.
+
+### 31. ✅ `new Random()` Allocation Inside Heavy Logging Loop
+- **Status**: COMPLETED — Replaced with `Random.Shared.NextDouble()` during the God Object extraction (#29).
+- **File**: `RansomGuard.Service/Engine/SentinelEngine.cs` — `GetActiveProcesses()`
+- **Issue**: `var random = new Random();` is allocated every 3 seconds inside `GetActiveProcesses()`. Inside the inner `Select` block, `new Random().NextDouble()` is allocated *again* for every single process on the system. High GC pressure.
+- **Fix**: Use `Random.Shared` everywhere.
+
+### 32. ✅ `CheckSuspiciousExtension` and `IsMediaFile` Use Inline Arrays
+- **Status**: COMPLETED — Replaced with static readonly `HashSet<string>` with `StringComparer.OrdinalIgnoreCase` inside the newly extracted `EntropyAnalysisService` (#29).
+- **File**: `RansomGuard.Service/Engine/SentinelEngine.cs`
+- **Issue**: These methods are called on *every single file modification event*. Inside, they declare `string[] blocked = { ... }` which allocates a new array on every call, followed by a linear `Contains()` scan.
+- **Fix**: Moved to static `HashSet<string>` fields within a central heuristic configuration object.
+
+### 33. ✅ `NamedPipeServer` Unsafely Casts Interface to Concrete `SentinelEngine`
+- **Status**: COMPLETED — Removed the unsafe cast since `ScanCompleted` is a native member of `ISystemMonitorService`.
+- **File**: `RansomGuard.Service/Communication/NamedPipeServer.cs`
+- **Issue**: At line 52: `(_monitorService as SentinelEngine)!.ScanCompleted += ...`. If the service is ever mocked or wrapped (e.g. for testing), this will throw a NullReferenceException.
+- **Fix**: `ScanCompleted` is already part of the `ISystemMonitorService` interface. Call it directly on the interface.
+
+---
+
+## 🔬 Deep Code Audit (Round 5 – Best Practices Review)
+
+### 34. 🔴 15 Instances of Empty Catch Blocks Remain (Silent Failures)
+- **Status**: PENDING
+- **Files**: `ServicePipeClient.cs`, `QuarantineViewModel.cs`, `ProcessMonitorViewModel.cs`, `SentinelEngine.cs`, `ConfigurationService.cs`, `NativeMemory.cs`
+- **Issue**: Despite previous cleanup, 15 instances of `catch { }` still exist, silently swallowing exceptions. This makes debugging catastrophic failures extremely difficult.
+- **Goal**: Inject an `ILogger` implementation or use existing telemetry infrastructure to log these exceptions instead of swallowing them.
+
+### 35. ✅ Blocking Async Call / Deadlock Risk
+- **Status**: COMPLETED - Converted synchronous `.Wait()` to `await` inside an `async Task.Run` delegate.
+- **File**: `RansomGuard.Service/Engine/QuarantineService.cs`
+- **Issue**: Line 126 calls `DeleteQuarantinedFile(file).Wait();`. Using `.Wait()` on an async method can cause thread-pool starvation and deadlocks, especially in background services.
+- **Goal**: Convert the calling method to `async Task` and use `await DeleteQuarantinedFile(file);`.
+
+### 36. ✅ The "Shadow Engine" Anti-Pattern (SRP Violation)
+- **Status**: COMPLETED - Ripped ~350 lines of fallback logic from `ServicePipeClient.cs`. The UI is now a thin client.
+- **File**: `Services/ServicePipeClient.cs`
+
+### 37. ✅ Tight Coupling & Static Dependencies
+- **Status**: COMPLETED - Implemented `IEntropyAnalyzer` and `IProcessIdentityClassifier` and injected them into `SentinelEngine` via constructor DI.
+- **File**: `RansomGuard.Service/Engine/SentinelEngine.cs`
+- **Goal**: Define interfaces (`IEntropyAnalyzer`, `IProcessIdentityClassifier`) and inject them into `SentinelEngine` via the constructor (Dependency Injection).
+
+### 38. ✅ Missing `ConfigureAwait(false)` in Core/Service Libraries
+- **Status**: COMPLETED - Appended `.ConfigureAwait(false)` to all `await` calls in `RansomGuard.Service` across five major components (Worker, Engine, Communication, Services).
+- **Files**: `RansomGuard.Core` and `RansomGuard.Service`
+- **Goal**: Append `.ConfigureAwait(false)` to all `await` calls in UI-agnostic projects to prevent capturing the synchronization context, improving performance and mitigating deadlock risks.
+
+### 39. ✅ Sub-Optimal `async void` Usage
+- **Status**: COMPLETED - Wrapped the `OnStartup` async logic in a global `try/catch` block within `App.xaml.cs` to ensure fatal initialization errors are reported before the process exits.
+- **File**: `App.xaml.cs`
+
+### 40. ✅ Magic Strings in System Health Assessment
+- **Status**: COMPLETED - Implemented `AuthenticodeVerifier` using native `WinVerifyTrust` and integrated it into `ProcessIdentityService`.
+- **File**: `RansomGuard.Service/Engine/ProcessIdentityService.cs`
+- **Goal**: Check valid Authenticode digital signatures to reliably identify native Microsoft executables instead of relying on string matching.

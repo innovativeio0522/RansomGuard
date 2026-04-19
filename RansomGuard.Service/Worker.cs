@@ -18,7 +18,10 @@ public class Worker : BackgroundService
         _logger = logger;
         
         // Initialize core engines
-        _engine = new SentinelEngine();
+        var entropyAnalyzer = new EntropyAnalysisService();
+        var authenticodeVerifier = new AuthenticodeVerifier();
+        var processClassifier = new ProcessIdentityService(authenticodeVerifier);
+        _engine = new SentinelEngine(entropyAnalyzer, processClassifier);
         _activeResponse = new ActiveResponseService();
         _honeyPot = new HoneyPotService(_engine);
         _vssShield = new VssShieldService(_engine);
@@ -64,7 +67,7 @@ public class Worker : BackgroundService
 
             while (!stoppingToken.IsCancellationRequested)
             {
-                await Task.Delay(1000, stoppingToken);
+                await Task.Delay(1000, stoppingToken).ConfigureAwait(false);
             }
         }
         catch (OperationCanceledException)

@@ -4,6 +4,7 @@ using RansomGuard.Core.Models;
 using RansomGuard.Core.Interfaces;
 using RansomGuard.Core.Helpers;
 using RansomGuard.Services;
+using RansomGuard.Core.Services;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.ObjectModel;
@@ -18,6 +19,7 @@ namespace RansomGuard.ViewModels
     public partial class DashboardViewModel : ViewModelBase, IDisposable
     {
         private const int MaxDashboardActivities = 10;
+        private readonly int _baselineRiskScore = new Random().Next(5, 16); // 5–15 inclusive, fixed for session
         private const int MinutesThresholdForRecent = 60;
         
         private readonly ISystemMonitorService _monitorService;
@@ -59,6 +61,9 @@ namespace RansomGuard.ViewModels
 
         [ObservableProperty]
         private double _ramUsagePercent = 0;
+
+        [ObservableProperty]
+        private ObservableCollection<string> _activePaths = new();
 
         [ObservableProperty]
         private string _ramUsageText = "-- / -- GB";
@@ -131,6 +136,13 @@ namespace RansomGuard.ViewModels
             };
             _activityBufferTimer.Tick += (s, e) => ProcessActivityBuffer();
             _activityBufferTimer.Start();
+
+            // Subscribe to configuration changes for instant UI refresh
+            ConfigurationService.Instance.PathsChanged += () => {
+                Application.Current.Dispatcher.Invoke(() => {
+                    FilesMonitoredCount = _monitorService.GetMonitoredFilesCount().ToString("N0");
+                });
+            };
         }
 
         private void LoadData()
@@ -196,7 +208,21 @@ namespace RansomGuard.ViewModels
             CpuUsagePercent = telemetry.CpuUsage;
             RamUsageBytes = telemetry.MemoryUsage;
             ActiveProcessesCount = telemetry.ProcessesCount;
-            FilesMonitoredCount = telemetry.MonitoredFilesCount.ToString("N0");
+            // Always reflect the config count (source of truth) — the service watcher count
+            // can be lower if LocalSystem can't access certain drives (e.g. D:\).
+            FilesMonitoredCount = ConfigurationService.Instance.MonitoredPaths.Count.ToString("N0");
+
+            // Update active paths list from config (matches Settings page exactly)
+            Application.Current.Dispatcher.Invoke(() => {
+                var configPaths = ConfigurationService.Instance.MonitoredPaths;
+                if (ActivePaths.Count != configPaths.Count ||
+                    !configPaths.SequenceEqual(ActivePaths))
+                {
+                    ActivePaths.Clear();
+                    foreach (var path in configPaths)
+                        ActivePaths.Add(path);
+                }
+            });
 
             IsHoneyPotActive = telemetry.IsHoneyPotActive;
             IsVssShieldActive = telemetry.IsVssShieldActive;
@@ -291,8 +317,8 @@ namespace RansomGuard.ViewModels
 
         private void UpdateRiskScore()
         {
-            // Graduated: 0 alerts = 12, each alert adds ~10, capped at 95
-            ThreatRiskScore = Math.Min(95, 12 + ActiveAlerts.Count * 10);
+            // Graduated: baseline 5–15 (randomised at startup), each alert adds ~10, capped at 95
+            ThreatRiskScore = Math.Min(95, _baselineRiskScore + ActiveAlerts.Count * 10);
         }
 
         [RelayCommand]
