@@ -298,9 +298,10 @@ namespace RansomGuard.Core.Services
                     var path = Environment.GetFolderPath(folder);
                     if (!string.IsNullOrEmpty(path) && Directory.Exists(path))
                     {
-                        if (!MonitoredPaths.Any(p => string.Equals(p, path, StringComparison.OrdinalIgnoreCase)))
+                        var normalized = Path.GetFullPath(path).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar).ToLowerInvariant();
+                        if (!MonitoredPaths.Any(p => string.Equals(p, normalized, StringComparison.OrdinalIgnoreCase)))
                         {
-                            MonitoredPaths.Add(path);
+                            MonitoredPaths.Add(normalized);
                         }
                     }
                     else

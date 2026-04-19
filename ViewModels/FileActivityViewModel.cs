@@ -135,9 +135,26 @@ namespace RansomGuard.ViewModels
             while (_activityBuffer.TryDequeue(out var item))
                 batch.Add(item);
 
-            if (batch.Count > 0)
+            var uniqueNewItems = new List<FileActivity>();
+            foreach (var item in batch)
             {
-                foreach (var item in batch)
+                // Verify against the total history AND what we've already picked in this batch
+                bool isDuplicateInHistory = _allRecentActivities.Any(r => 
+                    r.Id == item.Id || 
+                    (r.FilePath == item.FilePath && Math.Abs((r.Timestamp - item.Timestamp).TotalSeconds) < 2));
+                
+                bool isDuplicateInBatch = uniqueNewItems.Any(u => 
+                    u.FilePath == item.FilePath && Math.Abs((u.Timestamp - item.Timestamp).TotalSeconds) < 2);
+
+                if (!isDuplicateInHistory && !isDuplicateInBatch)
+                {
+                    uniqueNewItems.Add(item);
+                }
+            }
+
+            if (uniqueNewItems.Count > 0)
+            {
+                foreach (var item in uniqueNewItems)
                 {
                     _allRecentActivities.Insert(0, item);
                     if (_allRecentActivities.Count > MaxRecentActivities)

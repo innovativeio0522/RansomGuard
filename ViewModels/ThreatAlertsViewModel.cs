@@ -41,16 +41,33 @@ namespace RansomGuard.ViewModels
         [ObservableProperty]
         private bool _hasNext = false;
 
+        [ObservableProperty]
+        private string _searchQuery = string.Empty;
+
         private int _currentPage = 0;
         private const int PageSize = 20;
 
         public ObservableCollection<Threat> Threats { get; } = new();
 
+        private System.Windows.Threading.DispatcherTimer _refreshTimer;
+
         public ThreatAlertsViewModel(ISystemMonitorService monitorService)
         {
             _monitorService = monitorService;
-            LoadThreats();
+            
+            // Subscribe to live events
             _monitorService.ThreatDetected += OnThreatDetected;
+
+            LoadThreats();
+
+            // Set up an auto-refresh timer so if you quarantine something on the Dashboard,
+            // this view automatically reflects it.
+            _refreshTimer = new System.Windows.Threading.DispatcherTimer
+            {
+                Interval = TimeSpan.FromSeconds(2.5)
+            };
+            _refreshTimer.Tick += (s, e) => LoadThreats();
+            _refreshTimer.Start();
         }
 
         private void LoadThreats()
@@ -62,15 +79,27 @@ namespace RansomGuard.ViewModels
 
         private void RefreshCounts()
         {
-            CriticalThreatsCount = _allThreats.Count(t => t.Severity == ThreatSeverity.Critical);
-            HighThreatsCount = _allThreats.Count(t => t.Severity == ThreatSeverity.High);
-            MediumThreatsCount = _allThreats.Count(t => t.Severity == ThreatSeverity.Medium);
-            LowThreatsCount = _allThreats.Count(t => t.Severity == ThreatSeverity.Low);
+            var activeThreats = _allThreats.Where(t => t.ActionTaken != "Quarantined" && t.ActionTaken != "Ignored");
+            CriticalThreatsCount = activeThreats.Count(t => t.Severity == ThreatSeverity.Critical);
+            HighThreatsCount = activeThreats.Count(t => t.Severity == ThreatSeverity.High);
+            MediumThreatsCount = activeThreats.Count(t => t.Severity == ThreatSeverity.Medium);
+            LowThreatsCount = activeThreats.Count(t => t.Severity == ThreatSeverity.Low);
         }
 
         private void ApplyFilters()
         {
             var filtered = _allThreats.AsEnumerable();
+
+            // Always exclude things that have already been handled
+            filtered = filtered.Where(t => t.ActionTaken != "Quarantined" && t.ActionTaken != "Ignored");
+
+            // Search query filter
+            if (!string.IsNullOrWhiteSpace(SearchQuery))
+            {
+                filtered = filtered.Where(t => 
+                    t.Path.Contains(SearchQuery, StringComparison.OrdinalIgnoreCase) || 
+                    t.Name.Contains(SearchQuery, StringComparison.OrdinalIgnoreCase));
+            }
 
             // Severity filter
             filtered = SelectedSeverityIndex switch
@@ -120,6 +149,8 @@ namespace RansomGuard.ViewModels
             HasNext = _currentPage < totalPages - 1;
         }
 
+        partial void OnSearchQueryChanged(string value) => ApplyFilters();
+
         partial void OnSelectedSeverityIndexChanged(int value) { _currentPage = 0; ApplyFilters(); }
         partial void OnSelectedDateRangeIndexChanged(int value) { _currentPage = 0; ApplyFilters(); }
 
@@ -136,7 +167,10 @@ namespace RansomGuard.ViewModels
         private async Task QuarantineThreat(Threat threat)
         {
             if (threat == null) return;
-            try { await _monitorService.QuarantineFile(threat.Path); }
+            try { 
+                await _monitorService.QuarantineFile(threat.Path); 
+                threat.ActionTaken = "Quarantined"; // Tell the rest of the app (like Dashboard) it's handled
+            }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"QuarantineThreat error: {ex.Message}");
@@ -159,7 +193,12 @@ namespace RansomGuard.ViewModels
         {
             Application.Current.Dispatcher.Invoke(() =>
             {
-                _allThreats.Insert(0, threat);
+                // Deduplicate by Path (don't add if already in memory)
+                if (!_allThreats.Any(t => t.Path == threat.Path))
+                {
+                    _allThreats.Insert(0, threat);
+                }
+                // Always re-filter — an existing threat may have changed status (e.g. Quarantined from Dashboard)
                 RefreshCounts();
                 ApplyFilters();
             });
@@ -169,6 +208,8 @@ namespace RansomGuard.ViewModels
         {
             if (_disposed) return;
             _disposed = true;
+
+            _refreshTimer?.Stop();
 
             // Unsubscribe from events
             if (_monitorService != null)

@@ -44,7 +44,13 @@ namespace RansomGuard.ViewModels
         private bool _isPanicModeEngaged = false;
 
         [ObservableProperty]
+        private string _searchQuery = string.Empty;
+
+        [ObservableProperty]
         private int _threatsBlockedCount = 0;
+
+        [ObservableProperty]
+        private int _activeAlertsCount = 0;
 
         [ObservableProperty]
         private int _activeProcessesCount = 0;
@@ -145,6 +151,8 @@ namespace RansomGuard.ViewModels
             };
         }
 
+        partial void OnSearchQueryChanged(string value) => LoadData();
+
         private void LoadData()
         {
             try
@@ -152,20 +160,48 @@ namespace RansomGuard.ViewModels
                 FilesMonitoredCount = _monitorService.GetMonitoredFilesCount().ToString("N0");
                 
                 var threats = _monitorService.GetRecentThreats()?.ToList() ?? new List<Threat>();
-                ThreatsBlockedCount = threats.Count;
-                ActiveAlerts.Clear();
-                foreach (var threat in threats)
-                {
-                    if (threat != null)
-                        ActiveAlerts.Add(threat);
-                }
+                
+                // Differentiate between "Blocked" (Remediated) and "Active" (Found but not yet handled)
+                ThreatsBlockedCount = threats.Count(t => t.ActionTaken == "Quarantined" || t.ActionTaken == "Terminated");
+
+                // 2. Reconcile ActiveAlerts Collection (avoiding duplicates and infinite growth)
+                var freshActive = threats.Where(t => t.ActionTaken == "Detected" &&
+                                                (string.IsNullOrWhiteSpace(SearchQuery) || 
+                                                 t.Path.Contains(SearchQuery, StringComparison.OrdinalIgnoreCase) ||
+                                                 t.Name.Contains(SearchQuery, StringComparison.OrdinalIgnoreCase)))
+                                         .ToList();
+
+                // Marshal collection modifications to UI thread
+                Application.Current.Dispatcher.Invoke(() => {
+                    // Remove resolved threats
+                    var toRemove = ActiveAlerts.Where(a => !freshActive.Any(f => f.Path == a.Path)).ToList();
+                    foreach (var r in toRemove) ActiveAlerts.Remove(r);
+
+                    // Add new threats
+                    foreach (var f in freshActive)
+                    {
+                        if (!ActiveAlerts.Any(a => a.Path == f.Path))
+                        {
+                            ActiveAlerts.Insert(0, f);
+                        }
+                    }
+                    
+                    ActiveAlertsCount = ActiveAlerts.Count;
+                });
 
                 var activities = _monitorService.GetRecentFileActivities()?.ToList() ?? new List<FileActivity>();
                 RecentActivities.Clear();
                 foreach (var activity in activities)
                 {
                     if (activity != null)
-                        RecentActivities.Add(activity);
+                    {
+                        if (string.IsNullOrWhiteSpace(SearchQuery) || 
+                            activity.FilePath.Contains(SearchQuery, StringComparison.OrdinalIgnoreCase) ||
+                            activity.ProcessName.Contains(SearchQuery, StringComparison.OrdinalIgnoreCase))
+                        {
+                            RecentActivities.Add(activity);
+                        }
+                    }
                 }
 
                 UpdateTelemetry();
@@ -183,14 +219,32 @@ namespace RansomGuard.ViewModels
         {
             if (_activityBuffer.IsEmpty) return;
 
-            var newItems = new List<FileActivity>();
+            var batch = new List<FileActivity>();
             while (_activityBuffer.TryDequeue(out var activity))
             {
-                newItems.Add(activity);
+                batch.Add(activity);
             }
 
-            // Insert new items at the beginning, maintaining order
-            foreach (var item in newItems)
+            var uniqueNewItems = new List<FileActivity>();
+            foreach (var item in batch)
+            {
+                // Verify against what's already in the UI AND what we've already accepted from this batch
+                bool isDuplicateInHistory = RecentActivities.Any(r => 
+                    r.Id == item.Id || 
+                    (r.FilePath == item.FilePath && Math.Abs((r.Timestamp - item.Timestamp).TotalSeconds) < 2));
+                
+                bool isDuplicateInBatch = uniqueNewItems.Any(u => 
+                    u.FilePath == item.FilePath && Math.Abs((u.Timestamp - item.Timestamp).TotalSeconds) < 2);
+
+                if (!isDuplicateInHistory && !isDuplicateInBatch)
+                {
+                    uniqueNewItems.Add(item);
+                }
+            }
+
+            if (uniqueNewItems.Count == 0) return;
+
+            foreach (var item in uniqueNewItems)
             {
                 RecentActivities.Insert(0, item);
                 if (RecentActivities.Count > MaxDashboardActivities)
@@ -300,16 +354,37 @@ namespace RansomGuard.ViewModels
         {
             Application.Current.Dispatcher.Invoke(() =>
             {
-                if (!ActiveAlerts.Any(a => a.Path == threat.Path))
-                {
-                    ActiveAlerts.Insert(0, threat);
-                    ThreatsBlockedCount++;
-                    UpdateRiskScore();
+                var existing = ActiveAlerts.FirstOrDefault(a => string.Equals(a.Path, threat.Path, StringComparison.OrdinalIgnoreCase));
 
-                    if (threat.Severity == ThreatSeverity.Critical)
+                if (existing != null)
+                {
+                    // Threat already in ActiveAlerts — check if it was just quarantined/ignored
+                    if (threat.ActionTaken == "Quarantined" || threat.ActionTaken == "Ignored" || threat.ActionTaken == "Terminated")
                     {
-                        var alert = new Views.ShieldUpAlert();
-                        alert.Show();
+                        ActiveAlerts.Remove(existing);
+                        ActiveAlertsCount = Math.Max(0, ActiveAlertsCount - 1);
+                        if (threat.ActionTaken != "Ignored") ThreatsBlockedCount++;
+                        UpdateRiskScore();
+                    }
+                }
+                else
+                {
+                    // New threat — add it if still active
+                    if (threat.ActionTaken == "Detected")
+                    {
+                        ActiveAlerts.Insert(0, threat);
+                        ActiveAlertsCount++;
+                        UpdateRiskScore();
+
+                        if (threat.Severity == ThreatSeverity.Critical)
+                        {
+                            var alert = new Views.ShieldUpAlert();
+                            alert.Show();
+                        }
+                    }
+                    else if (threat.ActionTaken == "Quarantined" || threat.ActionTaken == "Terminated")
+                    {
+                        ThreatsBlockedCount++;
                     }
                 }
             });
@@ -343,6 +418,13 @@ namespace RansomGuard.ViewModels
             {
                 await _monitorService.QuarantineFile(threat.Path);
                 threat.ActionTaken = "Quarantined";
+                
+                // Manually remediated: Move count from Active -> Blocked
+                if (ActiveAlerts.Contains(threat))
+                {
+                    ActiveAlertsCount = Math.Max(0, ActiveAlertsCount - 1);
+                    ThreatsBlockedCount++;
+                }
             }
             catch (Exception ex)
             {
