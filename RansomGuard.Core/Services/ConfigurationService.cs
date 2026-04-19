@@ -19,6 +19,8 @@ namespace RansomGuard.Core.Services
         public static ConfigurationService Instance => _instance.Value;
 
         private static readonly object _saveLock = new object();
+        private static FileSystemWatcher? _configWatcher;
+        private static System.Timers.Timer? _debounceTimer;
 
         /// <summary>
         /// Raised when the monitored paths collection changes.
@@ -30,12 +32,85 @@ namespace RansomGuard.Core.Services
         /// </summary>
         public void NotifyPathsChanged() => PathsChanged?.Invoke();
 
+        private static void StartWatcher()
+        {
+            if (_configWatcher != null) return;
+            
+            var path = ConfigFile;
+            var directory = Path.GetDirectoryName(path);
+            if (directory == null || !Directory.Exists(directory)) return;
+
+            _configWatcher = new FileSystemWatcher(directory, Path.GetFileName(path));
+            _configWatcher.NotifyFilter = NotifyFilters.LastWrite;
+            _configWatcher.Changed += (s, e) => {
+                _debounceTimer?.Stop();
+                _debounceTimer?.Start();
+            };
+
+            _debounceTimer = new System.Timers.Timer(250);
+            _debounceTimer.AutoReset = false;
+            _debounceTimer.Elapsed += (s, e) => {
+                ReloadInstance();
+            };
+
+            _configWatcher.EnableRaisingEvents = true;
+        }
+
+        private static void ReloadInstance()
+        {
+            try
+            {
+                // Use a non-exclusive read to avoid conflicts with saving processes
+                string json;
+                using (var fs = new FileStream(ConfigFile, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+                using (var sr = new StreamReader(fs))
+                {
+                    json = sr.ReadToEnd();
+                }
+
+                if (string.IsNullOrEmpty(json)) return;
+
+                var newConfig = JsonSerializer.Deserialize<ConfigurationService>(json);
+                if (newConfig != null)
+                {
+                    lock (_saveLock)
+                    {
+                        var instance = _instance.Value;
+                        instance.MonitoredPaths = newConfig.MonitoredPaths ?? new List<string>();
+                        instance.WhitelistedProcessNames = newConfig.WhitelistedProcessNames ?? new List<string>();
+                        instance.SensitivityLevel = newConfig.SensitivityLevel;
+                        instance.RealTimeProtection = newConfig.RealTimeProtection;
+                        instance.AutoQuarantine = newConfig.AutoQuarantine;
+                        instance.LastScanTime = newConfig.LastScanTime;
+                        instance.HasAutoPopulated = newConfig.HasAutoPopulated;
+                        
+                        instance.NotifyPathsChanged();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[ConfigurationService] Error during remote reload: {ex.Message}");
+            }
+        }
+
         private static string ConfigFile => Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),
             "RansomGuard",
             "config.json"
         );
         private const string LegacyConfigFile = "config_legacy.json";
+        
+        /// <summary>
+        /// Gets or sets a value indicating whether the service is in testing mode.
+        /// When true, changes are not persisted to disk.
+        /// </summary>
+        public bool IsTestingMode { get; set; } = false;
+        
+        /// <summary>
+        /// Gets or sets a value indicating whether the configuration has been auto-populated with user folders.
+        /// </summary>
+        public bool HasAutoPopulated { get; set; } = false;
 
 
         /// <summary>
@@ -79,6 +154,8 @@ namespace RansomGuard.Core.Services
         /// </summary>
         public void Save()
         {
+            if (IsTestingMode) return;
+
             lock (_saveLock)
             {
                 try
@@ -92,6 +169,9 @@ namespace RansomGuard.Core.Services
                     System.Diagnostics.Debug.WriteLine($"Failed to save configuration: {ex.Message}");
                 }
             }
+
+            // Notify local subscribers (like Dashboard UI) immediately
+            NotifyPathsChanged();
         }
 
         /// <summary>
@@ -134,14 +214,27 @@ namespace RansomGuard.Core.Services
                         config.MonitoredPaths ??= new List<string>();
                         config.WhitelistedProcessNames ??= new List<string>();
 
-                        Console.WriteLine($"[ConfigurationService] MonitoredPaths count before auto-populate: {config.MonitoredPaths.Count}");
-
-                        // If no paths monitored, populate with standard folders
-                        if (config.MonitoredPaths.Count == 0)
+                        // Start watching for external changes if not in testing mode
+                        if (!config.IsTestingMode)
                         {
-                            Console.WriteLine("[ConfigurationService] Auto-populating default folders...");
+                            StartWatcher();
+                        }
+
+                        // Robust check: Only auto-populate if we are in a User session (Interactive).
+                        // The Service should NEVER auto-populate because its "Standard Folders" are different (System32).
+                        bool isUserSession = Environment.UserInteractive;
+                        bool hasAtLeastOneStandardFolder = config.MonitoredPaths.Any(p => ConfigurationService.IsStandardProtectedFolder(p));
+                        
+                        if (!config.HasAutoPopulated && !hasAtLeastOneStandardFolder && isUserSession)
+                        {
                             config.PopulateDefaultFolders();
-                            Console.WriteLine($"[ConfigurationService] Auto-populated {config.MonitoredPaths.Count} folders");
+                            
+                            // If we found something, mark as officially populated
+                            if (config.MonitoredPaths.Any(p => ConfigurationService.IsStandardProtectedFolder(p)))
+                            {
+                                config.HasAutoPopulated = true;
+                            }
+                            
                             config.Save();
                         }
 
@@ -168,6 +261,23 @@ namespace RansomGuard.Core.Services
         }
 
         /// <summary>
+        /// Resets the current configuration to its factory default values.
+        /// Does NOT save to disk automatically unless Save() is called.
+        /// </summary>
+        public void ResetToDefaults()
+        {
+            MonitoredPaths = new List<string>();
+            PopulateDefaultFolders();
+            SensitivityLevel = 3;
+            RealTimeProtection = true;
+            AutoQuarantine = true;
+            LastScanTime = DateTime.MinValue;
+            TotalScansCount = 0;
+            WhitelistedProcessNames = new List<string>();
+            NotifyPathsChanged();
+        }
+
+        /// <summary>
         /// Populates the monitored paths with standard user folders if they exist.
         /// </summary>
         public void PopulateDefaultFolders()
@@ -187,23 +297,32 @@ namespace RansomGuard.Core.Services
                 {
                     var path = Environment.GetFolderPath(folder);
                     if (!string.IsNullOrEmpty(path) && Directory.Exists(path))
-                        MonitoredPaths.Add(path);
+                    {
+                        if (!MonitoredPaths.Any(p => string.Equals(p, path, StringComparison.OrdinalIgnoreCase)))
+                        {
+                            MonitoredPaths.Add(path);
+                        }
+                    }
+                    else
+                    {
+                        Console.WriteLine($"[PopulateDefaultFolders]   Skipped (Null or Not Found)");
+                    }
                 }
 
                 // Downloads folder (not in SpecialFolder enum)
                 var downloadPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads");
-                if (Directory.Exists(downloadPath))
+                if (Directory.Exists(downloadPath) && !MonitoredPaths.Any(p => string.Equals(p, downloadPath, StringComparison.OrdinalIgnoreCase)))
                     MonitoredPaths.Add(downloadPath);
 
                 // OneDrive (Common target for ransomware)
                 var oneDrivePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "OneDrive");
-                if (Directory.Exists(oneDrivePath))
+                if (Directory.Exists(oneDrivePath) && !MonitoredPaths.Any(p => string.Equals(p, oneDrivePath, StringComparison.OrdinalIgnoreCase)))
                     MonitoredPaths.Add(oneDrivePath);
 
-                // Fallback: If no system folders accessible, monitor the project directory/CWD
+                // Fallback: If no system folders accessible, monitor the application directory
                 if (MonitoredPaths.Count == 0)
                 {
-                    MonitoredPaths.Add(@"F:\Github Projects\RansomGuard");
+                    MonitoredPaths.Add(AppDomain.CurrentDomain.BaseDirectory);
                 }
             }
             catch (Exception ex)
@@ -247,8 +366,8 @@ namespace RansomGuard.Core.Services
                 var oneDrivePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "OneDrive");
                 standardFolders.Add(oneDrivePath);
                 
-                // Project root (as a fallback)
-                standardFolders.Add(@"F:\Github Projects\RansomGuard");
+                // Application base directory (portable fallback)
+                standardFolders.Add(AppDomain.CurrentDomain.BaseDirectory);
             }
             catch { }
 

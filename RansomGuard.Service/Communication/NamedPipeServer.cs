@@ -49,7 +49,7 @@ namespace RansomGuard.Service.Communication
 
             _monitorService.FileActivityDetected += (activity) => Broadcast(MessageType.FileActivity, activity);
             _monitorService.ThreatDetected += (threat) => Broadcast(MessageType.ThreatDetected, threat);
-            (_monitorService as SentinelEngine)!.ScanCompleted += (summary) => Broadcast(MessageType.ScanCompleted, summary);
+            _monitorService.ScanCompleted += (summary) => Broadcast(MessageType.ScanCompleted, summary);
         }
 
         private async Task TelemetryBroadcastLoop(CancellationToken token)
@@ -65,7 +65,7 @@ namespace RansomGuard.Service.Communication
                 {
                     System.Diagnostics.Debug.WriteLine($"TelemetryBroadcastLoop error: {ex.Message}");
                 }
-                await Task.Delay(2000, token);
+                await Task.Delay(2000, token).ConfigureAwait(false);
             }
         }
 
@@ -83,7 +83,7 @@ namespace RansomGuard.Service.Communication
                     System.Diagnostics.Debug.WriteLine($"ProcessListBroadcastLoop error: {ex.Message}");
                 }
                 // Broadcast every 3 seconds as recommended
-                await Task.Delay(3000, token);
+                await Task.Delay(3000, token).ConfigureAwait(false);
             }
         }
 
@@ -146,7 +146,7 @@ namespace RansomGuard.Service.Communication
                     using var timeoutCts = new CancellationTokenSource(TimeSpan.FromMinutes(5));
                     using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(token, timeoutCts.Token);
                     
-                    await pipeServer.WaitForConnectionAsync(linkedCts.Token);
+                    await pipeServer.WaitForConnectionAsync(linkedCts.Token).ConfigureAwait(false);
                     
                     var clientPipe = pipeServer;
                     pipeServer = null; 
@@ -154,7 +154,7 @@ namespace RansomGuard.Service.Communication
                     {
                         try
                         {
-                            await HandleClient(clientPipe, token);
+                            await HandleClient(clientPipe, token).ConfigureAwait(false);
                         }
                         finally
                         {
@@ -171,14 +171,14 @@ namespace RansomGuard.Service.Communication
                     
                     pipeServer?.Dispose();
                     if (!token.IsCancellationRequested)
-                        await Task.Delay(5000, token);
+                        await Task.Delay(5000, token).ConfigureAwait(false);
                 }
                 catch (Exception ex)
                 {
                     Console.WriteLine($"Pipe Server Error: {ex.Message}");
                     pipeServer?.Dispose();
                     if (!token.IsCancellationRequested)
-                        await Task.Delay(2000, token);
+                        await Task.Delay(2000, token).ConfigureAwait(false);
                 }
             }
         }
@@ -214,7 +214,7 @@ namespace RansomGuard.Service.Communication
                 // Command Listener Loop (Inbound)
                 while (pipe.IsConnected && !token.IsCancellationRequested)
                 {
-                    var line = await reader.ReadLineAsync(token);
+                    var line = await reader.ReadLineAsync(token).ConfigureAwait(false);
                     if (line == null) break;
 
                     try
@@ -223,7 +223,7 @@ namespace RansomGuard.Service.Communication
                         if (packet?.Type == MessageType.CommandRequest)
                         {
                             var request = JsonSerializer.Deserialize<CommandRequest>(packet.Payload);
-                            await HandleCommand(request, writer);
+                            await HandleCommand(request, writer).ConfigureAwait(false);
                         }
                     }
                     catch (Exception ex)
@@ -262,12 +262,12 @@ namespace RansomGuard.Service.Communication
             switch (request.Command)
             {
                 case CommandType.PerformScan:
-                    await _monitorService.PerformQuickScan();
+                    await _monitorService.PerformQuickScan().ConfigureAwait(false);
                     break;
                 case CommandType.KillProcess:
                     if (int.TryParse(request.Arguments, out int pid))
                     {
-                        await _monitorService.KillProcess(pid);
+                        await _monitorService.KillProcess(pid).ConfigureAwait(false);
                     }
                     break;
                 case CommandType.ToggleShield:
@@ -276,7 +276,7 @@ namespace RansomGuard.Service.Communication
                 case CommandType.QuarantineFile:
                     if (!string.IsNullOrEmpty(request.Arguments))
                     {
-                        await _monitorService.QuarantineFile(request.Arguments);
+                        await _monitorService.QuarantineFile(request.Arguments).ConfigureAwait(false);
                     }
                     break;
                 case CommandType.UpdatePaths:
@@ -285,17 +285,17 @@ namespace RansomGuard.Service.Communication
                 case CommandType.RestoreFile:
                     if (!string.IsNullOrEmpty(request.Arguments))
                     {
-                        await _monitorService.RestoreQuarantinedFile(request.Arguments);
+                        await _monitorService.RestoreQuarantinedFile(request.Arguments).ConfigureAwait(false);
                     }
                     break;
                 case CommandType.DeleteFile:
                     if (!string.IsNullOrEmpty(request.Arguments))
                     {
-                        await _monitorService.DeleteQuarantinedFile(request.Arguments);
+                        await _monitorService.DeleteQuarantinedFile(request.Arguments).ConfigureAwait(false);
                     }
                     break;
                 case CommandType.ClearSafeFiles:
-                    await _monitorService.ClearSafeFiles();
+                    await _monitorService.ClearSafeFiles().ConfigureAwait(false);
                     break;
                 case CommandType.GetProcessList:
                     var processes = _monitorService.GetActiveProcesses();
@@ -304,13 +304,13 @@ namespace RansomGuard.Service.Communication
                 case CommandType.WhitelistProcess:
                     if (!string.IsNullOrEmpty(request.Arguments))
                     {
-                        await _monitorService.WhitelistProcess(request.Arguments);
+                        await _monitorService.WhitelistProcess(request.Arguments).ConfigureAwait(false);
                     }
                     break;
                 case CommandType.RemoveWhitelist:
                     if (!string.IsNullOrEmpty(request.Arguments))
                     {
-                        await _monitorService.RemoveWhitelist(request.Arguments);
+                        await _monitorService.RemoveWhitelist(request.Arguments).ConfigureAwait(false);
                     }
                     break;
             }
@@ -351,7 +351,7 @@ namespace RansomGuard.Service.Communication
                 Type = type,
                 Payload = JsonSerializer.Serialize(data)
             };
-            await writer.WriteLineAsync(JsonSerializer.Serialize(packet));
+            await writer.WriteLineAsync(JsonSerializer.Serialize(packet)).ConfigureAwait(false);
         }
     }
 

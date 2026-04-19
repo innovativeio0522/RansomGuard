@@ -28,6 +28,53 @@ namespace RansomGuard
         private const uint MONITOR_DEFAULTTONEAREST = 2;
         private IntPtr _lastMonitor = IntPtr.Zero;
 
+        [StructLayout(LayoutKind.Sequential)]
+        private struct MINMAXINFO
+        {
+            public Win32Point ptReserved;
+            public Win32Point ptMaxSize;
+            public Win32Point ptMaxPosition;
+            public Win32Point ptMinTrackSize;
+            public Win32Point ptMaxTrackSize;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct Win32Point
+        {
+            public int x;
+            public int y;
+        }
+
+        protected override void OnSourceInitialized(EventArgs e)
+        {
+            base.OnSourceInitialized(e);
+            IntPtr handle = new WindowInteropHelper(this).Handle;
+            HwndSource.FromHwnd(handle)?.AddHook(WindowProc);
+        }
+
+        private IntPtr WindowProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
+        {
+            if (msg == 0x0024) // WM_GETMINMAXINFO
+            {
+                var monitor = MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST);
+                if (monitor != IntPtr.Zero)
+                {
+                    var info = new MonitorInfo { cbSize = Marshal.SizeOf<MonitorInfo>() };
+                    if (GetMonitorInfo(monitor, ref info))
+                    {
+                        var mmi = (MINMAXINFO)Marshal.PtrToStructure(lParam, typeof(MINMAXINFO))!;
+                        mmi.ptMaxSize.x = Math.Abs(info.rcWork.Right - info.rcWork.Left);
+                        mmi.ptMaxSize.y = Math.Abs(info.rcWork.Bottom - info.rcWork.Top);
+                        mmi.ptMaxPosition.x = Math.Abs(info.rcWork.Left - info.rcMonitor.Left);
+                        mmi.ptMaxPosition.y = Math.Abs(info.rcWork.Top - info.rcMonitor.Top);
+                        Marshal.StructureToPtr(mmi, lParam, true);
+                        handled = true;
+                    }
+                }
+            }
+            return IntPtr.Zero;
+        }
+
         public MainWindow()
         {
             InitializeComponent();

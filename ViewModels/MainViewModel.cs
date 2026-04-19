@@ -1,12 +1,9 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using System;
 using System.Windows;
-using System.Windows.Input;
 using System.Windows.Threading;
 using RansomGuard.Services;
 using RansomGuard.Core.Interfaces;
-using RansomGuard.Core.Models;
 
 namespace RansomGuard.ViewModels
 {
@@ -216,6 +213,7 @@ namespace RansomGuard.ViewModels
             (_quarantineVM as IDisposable)?.Dispose();
             (_processMonitorVM as IDisposable)?.Dispose();
             (_fileActivityVM as IDisposable)?.Dispose();
+            (_reportsVM as IDisposable)?.Dispose();
 
             // Dispose service if it implements IDisposable
             (_monitorService as IDisposable)?.Dispose();

@@ -3,11 +3,16 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              Background="{StaticResource BackgroundBrush}">
 
-    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-        <StackPanel Margin="16">
+    <Grid Margin="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
             
-            <!-- Stats Row (4 cards) -->
-            <Grid Margin="0,0,0,8">
+        <!-- Stats Row (4 cards) -->
+        <Grid Grid.Row="0" Margin="0,0,0,8">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="12"/>
@@ -24,7 +29,7 @@
                               Fill="{StaticResource OnSurfaceBrush}" Opacity="0.05" Stretch="Uniform"
                               HorizontalAlignment="Right" VerticalAlignment="Top" Width="32" Margin="0,4,4,0"/>
                         <StackPanel Margin="10,8">
-                            <TextBlock Text="DIRECTORIES MONITORED" Style="{StaticResource TextLabel}" FontSize="8"/>
+                            <TextBlock Text="FOLDERS PROTECTED" Style="{StaticResource TextLabel}" FontSize="8"/>
                             <TextBlock Text="{Binding FilesMonitoredCount}" FontSize="20" FontWeight="Black" 
                                       Foreground="{StaticResource OnSurfaceBrush}" Margin="0,4,0,0"/>
                             <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
@@ -86,7 +91,7 @@
             </Grid>
             
             <!-- Active Defense Shields -->
-            <Grid Margin="0,0,0,8">
+            <Grid Grid.Row="1" Margin="0,0,0,8">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="16"/>
@@ -160,7 +165,7 @@
             </Grid>
 
             <!-- Three Panel Layout -->
-            <Grid Margin="0,0,0,12">
+            <Grid Grid.Row="2" Margin="0,0,0,12">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="24"/>
@@ -171,7 +176,7 @@
 
                 <!-- LEFT: Real-time File Activity -->
                 <Border Grid.Column="0" Background="{StaticResource SurfaceContainerLowBrush}" 
-                        CornerRadius="8" Height="300">
+                        CornerRadius="8">
                     <Grid>
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto"/>
@@ -200,45 +205,66 @@
                             </StackPanel>
                         </Border>
 
-                        <!-- Scrollable Activity List -->
                         <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" 
                                      HorizontalScrollBarVisibility="Disabled" 
                                      Padding="8">
-                            <ItemsControl ItemsSource="{Binding RecentActivities}">
-                                <ItemsControl.ItemTemplate>
-                                    <DataTemplate>
-                                        <Border BorderBrush="{Binding IsSuspicious, Converter={StaticResource BooleanToBrushConverter}, ConverterParameter=SecondaryBrush}" 
-                                                BorderThickness="2,0,0,0" 
-                                                Background="{StaticResource SurfaceContainerBrush}" 
-                                                Padding="8,6" Margin="0,0,0,4" CornerRadius="0,4,4,0">
-                                            <Grid>
-                                                <Grid.RowDefinitions>
-                                                    <RowDefinition Height="Auto"/>
-                                                    <RowDefinition Height="Auto"/>
-                                                </Grid.RowDefinitions>
-                                                <TextBlock Grid.Row="0" Text="{Binding FilePath}" 
-                                                          Style="{StaticResource TextBody}" 
-                                                          FontSize="10" 
-                                                          TextTrimming="CharacterEllipsis"
-                                                          ToolTip="{Binding FilePath}"/>
-                                                <TextBlock Grid.Row="1" Text="{Binding Action, StringFormat='{}{0} ACTION'}" 
-                                                          Style="{StaticResource TextSmall}" 
-                                                          FontSize="9"
-                                                          Margin="0,2,0,0"
-                                                          Opacity="0.7"/>
-                                            </Grid>
-                                        </Border>
-                                    </DataTemplate>
-                                </ItemsControl.ItemTemplate>
-                            </ItemsControl>
+                            <Grid>
+                                <!-- Empty State -->
+                                <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Margin="0,48,0,0">
+                                    <StackPanel.Style>
+                                        <Style TargetType="StackPanel">
+                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding RecentActivities.Count}" Value="0">
+                                                    <Setter Property="Visibility" Value="Visible"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </StackPanel.Style>
+                                    <Viewbox Width="32" Height="32" Opacity="0.2" Margin="0,0,0,12">
+                                        <Path Data="M18 7c0-1.1-.9-2-2-2H4c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V7zm-2 10H4V7h12v10zm2-7l4-4v12l-4-4v-4z" Fill="{StaticResource OnSurfaceBrush}"/>
+                                    </Viewbox>
+                                    <TextBlock Text="No recent activity detected" Style="{StaticResource TextSmall}" Foreground="{StaticResource OnSurfaceVariantBrush}" HorizontalAlignment="Center" Opacity="0.5"/>
+                                    <TextBlock Text="Monitoring system events..." Style="{StaticResource TextLabel}" FontSize="8" HorizontalAlignment="Center" Opacity="0.3" Margin="0,4,0,0"/>
+                                </StackPanel>
+
+                                <ItemsControl ItemsSource="{Binding RecentActivities}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border BorderBrush="{Binding IsSuspicious, Converter={StaticResource BooleanToBrushConverter}, ConverterParameter=SecondaryBrush}" 
+                                                    BorderThickness="2,0,0,0" 
+                                                    Background="{StaticResource SurfaceContainerBrush}" 
+                                                    Padding="8,6" Margin="0,0,0,4" CornerRadius="0,4,4,0">
+                                                <Grid>
+                                                    <Grid.RowDefinitions>
+                                                        <RowDefinition Height="Auto"/>
+                                                        <RowDefinition Height="Auto"/>
+                                                    </Grid.RowDefinitions>
+                                                    <TextBlock Grid.Row="0" Text="{Binding FilePath}" 
+                                                              Style="{StaticResource TextBody}" 
+                                                              FontSize="10" 
+                                                              TextTrimming="CharacterEllipsis"
+                                                              ToolTip="{Binding FilePath}"/>
+                                                    <TextBlock Grid.Row="1" Text="{Binding Action, StringFormat='{}{0} ACTION'}" 
+                                                              Style="{StaticResource TextSmall}" 
+                                                              FontSize="9"
+                                                              Margin="0,2,0,0"
+                                                              Opacity="0.7"/>
+                                                </Grid>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </Grid>
                         </ScrollViewer>
                     </Grid>
                 </Border>
 
                 <!-- CENTER: Threat Risk Gauge -->
                 <Border Grid.Column="2" Background="{StaticResource SurfaceContainerLowBrush}" 
-                        CornerRadius="8" Padding="24">
-                    <StackPanel HorizontalAlignment="Center">
+                        CornerRadius="8" Padding="12">
+                    <Viewbox Stretch="Uniform" StretchDirection="DownOnly" VerticalAlignment="Center">
+                        <StackPanel HorizontalAlignment="Center" Margin="12">
                         <!-- Gauge -->
                         <Grid Width="200" Height="200" HorizontalAlignment="Center">
                             <Viewbox Width="200" Height="200">
@@ -353,11 +379,12 @@
                             </StackPanel>
                         </Grid>
                     </StackPanel>
+                    </Viewbox>
                 </Border>
 
                 <!-- RIGHT: Active Alerts -->
                 <Border Grid.Column="4" Background="{StaticResource SurfaceContainerLowBrush}" 
-                        CornerRadius="8" Height="300">
+                        CornerRadius="8">
                     <Grid>
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto"/>
@@ -379,56 +406,77 @@
 
                         <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" 
                                      HorizontalScrollBarVisibility="Disabled">
-                            <ItemsControl ItemsSource="{Binding ActiveAlerts}" Margin="8">
-                                <ItemsControl.ItemTemplate>
-                                    <DataTemplate>
-                                        <Border Background="{StaticResource SurfaceContainerBrush}" 
-                                               Margin="0,0,0,8" CornerRadius="6" ClipToBounds="True">
-                                            <Grid>
-                                                <StackPanel Margin="10,8">
-                                                    <Grid Margin="0,0,0,6">
-                                                        <StackPanel Orientation="Horizontal" Margin="0,0,50,0">
-                                                            <Viewbox Width="12" Height="12" Margin="0,0,6,0" VerticalAlignment="Top" FlowDirection="LeftToRight">
-                                                                <Path Data="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z" 
-                                                                      Fill="{StaticResource TertiaryBrush}"/>
-                                                            </Viewbox>
-                                                            <TextBlock Text="{Binding Name}" 
-                                                                      Style="{StaticResource TextBody}" FontWeight="Bold" FontSize="12"
-                                                                      TextWrapping="Wrap"/>
-                                                        </StackPanel>
-                                                    </Grid>
-                                                    <TextBlock Text="{Binding Path, StringFormat='Target: {0}'}" 
-                                                              Style="{StaticResource TextSmall}" TextWrapping="Wrap" FontSize="10"/>
-                                                    <Grid Margin="0,8,0,0" HorizontalAlignment="Right">
-                                                        <Grid.ColumnDefinitions>
-                                                            <ColumnDefinition Width="Auto"/>
-                                                            <ColumnDefinition Width="6"/>
-                                                            <ColumnDefinition Width="Auto"/>
-                                                        </Grid.ColumnDefinitions>
-                                                        <Button Content="IGNORE" Grid.Column="0" Width="60"
-                                                               Style="{StaticResource SleekGhostButton}"
-                                                               Command="{Binding DataContext.IgnoreAlertCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
-                                                               CommandParameter="{Binding}"/>
-                                                        <Button Content="QUARANTINE" Grid.Column="2" Width="85"
-                                                               Style="{StaticResource SleekDangerButton}"
-                                                               Command="{Binding DataContext.QuarantineAlertCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
-                                                               CommandParameter="{Binding}"/>
-                                                    </Grid>
-                                                </StackPanel>
-                                                
-                                                <Border Background="{StaticResource TertiaryBrush}" Opacity="0.1" CornerRadius="0,0,0,6" 
-                                                        HorizontalAlignment="Right" VerticalAlignment="Top">
-                                                    <TextBlock Text="{Binding Severity}" Foreground="Transparent" 
-                                                               FontWeight="Black" FontSize="9" Padding="8,3"/>
-                                                </Border>
-                                                <TextBlock Text="{Binding Severity}" Foreground="{StaticResource TertiaryBrush}" 
-                                                           FontWeight="Black" FontSize="9" Padding="8,3" 
-                                                           HorizontalAlignment="Right" VerticalAlignment="Top"/>
-                                            </Grid>
-                                        </Border>
-                                    </DataTemplate>
-                                </ItemsControl.ItemTemplate>
-                            </ItemsControl>
+                            <Grid Margin="8">
+                                <!-- Empty State -->
+                                <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Margin="0,48,0,0">
+                                    <StackPanel.Style>
+                                        <Style TargetType="StackPanel">
+                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding ActiveAlerts.Count}" Value="0">
+                                                    <Setter Property="Visibility" Value="Visible"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </StackPanel.Style>
+                                    <Viewbox Width="32" Height="32" Opacity="0.2" Margin="0,0,0,12">
+                                        <Path Data="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z" Fill="{StaticResource OnSurfaceBrush}"/>
+                                    </Viewbox>
+                                    <TextBlock Text="No active threats" Style="{StaticResource TextSmall}" Foreground="{StaticResource OnSurfaceVariantBrush}" HorizontalAlignment="Center" Opacity="0.5"/>
+                                    <TextBlock Text="Your system is secured" Style="{StaticResource TextLabel}" FontSize="8" HorizontalAlignment="Center" Opacity="0.3" Margin="0,4,0,0"/>
+                                </StackPanel>
+
+                                <ItemsControl ItemsSource="{Binding ActiveAlerts}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border Background="{StaticResource SurfaceContainerBrush}" 
+                                                   Margin="0,0,0,8" CornerRadius="6" ClipToBounds="True">
+                                                <Grid>
+                                                    <StackPanel Margin="10,8">
+                                                        <Grid Margin="0,0,0,6">
+                                                            <StackPanel Orientation="Horizontal" Margin="0,0,50,0">
+                                                                <Viewbox Width="12" Height="12" Margin="0,0,6,0" VerticalAlignment="Top" FlowDirection="LeftToRight">
+                                                                    <Path Data="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z" 
+                                                                          Fill="{StaticResource TertiaryBrush}"/>
+                                                                </Viewbox>
+                                                                <TextBlock Text="{Binding Name}" 
+                                                                          Style="{StaticResource TextBody}" FontWeight="Bold" FontSize="12"
+                                                                          TextWrapping="Wrap"/>
+                                                            </StackPanel>
+                                                        </Grid>
+                                                        <TextBlock Text="{Binding Path, StringFormat='Target: {0}'}" 
+                                                                  Style="{StaticResource TextSmall}" TextWrapping="Wrap" FontSize="10"/>
+                                                        <Grid Margin="0,8,0,0" HorizontalAlignment="Right">
+                                                            <Grid.ColumnDefinitions>
+                                                                <ColumnDefinition Width="Auto"/>
+                                                                <ColumnDefinition Width="6"/>
+                                                                <ColumnDefinition Width="Auto"/>
+                                                            </Grid.ColumnDefinitions>
+                                                            <Button Content="IGNORE" Grid.Column="0" Width="60"
+                                                                   Style="{StaticResource SleekGhostButton}"
+                                                                   Command="{Binding DataContext.IgnoreAlertCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                                   CommandParameter="{Binding}"/>
+                                                            <Button Content="QUARANTINE" Grid.Column="2" Width="85"
+                                                                   Style="{StaticResource SleekDangerButton}"
+                                                                   Command="{Binding DataContext.QuarantineAlertCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                                   CommandParameter="{Binding}"/>
+                                                        </Grid>
+                                                    </StackPanel>
+                                                    
+                                                    <Border Background="{StaticResource TertiaryBrush}" Opacity="0.1" CornerRadius="0,0,0,6" 
+                                                            HorizontalAlignment="Right" VerticalAlignment="Top">
+                                                        <TextBlock Text="{Binding Severity}" Foreground="Transparent" 
+                                                                   FontWeight="Black" FontSize="9" Padding="8,3"/>
+                                                    </Border>
+                                                    <TextBlock Text="{Binding Severity}" Foreground="{StaticResource TertiaryBrush}" 
+                                                               FontWeight="Black" FontSize="9" Padding="8,3" 
+                                                               HorizontalAlignment="Right" VerticalAlignment="Top"/>
+                                                </Grid>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </Grid>
                         </ScrollViewer>
 
                         <Button Grid.Row="2" Content="VIEW ALL INCIDENT LOGS" Style="{StaticResource NativeButton}" 
@@ -439,7 +487,7 @@
             </Grid>
 
             <!-- System Architecture Visualization (Decorative Section) -->
-            <Border Background="{StaticResource SurfaceContainerLowBrush}" CornerRadius="8" ClipToBounds="True" MinHeight="140">
+            <Border Grid.Row="3" Background="{StaticResource SurfaceContainerLowBrush}" CornerRadius="8" ClipToBounds="True" MinHeight="140">
                 <Grid>
                     <!-- Simulated Background Map / Data Flow placeholder -->
                     <Path Data="M0,0 L100,100" Stretch="Fill" Stroke="{StaticResource SurfaceContainerHighestBrush}" Opacity="0.1"/>
@@ -492,6 +540,5 @@
                 </Grid>
             </Border>
 
-        </StackPanel>
-    </ScrollViewer>
+    </Grid>
 </UserControl>

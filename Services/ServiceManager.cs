@@ -45,11 +45,12 @@ namespace RansomGuard.Services
                     throw new Exception("Failed to start service");
                 }
 
-                // Register Task Scheduler task for Silent Admin Startup of the Dashboard
+                // Register Task Scheduler task for silent admin startup of the Dashboard.
+                // --startup tells the app to skip the splash screen and go straight to the tray.
                 string dashboardPath = Process.GetCurrentProcess().MainModule?.FileName ?? "";
                 if (!string.IsNullOrEmpty(dashboardPath))
                 {
-                    if (!RunCommand("schtasks", $"/create /tn \"{TaskName}\" /tr \"{dashboardPath}\" /sc onlogon /rl highest /f"))
+                    if (!RunCommand("schtasks", $"/create /tn \"{TaskName}\" /tr \"\\\"{dashboardPath}\\\" --startup\" /sc onlogon /rl highest /f"))
                     {
                         System.Diagnostics.Debug.WriteLine("Failed to create scheduled task (non-critical)");
                     }

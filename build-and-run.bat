@@ -9,6 +9,11 @@ echo [1/5] Stopping service...
 net stop RansomGuardSentinel 2>nul
 timeout /t 2 /nobreak >nul
 
+echo [+] Clearing historical activity data...
+del /q "C:\ProgramData\RansomGuard\activity_log.*" 2>nul
+del /q "C:\ProgramData\RansomGuard\Logs\*.log" 2>nul
+echo Done.
+
 echo [2/5] Building projects...
 dotnet build RansomGuard.csproj -v q
 if %errorlevel% neq 0 (

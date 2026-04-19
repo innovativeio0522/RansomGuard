@@ -1,11 +1,15 @@
 using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.IO;
 using System.Linq;
+using System.Text;
 using RansomGuard.Core.Services;
 using RansomGuard.Core.Interfaces;
 using RansomGuard.Core.Models;
+using RansomGuard.Core.Helpers;
 using LiveChartsCore;
 using LiveChartsCore.SkiaSharpView;
 using LiveChartsCore.SkiaSharpView.Painting;
@@ -99,11 +103,112 @@ namespace RansomGuard.ViewModels
             System.Windows.Application.Current.Dispatcher.Invoke(LoadData);
         }
 
-        [CommunityToolkit.Mvvm.Input.RelayCommand]
+        [RelayCommand]
         public void Refresh()
         {
             LoadData();
         }
+
+        [RelayCommand]
+        private void ExportToCsv()
+        {
+            try
+            {
+                if (_monitorService == null)
+                {
+                    MessageBox.Show("No data source is connected. Please ensure the service is running.",
+                        "Export Unavailable", MessageBoxButton.OK, MessageBoxImage.Information);
+                    return;
+                }
+
+                var exportDir = Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),
+                    "RansomGuard", "Exports");
+                Directory.CreateDirectory(exportDir);
+
+                var fileName = $"RansomGuard_Report_{DateTime.Now:yyyy-MM-dd_HH-mm-ss}.csv";
+                var filePath = Path.Combine(exportDir, fileName);
+
+                var threats = _monitorService.GetRecentThreats().ToList();
+                var activities = _monitorService.GetRecentFileActivities().ToList();
+
+                var sb = new StringBuilder();
+
+                // --- Threats Section ---
+                sb.AppendLine("=== THREAT DETECTIONS ===");
+                sb.AppendLine("Timestamp,Severity,Name,Path,Process,Description");
+                foreach (var t in threats.OrderByDescending(x => x.Timestamp))
+                {
+                    sb.AppendLine(
+                        $"\"{t.Timestamp:yyyy-MM-dd HH:mm:ss}\"," +
+                        $"\"{t.Severity}\"," +
+                        $"\"{EscapeCsv(t.Name)}\"," +
+                        $"\"{EscapeCsv(t.Path)}\"," +
+                        $"\"{EscapeCsv(t.ProcessName)}\"," +
+                        $"\"{EscapeCsv(t.Description)}\"");
+                }
+
+                sb.AppendLine();
+
+                // --- File Activity Section ---
+                sb.AppendLine("=== FILE ACTIVITY LOG ===");
+                sb.AppendLine("Timestamp,Action,FilePath,Entropy,Suspicious,Process");
+                foreach (var a in activities.OrderByDescending(x => x.Timestamp))
+                {
+                    sb.AppendLine(
+                        $"\"{a.Timestamp:yyyy-MM-dd HH:mm:ss}\"," +
+                        $"\"{EscapeCsv(a.Action)}\"," +
+                        $"\"{EscapeCsv(a.FilePath)}\"," +
+                        $"{a.Entropy:F2}," +
+                        $"{a.IsSuspicious}," +
+                        $"\"{EscapeCsv(a.ProcessName)}\"");
+                }
+
+                // --- Summary Section ---
+                sb.AppendLine();
+                sb.AppendLine("=== SUMMARY ===");
+                sb.AppendLine($"Report Generated,{DateTime.Now:yyyy-MM-dd HH:mm:ss}");
+                sb.AppendLine($"Total Threats,{threats.Count}");
+                sb.AppendLine($"Total File Events,{activities.Count}");
+                sb.AppendLine($"Security Score,{SecurityScore}");
+                sb.AppendLine($"Weekly Detections,{WeeklyDetectionsCount}");
+                sb.AppendLine($"Last Scan,{LastScanDate}");
+                sb.AppendLine($"Total Scans,{TotalScans}");
+
+                File.WriteAllText(filePath, sb.ToString(), Encoding.UTF8);
+
+                // Open the folder in Explorer so user can find the file
+                System.Diagnostics.Process.Start("explorer.exe", $"/select,\"{filePath}\"");
+
+                MessageBox.Show(
+                    $"Report exported successfully!\n\nLocation: {filePath}",
+                    "Export Complete", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(
+                    $"Export failed: {ex.Message}",
+                    "Export Error", MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
+        }
+
+        [RelayCommand]
+        private void ExportToPdf()
+        {
+            // PDF export requires a third-party library (QuestPDF or PdfSharp).
+            // See FUTURE_BACKLOG.md #26 for implementation notes.
+            // For now, prompt the user to use CSV and track the backlog item.
+            var result = MessageBox.Show(
+                "PDF export requires an additional library (QuestPDF) and is planned for a future release.\n\n" +
+                "Would you like to export a CSV report instead?",
+                "PDF Export – Coming Soon", MessageBoxButton.YesNo, MessageBoxImage.Information);
+
+            if (result == MessageBoxResult.Yes)
+                ExportToCsvCommand.Execute(null);
+        }
+
+        private static string EscapeCsv(string? value)
+            => (value ?? string.Empty).Replace("\"", "\"\"");
 
         private void LoadData()
         {

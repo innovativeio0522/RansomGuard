@@ -190,7 +190,7 @@
             <Style TargetType="Grid">
                 <Style.Triggers>
                     <DataTrigger Binding="{Binding WindowState, ElementName=RootWindow}" Value="Maximized">
-                        <Setter Property="Margin" Value="8"/>
+                        <!-- Removed Margin 8, WM_GETMINMAXINFO now perfectly constraints to screen bounds -->
                     </DataTrigger>
                 </Style.Triggers>
             </Style>
@@ -281,8 +281,8 @@
                         </Button.ToolTip>
                         <StackPanel Orientation="Horizontal">
                             <Viewbox Width="16" Height="16">
-                                <Path Data="M13 3V11H21V3H13ZM19 9H15V5H19V9ZM3 13V21H11V13H3ZM9 19H5V15H9V19ZM3 3V11H11V3H3ZM9 9H5V5H9V9ZM13 13V21H21V13H13ZM19 19H15V15H19V19Z" 
-                                      Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
+                                <Path Data="M13 3V11H21V3H13ZM19 9H15V5H19V9ZM3 13V21H11V13H3ZM9 19H5V5H19V19ZM3 3V11H11V3H3ZM9 9H5V5H9V9ZM13 13V21H21V13H13ZM19 19H15V15H19V19Z" 
+                                      Fill="{StaticResource PrimaryBrush}"/>
                             </Viewbox>
                             <TextBlock Text="Dashboard" FontWeight="Bold" FontSize="12"
                                        VerticalAlignment="Center" Margin="10,0,0,0"
@@ -300,7 +300,7 @@
                         <StackPanel Orientation="Horizontal">
                             <Viewbox Width="16" Height="16">
                                 <Path Data="M12 5.99L19.53 19H4.47L12 5.99ZM12 2L1 21H23L12 2ZM13 16H11V18H13V16ZM13 10H11V14H13V10Z" 
-                                      Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
+                                      Fill="#ff5252"/>
                             </Viewbox>
                             <TextBlock Text="Threat Alerts" FontSize="12"
                                        VerticalAlignment="Center" Margin="10,0,0,0"
@@ -318,7 +318,7 @@
                         <StackPanel Orientation="Horizontal">
                             <Viewbox Width="16" Height="16">
                                 <Path Data="M12 4.14L10.09 5.09L5 7.64V12.22C5 15.63 7.82 18.77 12 20.31C16.18 18.77 19 15.63 19 12.22V7.64L13.91 5.09L12 4.14ZM12 2L20 6V12.22C20 16.59 16.63 20.45 12 22C7.37 20.45 4 16.59 4 12.22V6L12 2ZM11 11V7H13V11H11ZM11 13V15H13V13H11Z" 
-                                      Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
+                                      Fill="#ffa726"/>
                             </Viewbox>
                             <TextBlock Text="Quarantine" FontSize="12"
                                        VerticalAlignment="Center" Margin="10,0,0,0"
@@ -336,7 +336,7 @@
                         <StackPanel Orientation="Horizontal">
                             <Viewbox Width="16" Height="16">
                                 <Path Data="M19 3H5C3.9 3 3 3.9 3 5V19C3 20.1 3.9 21 5 21H19C20.1 21 21 20.1 21 19V5C21 3.9 20.1 3 19 3ZM19 19H5V5H19V19ZM7 11V17H9V11H7ZM11 6V17H13V6H11ZM15 14V17H17V14H15Z" 
-                                      Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
+                                      Fill="#b388ff"/>
                             </Viewbox>
                             <TextBlock Text="Process Monitor" FontSize="12"
                                        VerticalAlignment="Center" Margin="10,0,0,0"
@@ -354,7 +354,7 @@
                         <StackPanel Orientation="Horizontal">
                             <Viewbox Width="16" Height="16">
                                 <Path Data="M14 2H6C4.9 2 4.01 2.9 4.01 4L4 20C4 21.1 4.89 22 5.99 22H18C19.1 22 20 21.1 20 20V8L14 2ZM18 20H6V4H13V9H18V20ZM16 11V13H8V11H16ZM16 15V17H8V15H16Z" 
-                                      Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
+                                      Fill="#4fc3f7"/>
                             </Viewbox>
                             <TextBlock Text="File Activity" FontSize="12"
                                        VerticalAlignment="Center" Margin="10,0,0,0"
@@ -372,7 +372,7 @@
                         <StackPanel Orientation="Horizontal">
                             <Viewbox Width="16" Height="16">
                                 <Path Data="M19 3H5C3.9 3 3 3.9 3 5V19C3 20.1 3.9 21 5 21H19C20.1 21 21 20.1 21 19V5C21 3.9 20.1 3 19 3ZM19 19H5V5H19V19ZM11 17V7H13V17H11ZM15 17V13H17V17H15ZM7 17V11H9V17H7Z" 
-                                      Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
+                                      Fill="{StaticResource SecondaryBrush}"/>
                             </Viewbox>
                             <TextBlock Text="Reports" FontSize="12"
                                        VerticalAlignment="Center" Margin="10,0,0,0"
