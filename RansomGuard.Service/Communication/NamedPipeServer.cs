@@ -198,12 +198,12 @@ namespace RansomGuard.Service.Communication
 
             try
             {
-                // Send initial state snapshot
+                // Send initial state snapshot with specific snapshot types so the UI knows not to fire "Live" alerts
                 foreach (var activity in _monitorService.GetRecentFileActivities())
-                    EnqueueMessage(context, MessageType.FileActivity, activity);
+                    EnqueueMessage(context, MessageType.FileActivitySnapshot, activity);
 
                 foreach (var threat in _monitorService.GetRecentThreats())
-                    EnqueueMessage(context, MessageType.ThreatDetected, threat);
+                    EnqueueMessage(context, MessageType.ThreatDetectedSnapshot, threat);
 
                 // Send initial telemetry immediately on connect
                 EnqueueMessage(context, MessageType.TelemetryUpdate, _monitorService.GetTelemetry());
@@ -277,6 +277,12 @@ namespace RansomGuard.Service.Communication
                     if (!string.IsNullOrEmpty(request.Arguments))
                     {
                         await _monitorService.QuarantineFile(request.Arguments).ConfigureAwait(false);
+                        // Broadcast the updated threat status to ALL connected clients so every
+                        // page (Dashboard, Threat Alerts) removes the entry without needing a timer.
+                        var updatedThreats = _monitorService.GetRecentThreats()
+                            .Where(t => string.Equals(t.Path, request.Arguments, StringComparison.OrdinalIgnoreCase));
+                        foreach (var t in updatedThreats)
+                            Broadcast(MessageType.ThreatDetected, t);
                     }
                     break;
                 case CommandType.UpdatePaths:

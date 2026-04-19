@@ -139,12 +139,12 @@ namespace RansomGuard.ViewModels
 
             UpdatePagedItems();
 
-            // Load timeline events
-            var recentthreats = _monitorService.GetRecentThreats();
+            // Load timeline events from actual quarantined items
             TimelineEvents.Clear();
-            foreach (var threat in recentthreats.Take(10)) 
+            var recentQuarantined = _allItems.OrderByDescending(i => i.Threat.Timestamp).Take(10);
+            foreach (var item in recentQuarantined) 
             {
-                TimelineEvents.Add(threat);
+                TimelineEvents.Add(item.Threat);
             }
         }
 
@@ -206,11 +206,20 @@ namespace RansomGuard.ViewModels
             var selected = _allItems.Where(i => i.IsSelected).ToList();
             if (!selected.Any()) return;
 
+            // OPTIMISTIC UI: Remove all selected from view instantly
             foreach (var item in selected)
             {
-                await RestoreFile(item);
+                QuarantinedItems.Remove(item);
+                _allItems.Remove(item);
             }
-            LoadData();
+            TotalItems = _allItems.Count;
+            UpdatePagedItems();
+
+            foreach (var item in selected)
+            {
+                try { await _monitorService.RestoreQuarantinedFile(item.Threat.Description); }
+                catch { }
+            }
         }
 
         [RelayCommand]
@@ -227,11 +236,20 @@ namespace RansomGuard.ViewModels
 
             if (result == System.Windows.MessageBoxResult.Yes)
             {
+                // OPTIMISTIC UI: Remove all selected from view instantly
                 foreach (var item in selected)
                 {
-                    await DeleteFile(item);
+                    QuarantinedItems.Remove(item);
+                    _allItems.Remove(item);
                 }
-                LoadData();
+                TotalItems = _allItems.Count;
+                UpdatePagedItems();
+
+                foreach (var item in selected)
+                {
+                    try { await _monitorService.DeleteQuarantinedFile(item.Threat.Description); }
+                    catch { }
+                }
             }
         }
 
@@ -311,53 +329,58 @@ namespace RansomGuard.ViewModels
 
         private void OnThreatDetected(Threat threat)
         {
-            App.Current.Dispatcher.Invoke(() =>
+            if (threat.ActionTaken == "Quarantined" || threat.ActionTaken == "Isolated")
             {
-                TimelineEvents.Insert(0, threat);
-                if (TimelineEvents.Count > 10) TimelineEvents.RemoveAt(10);
-            });
+                App.Current.Dispatcher.Invoke(() =>
+                {
+                    LoadData();
+                });
+            }
         }
 
         [RelayCommand]
         private async Task RestoreFile(QuarantineItemViewModel? item)
         {
             if (item == null) return;
-            var threat = item.Threat;
+            
+            // OPTIMISTIC UI: Remove from view instantly
+            QuarantinedItems.Remove(item);
+            _allItems.Remove(item);
+            TotalItems = _allItems.Count;
+            UpdatePagedItems();
 
             try
             {
-                // Delegate to service (Actual location is in threat.Description for quarantine files usually, 
-                // but let's be sure we pass the correct path stored in the engine)
-                string quarantinePath = threat.Description; 
-                await _monitorService.RestoreQuarantinedFile(quarantinePath);
-                System.Diagnostics.Debug.WriteLine($"Requested restoration of: {quarantinePath}");
+                await _monitorService.RestoreQuarantinedFile(item.Threat.Description);
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Failed to request restore: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"Failed to restore: {ex.Message}");
+                // If it failed spectacularly, reload to be sure
+                LoadData();
             }
-            
-            LoadData();
         }
 
         [RelayCommand]
         private async Task DeleteFile(QuarantineItemViewModel? item)
         {
             if (item == null) return;
-            var threat = item.Threat;
+
+            // OPTIMISTIC UI: Remove from view instantly
+            QuarantinedItems.Remove(item);
+            _allItems.Remove(item);
+            TotalItems = _allItems.Count;
+            UpdatePagedItems();
 
             try
             {
-                string quarantinePath = threat.Description;
-                await _monitorService.DeleteQuarantinedFile(quarantinePath);
-                System.Diagnostics.Debug.WriteLine($"Requested deletion of: {quarantinePath}");
+                await _monitorService.DeleteQuarantinedFile(item.Threat.Description);
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Failed to request deletion: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"Failed to delete: {ex.Message}");
+                LoadData();
             }
-            
-            LoadData();
         }
 
         public void Dispose()

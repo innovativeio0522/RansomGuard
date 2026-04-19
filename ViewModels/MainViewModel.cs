@@ -4,6 +4,9 @@ using System.Windows;
 using System.Windows.Threading;
 using RansomGuard.Services;
 using RansomGuard.Core.Interfaces;
+using RansomGuard.Core.Models;
+using System.Collections.ObjectModel;
+using System.Linq;
 
 namespace RansomGuard.ViewModels
 {
@@ -32,11 +35,23 @@ namespace RansomGuard.ViewModels
 
         [ObservableProperty]
         private string _memoryUsageText = "MEM: --GB";
+        
+        [ObservableProperty]
+        private string _searchText = string.Empty;
+
+        [ObservableProperty]
+        private bool _isNotificationFlyoutOpen;
+
+        [ObservableProperty]
+        private int _unreadNotificationsCount;
+
+        public ObservableCollection<NotificationItem> Notifications { get; } = new();
 
         private readonly ISystemMonitorService _monitorService = null!;
         private readonly DispatcherTimer _statusBarTimer = null!;
         private readonly DispatcherTimer _connectionGraceTimer = null!;
         private readonly Action<bool> _connectionStatusHandler = null!;
+        private readonly Action<Threat> _threatDetectedHandler = null!;
         private bool _disposed;
         private bool _gracePeriodExpired = false;
 
@@ -73,6 +88,28 @@ namespace RansomGuard.ViewModels
                     });
                 };
                 _monitorService.ConnectionStatusChanged += _connectionStatusHandler;
+
+                _threatDetectedHandler = (threat) =>
+                {
+                    Application.Current.Dispatcher.Invoke(() => 
+                    {
+                        var item = new NotificationItem
+                        {
+                            Title = "Security Threat Detected",
+                            Message = $"{threat.Name}: {threat.Path}",
+                            Time = DateTime.Now.ToString("HH:mm:ss"),
+                            Color = "#ff5252" // Tertiary / Alert Red
+                        };
+                        Notifications.Insert(0, item);
+                        if (Notifications.Count > 10) Notifications.RemoveAt(10);
+                        
+                        if (!IsNotificationFlyoutOpen)
+                        {
+                            UnreadNotificationsCount++;
+                        }
+                    });
+                };
+                _monitorService.ThreatDetected += _threatDetectedHandler;
 
                 // Grace period timer: After 6 seconds, allow showing offline status
                 _connectionGraceTimer = new DispatcherTimer
@@ -117,6 +154,8 @@ namespace RansomGuard.ViewModels
                 System.Diagnostics.Debug.WriteLine($"MainViewModel init error: {ex.Message}");
             }
         }
+        
+        partial void OnSearchTextChanged(string value) => UpdateCurrentViewSearch();
 
         private void UpdateStatusBarTelemetry()
         {
@@ -139,6 +178,23 @@ namespace RansomGuard.ViewModels
         private void ToggleSidebar()
         {
             IsSidebarCollapsed = !IsSidebarCollapsed;
+        }
+
+        [RelayCommand]
+        private void ToggleNotifications()
+        {
+            IsNotificationFlyoutOpen = !IsNotificationFlyoutOpen;
+            if (IsNotificationFlyoutOpen)
+            {
+                UnreadNotificationsCount = 0;
+            }
+        }
+
+        [RelayCommand]
+        private void ClearNotifications()
+        {
+            Notifications.Clear();
+            UnreadNotificationsCount = 0;
         }
 
         [RelayCommand]
@@ -190,6 +246,19 @@ namespace RansomGuard.ViewModels
                     SearchPlaceholder = "Search settings...";
                     break;
             }
+            
+            UpdateCurrentViewSearch();
+        }
+
+        private void UpdateCurrentViewSearch()
+        {
+            if (CurrentView == null) return;
+            
+            // Using dynamic or pattern matching to pass search query to sub-viewmodels
+            if (CurrentView is ProcessMonitorViewModel pmvm) pmvm.SearchQuery = SearchText;
+            else if (CurrentView is FileActivityViewModel favm) favm.SearchQuery = SearchText;
+            else if (CurrentView is ThreatAlertsViewModel tavm) tavm.SearchQuery = SearchText;
+            else if (CurrentView is DashboardViewModel dvm) dvm.SearchQuery = SearchText;
         }
 
         public void Dispose()
@@ -205,6 +274,7 @@ namespace RansomGuard.ViewModels
             if (_monitorService != null)
             {
                 _monitorService.ConnectionStatusChanged -= _connectionStatusHandler;
+                _monitorService.ThreatDetected -= _threatDetectedHandler;
             }
 
             // Dispose child ViewModels
@@ -218,5 +288,13 @@ namespace RansomGuard.ViewModels
             // Dispose service if it implements IDisposable
             (_monitorService as IDisposable)?.Dispose();
         }
+    }
+
+    public class NotificationItem
+    {
+        public string Title { get; set; } = string.Empty;
+        public string Message { get; set; } = string.Empty;
+        public string Time { get; set; } = string.Empty;
+        public string Color { get; set; } = "#adc6ff";
     }
 }

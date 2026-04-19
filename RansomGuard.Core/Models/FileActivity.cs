@@ -2,6 +2,7 @@ namespace RansomGuard.Core.Models
 {
     public class FileActivity
     {
+        public string Id { get; set; } = Guid.NewGuid().ToString();
         public DateTime Timestamp { get; set; } = DateTime.Now;
         public string Action { get; set; } = "READ";
         public string ActivityType => Action; // Alias for UI

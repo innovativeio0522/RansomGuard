@@ -6,7 +6,9 @@ namespace RansomGuard.Core.IPC
     public enum MessageType
     {
         FileActivity,
+        FileActivitySnapshot,
         ThreatDetected,
+        ThreatDetectedSnapshot,
         TelemetryUpdate,
         CommandRequest,
         CommandResponse,

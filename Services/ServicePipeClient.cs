@@ -48,7 +48,8 @@ namespace RansomGuard.Services
         private TelemetryData _lastTelemetry = new();
         private List<ProcessInfo> _lastProcesses = new();
         private readonly object _telemetryLock = new();
-        private readonly object _processLock = new();
+        private readonly object _processLock = new object();
+        private readonly HashSet<string> _processedEventIds = new();
 
         public ServicePipeClient()
         {
@@ -82,6 +83,11 @@ namespace RansomGuard.Services
                     // Successful connection — reset backoff
                     retryDelayMs = 2000;
                     IsConnected = true;
+                    
+                    // Clear previous session data to prevent buildup/duplication on reconnect
+                    lock (_activitiesLock) { _recentActivities.Clear(); }
+                    lock (_threatsLock) { _recentThreats.Clear(); }
+
                     ConnectionStatusChanged?.Invoke(true);
 
                     writer = new StreamWriter(pipeClient) { AutoFlush = true };
@@ -160,30 +166,65 @@ namespace RansomGuard.Services
                 switch (packet.Type)
                 {
                     case MessageType.FileActivity:
+                    case MessageType.FileActivitySnapshot:
                         var activity = JsonSerializer.Deserialize<FileActivity>(packet.Payload);
                         if (activity != null)
                         {
                             lock (_activitiesLock)
                             {
+                                // Global Deduplication: Ignore if we've already processed this exact event Id
+                                if (_processedEventIds.Contains(activity.Id)) return;
+                                _processedEventIds.Add(activity.Id);
+                                
+                                // Limit set size to prevent memory leak
+                                if (_processedEventIds.Count > 1000) _processedEventIds.Remove(_processedEventIds.First());
+
                                 _recentActivities.Insert(0, activity);
                                 if (_recentActivities.Count > MaxRecentActivities) _recentActivities.RemoveAt(_recentActivities.Count - 1);
                             }
-                            System.Diagnostics.Debug.WriteLine($"[IPC] Received FileActivity: {activity.FilePath} ({activity.Action})");
-                            FileActivityDetected?.Invoke(activity);
+                            
+                            // Only fire UI event for LIVE activities, not for snapshots
+                            if (packet.Type == MessageType.FileActivity)
+                            {
+                                System.Diagnostics.Debug.WriteLine($"[IPC] Received LIVE FileActivity: {activity.FilePath} ({activity.Action})");
+                                FileActivityDetected?.Invoke(activity);
+                            }
                         }
                         break;
 
-                    case MessageType.ThreatDetected:
-                        var threat = JsonSerializer.Deserialize<Threat>(packet.Payload);
-                        if (threat != null)
-                        {
-                            lock (_threatsLock)
-                            {
-                                _recentThreats.Insert(0, threat);
-                            }
-                            ThreatDetected?.Invoke(threat);
-                        }
-                        break;
+                     case MessageType.ThreatDetected:
+                     case MessageType.ThreatDetectedSnapshot:
+                         var threat = JsonSerializer.Deserialize<Threat>(packet.Payload);
+                         if (threat != null)
+                         {
+                             lock (_threatsLock)
+                             {
+                                 // Deduplicate by Path: update if exists, otherwise insert
+                                 var existing = _recentThreats.FirstOrDefault(t => string.Equals(t.Path, threat.Path, StringComparison.OrdinalIgnoreCase));
+                                 if (existing != null)
+                                 {
+                                     // Only update if not already handled by user
+                                     if (existing.ActionTaken != "Quarantined" && existing.ActionTaken != "Ignored")
+                                     {
+                                         existing.ActionTaken = threat.ActionTaken;
+                                     }
+                                     existing.Severity = threat.Severity;
+                                     existing.Timestamp = threat.Timestamp;
+                                     existing.Description = threat.Description;
+                                 }
+                                 else
+                                 {
+                                     _recentThreats.Insert(0, threat);
+                                 }
+                             }
+                             
+                             // Only fire UI event for LIVE threats, not for snapshots
+                             if (packet.Type == MessageType.ThreatDetected)
+                             {
+                                 ThreatDetected?.Invoke(threat);
+                             }
+                         }
+                         break;
 
                     case MessageType.TelemetryUpdate:
                         var tele = JsonSerializer.Deserialize<TelemetryData>(packet.Payload);
@@ -321,6 +362,11 @@ namespace RansomGuard.Services
             if (IsConnected)
             {
                 await SendCommand(CommandType.QuarantineFile, filePath);
+            }
+            lock (_threatsLock)
+            {
+                var matchingThreats = _recentThreats.Where(t => string.Equals(t.Path, filePath, StringComparison.OrdinalIgnoreCase));
+                foreach (var t in matchingThreats) t.ActionTaken = "Quarantined";
             }
         }
 
