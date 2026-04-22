@@ -64,7 +64,7 @@ namespace RansomGuard.Service.Engine
             try
             {
                 string[] resources = { path };
-                res = RmRegisterResources(handle, (uint)resources.Length, resources, 0, null, 0, null);
+                res = RmRegisterResources(handle, (uint)resources.Length, resources, 0, Array.Empty<RM_UNIQUE_PROCESS>(), 0, Array.Empty<string>());
 
                 if (res != 0) return processes;
 
@@ -73,7 +73,7 @@ namespace RansomGuard.Service.Engine
                 uint lpdwRebootReasons = RmRebootReasonNone;
 
                 // First call to get the size needed
-                res = RmGetList(handle, out pnProcInfoNeeded, ref pnProcInfo, null, ref lpdwRebootReasons);
+                res = RmGetList(handle, out pnProcInfoNeeded, ref pnProcInfo, Array.Empty<RM_PROCESS_INFO>(), ref lpdwRebootReasons);
 
                 if (res == 234) // ERROR_MORE_DATA
                 {

@@ -12,8 +12,9 @@ namespace RansomGuard.Service.Engine
     internal class ProcessIdentityService : IProcessIdentityClassifier
     {
         private readonly IAuthenticodeVerifier _verifier;
-        private readonly System.Collections.Concurrent.ConcurrentDictionary<string, (bool IsTrusted, string Status)> _signatureCache = new();
+        private readonly System.Collections.Concurrent.ConcurrentDictionary<string, (bool IsTrusted, string Status, DateTime Expires)> _signatureCache = new();
         private const int Windows11BuildNumber = 20348;
+        private const int CacheExpirationHours = 24;
 
         public ProcessIdentityService(IAuthenticodeVerifier? verifier = null)
         {
@@ -34,7 +35,7 @@ namespace RansomGuard.Service.Engine
                 string nameLower = p.ProcessName.ToLowerInvariant();
 
                 // 1. User Whitelist (highest priority — explicit user trust)
-                if (ConfigurationService.Instance.WhitelistedProcessNames.Contains(p.ProcessName))
+                if (ConfigurationService.Instance.IsProcessWhitelisted(p.ProcessName))
                     return (true, "User Whitelisted");
 
                 // 2. Critical OS process names baseline (Security fallback for fundamental system objects)
@@ -53,13 +54,16 @@ namespace RansomGuard.Service.Engine
                         // --- NEW: Authenticode Signature Verification ---
                         if (_signatureCache.TryGetValue(path, out var cachedResult))
                         {
-                            return cachedResult;
+                            if (DateTime.Now < cachedResult.Expires)
+                                return (cachedResult.IsTrusted, cachedResult.Status);
+                            
+                            _signatureCache.TryRemove(path, out _);
                         }
 
                         if (_verifier.IsMicrosoftSigned(path))
                         {
                             var result = (true, "OS Component (Verified)");
-                            _signatureCache[path] = result;
+                            _signatureCache[path] = (result.Item1, result.Item2, DateTime.Now.AddHours(CacheExpirationHours));
                             return result;
                         }
 
@@ -68,7 +72,7 @@ namespace RansomGuard.Service.Engine
                         if (!string.IsNullOrEmpty(publisher) && publisher != "Unsigned")
                         {
                             var result = (true, "Trusted Application");
-                            _signatureCache[path] = result;
+                            _signatureCache[path] = (result.Item1, result.Item2, DateTime.Now.AddHours(CacheExpirationHours));
                             return result;
                         }
                         // ------------------------------------------------

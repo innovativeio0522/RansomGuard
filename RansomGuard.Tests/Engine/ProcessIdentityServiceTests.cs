@@ -27,6 +27,7 @@ namespace RansomGuard.Tests.Engine
             // Arrange
             var process = Process.GetCurrentProcess();
             ConfigurationService.Instance.WhitelistedProcessNames.Add(process.ProcessName);
+            ConfigurationService.Instance.NotifyPathsChanged();
 
             // Act
             var result = _service.DetermineIdentity(process);

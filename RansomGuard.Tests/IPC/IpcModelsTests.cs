@@ -74,12 +74,12 @@ public class IpcModelsTests
         // Arrange
         var command = new CommandRequest
         {
-            Command = CommandType.PerformScan,
-            Arguments = "quick"
+            Command = CommandType.KillProcess,
+            Arguments = "1234"
         };
 
         // Assert
-        command.Command.Should().Be(CommandType.PerformScan);
-        command.Arguments.Should().Be("quick");
+        command.Command.Should().Be(CommandType.KillProcess);
+        command.Arguments.Should().Be("1234");
     }
 }

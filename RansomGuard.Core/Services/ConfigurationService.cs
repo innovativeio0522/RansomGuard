@@ -30,7 +30,23 @@ namespace RansomGuard.Core.Services
         /// <summary>
         /// Notifies subscribers that the monitored paths have changed.
         /// </summary>
-        public void NotifyPathsChanged() => PathsChanged?.Invoke();
+        public void NotifyPathsChanged()
+        {
+            RebuildHashes();
+            PathsChanged?.Invoke();
+        }
+
+        private HashSet<string> _whitelistedProcessesHash = new(StringComparer.OrdinalIgnoreCase);
+        private HashSet<string> _excludedFoldersHash = new(StringComparer.OrdinalIgnoreCase);
+
+        private void RebuildHashes()
+        {
+            _whitelistedProcessesHash = new HashSet<string>(WhitelistedProcessNames ?? new(), StringComparer.OrdinalIgnoreCase);
+            _excludedFoldersHash = new HashSet<string>(ExcludedFolderNames ?? new(), StringComparer.OrdinalIgnoreCase);
+        }
+
+        public bool IsProcessWhitelisted(string name) => _whitelistedProcessesHash.Contains(name);
+        public bool IsFolderExcluded(string name) => _excludedFoldersHash.Contains(name);
 
         private static void StartWatcher()
         {
@@ -277,6 +293,12 @@ namespace RansomGuard.Core.Services
             defaultConfig.NotifyPathsChanged();
             
             return defaultConfig;
+        }
+
+        // Add a constructor to ensure hashes are built on first creation
+        public ConfigurationService()
+        {
+            RebuildHashes();
         }
 
         /// <summary>

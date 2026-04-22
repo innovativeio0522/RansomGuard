@@ -83,7 +83,10 @@ namespace RansomGuard.Tests.Engine
 
             // Assert
             _manager.GetRecentThreats().Should().HaveCount(1);
-            _manager.ShouldReportThreat("C:\\old.exe", "Threat A").Should().BeFalse(); // Already reported
+            
+            // NOTE: Per #29 refactor, historical data does NOT populate the session dedup map
+            // to avoid suppressing fresh scan detections of previously cleaned files.
+            _manager.ShouldReportThreat("C:\\old.exe", "Threat A").Should().BeTrue(); 
         }
 
         [Fact]

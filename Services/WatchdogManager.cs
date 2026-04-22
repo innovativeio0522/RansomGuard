@@ -12,9 +12,11 @@ namespace RansomGuard.Services
     public static class WatchdogManager
     {
         private const string WatchdogProcessName = "RansomGuard.Watchdog";
+        private const string WatchdogTaskName = "RansomGuardWatchdogTask";
 
         /// <summary>
         /// Spawns the Watchdog process if it is not already running.
+        /// Uses schtasks to ensure the process runs in the interactive user session even if triggered by a service.
         /// </summary>
         public static void EnsureWatchdogRunning()
         {
@@ -22,19 +24,47 @@ namespace RansomGuard.Services
             {
                 if (Process.GetProcessesByName(WatchdogProcessName).Any()) return;
 
-                string watchdogPath = FindWatchdogPath();
+                string? watchdogPath = FindWatchdogPath();
                 if (watchdogPath == null) return;
 
-                var psi = new ProcessStartInfo(watchdogPath)
+                // 1. Register the task (or update it) to ensure it points to the correct path
+                RegisterWatchdogTask(watchdogPath);
+
+                // 2. Run the task
+                var psi = new ProcessStartInfo("schtasks", $"/run /tn \"{WatchdogTaskName}\"")
                 {
-                    UseShellExecute = true,
+                    CreateNoWindow = true,
+                    UseShellExecute = false,
                     WindowStyle = ProcessWindowStyle.Hidden
                 };
                 Process.Start(psi);
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"[WatchdogManager] Failed to start Watchdog: {ex.Message}");
+                Debug.WriteLine($"[WatchdogManager] Failed to start Watchdog via task: {ex.Message}");
+            }
+        }
+
+        private static void RegisterWatchdogTask(string watchdogPath)
+        {
+            try
+            {
+                // Create a task that runs as the current user and is allowed to run interactively (/IT).
+                // We use /SC ONCE with a date in the past so it never triggers automatically, only via /RUN.
+                string args = $"/create /tn \"{WatchdogTaskName}\" /tr \"'{watchdogPath}'\" /sc ONCE /st 00:00 /it /f /rl HIGHEST";
+                
+                var psi = new ProcessStartInfo("schtasks", args)
+                {
+                    CreateNoWindow = true,
+                    UseShellExecute = false,
+                    WindowStyle = ProcessWindowStyle.Hidden
+                };
+                var p = Process.Start(psi);
+                p?.WaitForExit(3000);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[WatchdogManager] Failed to register Watchdog task: {ex.Message}");
             }
         }
 
