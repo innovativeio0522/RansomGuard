@@ -8,6 +8,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
+using System.Threading.Tasks;
 using System.Windows.Threading;
 
 namespace RansomGuard.ViewModels
@@ -91,11 +92,15 @@ namespace RansomGuard.ViewModels
         }
 
 
-        private void OnConnectionStatusChanged(bool isConnected)
+        private async void OnConnectionStatusChanged(bool isConnected)
         {
-            if (isConnected) 
+            if (isConnected)
             {
-                // Must marshal to UI thread to touch ObservableCollections
+                // Snapshots (FileActivitySnapshot, ThreatDetectedSnapshot) are sent by the
+                // server immediately after the handshake and arrive as individual IPC packets.
+                // We must wait for them to be processed before calling Refresh(), otherwise
+                // GetRecentFileActivities() returns an empty list.
+                await Task.Delay(2000).ConfigureAwait(false);
                 System.Windows.Application.Current.Dispatcher.Invoke(() => Refresh());
             }
         }

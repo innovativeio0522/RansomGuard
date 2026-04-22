@@ -10,6 +10,7 @@ namespace RansomGuard.Services
         private const string ServiceName = "RansomGuardSentinel";
         private const string ServiceDisplayName = "RansomGuard Sentinel Service";
         private const string TaskName = "RansomGuardSilentStart";
+        private const string WatchdogProcessName = "RansomGuard.Watchdog";
 
         public static bool IsServiceInstalled()
         {
@@ -45,8 +46,9 @@ namespace RansomGuard.Services
                     throw new Exception("Failed to start service");
                 }
 
-                // Register Task Scheduler task for silent admin startup of the Dashboard.
-                // --startup tells the app to skip the splash screen and go straight to the tray.
+                StartWatchdog();
+
+                // Register Task Scheduler task... (no change to existing logic thereafter)
                 string dashboardPath = Process.GetCurrentProcess().MainModule?.FileName ?? "";
                 if (!string.IsNullOrEmpty(dashboardPath))
                 {
@@ -61,6 +63,58 @@ namespace RansomGuard.Services
                 System.Diagnostics.Debug.WriteLine($"Installation failed: {ex.Message}");
                 throw;
             }
+        }
+
+        public static void StartWatchdog()
+        {
+            try
+            {
+                var processes = Process.GetProcessesByName(WatchdogProcessName);
+                if (processes.Length == 0)
+                {
+                    string baseDir = AppDomain.CurrentDomain.BaseDirectory;
+                    // Look for the watchdog in the same directory as the dashboard
+                    string watchdogPath = Path.Combine(baseDir, WatchdogProcessName + ".exe");
+                    
+                    if (File.Exists(watchdogPath))
+                    {
+                        Process.Start(new ProcessStartInfo
+                        {
+                            FileName = watchdogPath,
+                            CreateNoWindow = true,
+                            UseShellExecute = false, // Keep it stealthy
+                            WindowStyle = ProcessWindowStyle.Hidden
+                        });
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Failed to start watchdog: {ex.Message}");
+            }
+        }
+
+        public static void StopWatchdog()
+        {
+            try
+            {
+                var processes = Process.GetProcessesByName(WatchdogProcessName);
+                foreach (var p in processes)
+                {
+                    p.Kill();
+                    p.WaitForExit(2000);
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Failed to stop watchdog: {ex.Message}");
+            }
+        }
+
+        public static void StopService()
+        {
+            StopWatchdog();
+            RunCommand("sc", $"stop {ServiceName}");
         }
 
         private static bool RunCommand(string fileName, string arguments)

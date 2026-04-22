@@ -81,6 +81,8 @@ namespace RansomGuard.Core.Services
                         instance.SensitivityLevel = newConfig.SensitivityLevel;
                         instance.RealTimeProtection = newConfig.RealTimeProtection;
                         instance.AutoQuarantine = newConfig.AutoQuarantine;
+                        instance.WatchdogEnabled = newConfig.WatchdogEnabled;
+                        instance.ExcludedFolderNames = newConfig.ExcludedFolderNames ?? new List<string> { "obj", "bin", ".git", ".vs", "node_modules", "vendor", ".idea" };
                         instance.LastScanTime = newConfig.LastScanTime;
                         instance.HasAutoPopulated = newConfig.HasAutoPopulated;
                         
@@ -133,10 +135,13 @@ namespace RansomGuard.Core.Services
         /// </summary>
         public bool AutoQuarantine { get; set; } = true;
         
-        /// <summary>
-        /// Gets or sets the timestamp of the last completed security scan.
-        /// </summary>
         public DateTime LastScanTime { get; set; } = DateTime.MinValue;
+
+        /// <summary>
+        /// Gets or sets the timestamp when the protection service was last stopped.
+        /// Used for "Cold Scans" to detect files modified while the guard was away.
+        /// </summary>
+        public DateTime LastServiceStopTime { get; set; } = DateTime.MinValue;
 
         /// <summary>
         /// Gets or sets the total number of security scans performed since installation.
@@ -145,9 +150,22 @@ namespace RansomGuard.Core.Services
         public int TotalScansCount { get; set; } = 0;
 
         /// <summary>
+        /// Gets or sets the list of directory names to exclude from scanning (e.g., "obj", "bin").
+        /// </summary>
+        public List<string> ExcludedFolderNames { get; set; } = new() { "obj", "bin", ".git", ".vs", "node_modules", "vendor", ".idea" };
+
+        /// <summary>
         /// Gets or sets the list of process names that have been manually whitelisted by the user.
         /// </summary>
         public List<string> WhitelistedProcessNames { get; set; } = new();
+
+        /// <summary>
+        /// Gets or sets whether the Watchdog process is enabled.
+        /// When enabled, the Watchdog monitors and auto-restarts the UI and Service if they stop.
+        /// When disabled, the Watchdog is killed and nothing auto-restarts.
+        /// </summary>
+        public bool WatchdogEnabled { get; set; } = true;
+
 
         /// <summary>
         /// Saves the current configuration to disk in a thread-safe manner.
@@ -213,6 +231,7 @@ namespace RansomGuard.Core.Services
                         // Ensure collections are not null
                         config.MonitoredPaths ??= new List<string>();
                         config.WhitelistedProcessNames ??= new List<string>();
+                        config.ExcludedFolderNames ??= new List<string> { "obj", "bin", ".git", ".vs", "node_modules", "vendor", ".idea" };
 
                         // Start watching for external changes if not in testing mode
                         if (!config.IsTestingMode)
@@ -273,6 +292,7 @@ namespace RansomGuard.Core.Services
             AutoQuarantine = true;
             LastScanTime = DateTime.MinValue;
             TotalScansCount = 0;
+            ExcludedFolderNames = new List<string> { "obj", "bin", ".git", ".vs", "node_modules", "vendor", ".idea" };
             WhitelistedProcessNames = new List<string>();
             NotifyPathsChanged();
         }

@@ -11,7 +11,9 @@
     <AssemblyName>RansomGuard</AssemblyName>
     <RootNamespace>RansomGuard</RootNamespace>
     <ApplicationManifest>app.manifest</ApplicationManifest>
-    <DefaultItemExcludes>$(DefaultItemExcludes);RansomGuard.Core\**;RansomGuard.Service\**;RansomGuard.Tests\**;scratch\**</DefaultItemExcludes>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <GenerateTargetFrameworkAttribute>false</GenerateTargetFrameworkAttribute>
+    <DefaultItemExcludes>$(DefaultItemExcludes);RansomGuard.Core\**;RansomGuard.Service\**;RansomGuard.Tests\**;RansomGuard.Watchdog\**;scratch\**</DefaultItemExcludes>
   </PropertyGroup>
 
   <ItemGroup>

@@ -26,6 +26,7 @@
   <ItemGroup>
     <ProjectReference Include="..\RansomGuard.Core\RansomGuard.Core.csproj" />
     <ProjectReference Include="..\RansomGuard.Service\RansomGuard.Service.csproj" />
+    <ProjectReference Include="..\RansomGuard.csproj" />
   </ItemGroup>
 
 </Project>

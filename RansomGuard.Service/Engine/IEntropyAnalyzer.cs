@@ -6,6 +6,8 @@ namespace RansomGuard.Service.Engine
     {
         bool IsSuspiciousExtension(string path);
         bool IsMediaFile(string path);
+        bool IsHighEntropyExtension(string path);
+        bool ShouldSkipDirectory(string path);
         bool IsSuspiciousRenamePattern(string action);
         double CalculateShannonEntropy(string path);
     }

@@ -7,6 +7,7 @@ using System.Security.Principal;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Linq;
 using RansomGuard.Core.IPC;
 using RansomGuard.Core.Interfaces;
 using RansomGuard.Core.Models;
@@ -16,15 +17,19 @@ namespace RansomGuard.Service.Communication
 {
     public class NamedPipeServer
     {
-        private const string PipeName = "SentinelGuardPipe";
+        private readonly string _pipeName;
         private readonly ISystemMonitorService _monitorService;
+        private readonly ITelemetryService _telemetryService;
         private CancellationTokenSource? _cts;
 
         private class ClientContext
         {
+            public Guid Id { get; } = Guid.NewGuid();
             public StreamWriter Writer { get; }
-            public BlockingCollection<string> MessageQueue { get; } = new(1000);
+            public BlockingCollection<string> MessageQueue { get; } = new(100); // Smaller queue for responsiveness
             public Task ProcessorTask { get; set; } = Task.CompletedTask;
+            public bool IsHandshaked { get; set; }
+            public DateTime LastHeartbeat { get; set; } = DateTime.Now;
 
             public ClientContext(StreamWriter writer)
             {
@@ -32,12 +37,13 @@ namespace RansomGuard.Service.Communication
             }
         }
 
-        // Track all active connected client contexts for live broadcasting
         private readonly ConcurrentDictionary<Guid, ClientContext> _clients = new();
 
-        public NamedPipeServer(ISystemMonitorService monitorService)
+        public NamedPipeServer(ISystemMonitorService monitorService, ITelemetryService telemetryService, string pipeName = "SentinelGuardPipe")
         {
             _monitorService = monitorService;
+            _telemetryService = telemetryService;
+            _pipeName = pipeName;
         }
 
         public void Start()
@@ -46,10 +52,11 @@ namespace RansomGuard.Service.Communication
             Task.Run(() => ListenLoop(_cts.Token));
             Task.Run(() => TelemetryBroadcastLoop(_cts.Token));
             Task.Run(() => ProcessListBroadcastLoop(_cts.Token));
+            Task.Run(() => HeartbeatMonitorLoop(_cts.Token));
 
-            _monitorService.FileActivityDetected += (activity) => Broadcast(MessageType.FileActivity, activity);
-            _monitorService.ThreatDetected += (threat) => Broadcast(MessageType.ThreatDetected, threat);
-            _monitorService.ScanCompleted += (summary) => Broadcast(MessageType.ScanCompleted, summary);
+            _monitorService.FileActivityDetected += (activity) => ReliableBroadcast(MessageType.FileActivity, activity);
+            _monitorService.ThreatDetected += (threat) => ReliableBroadcast(MessageType.ThreatDetected, threat);
+
         }
 
         private async Task TelemetryBroadcastLoop(CancellationToken token)
@@ -59,12 +66,10 @@ namespace RansomGuard.Service.Communication
                 try
                 {
                     var telemetry = _monitorService.GetTelemetry();
-                    Broadcast(MessageType.TelemetryUpdate, telemetry);
+                    // Telemetry is lossy — we use DropOldest strategy
+                    Broadcast(MessageType.TelemetryUpdate, telemetry, dropOldest: true);
                 }
-                catch (Exception ex)
-                {
-                    System.Diagnostics.Debug.WriteLine($"TelemetryBroadcastLoop error: {ex.Message}");
-                }
+                catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"TelemetryBroadcastLoop error: {ex.Message}"); }
                 await Task.Delay(2000, token).ConfigureAwait(false);
             }
         }
@@ -76,33 +81,38 @@ namespace RansomGuard.Service.Communication
                 try
                 {
                     var processes = _monitorService.GetActiveProcesses();
-                    Broadcast(MessageType.ProcessListUpdate, processes);
+                    Broadcast(MessageType.ProcessListUpdate, processes, dropOldest: true);
                 }
-                catch (Exception ex)
+                catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"ProcessListBroadcastLoop error: {ex.Message}"); }
+                await Task.Delay(5000, token).ConfigureAwait(false); // Slowed down slightly for stability
+            }
+        }
+
+        private async Task HeartbeatMonitorLoop(CancellationToken token)
+        {
+            while (!token.IsCancellationRequested)
+            {
+                var now = DateTime.Now;
+                foreach (var client in _clients.Values)
                 {
-                    System.Diagnostics.Debug.WriteLine($"ProcessListBroadcastLoop error: {ex.Message}");
+                    if ((now - client.LastHeartbeat).TotalSeconds > 30)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"[IPC] Client {client.Id} timed out. Removing.");
+                        client.MessageQueue.CompleteAdding();
+                        _clients.TryRemove(client.Id, out _);
+                    }
                 }
-                // Broadcast every 3 seconds as recommended
-                await Task.Delay(3000, token).ConfigureAwait(false);
+                await Task.Delay(10000, token).ConfigureAwait(false);
             }
         }
 
         public void Stop()
         {
             _cts?.Cancel();
-            
-            // Dispose all active client connections
             foreach (var (id, ctx) in _clients)
             {
-                try
-                {
-                    ctx.MessageQueue.CompleteAdding();
-                    ctx.Writer.Dispose();
-                }
-                catch (Exception ex)
-                {
-                    System.Diagnostics.Debug.WriteLine($"Stop client disposal error: {ex.Message}");
-                }
+                try { ctx.MessageQueue.CompleteAdding(); ctx.Writer.Dispose(); }
+                catch { }
             }
             _clients.Clear();
         }
@@ -115,70 +125,32 @@ namespace RansomGuard.Service.Communication
                 try
                 {
                     var pipeSecurity = new PipeSecurity();
-                    
-                    // Allow the current user (process owner) full control
                     var currentUser = WindowsIdentity.GetCurrent().User;
                     if (currentUser != null)
-                    {
-                        pipeSecurity.AddAccessRule(new PipeAccessRule(
-                            currentUser,
-                            PipeAccessRights.FullControl | PipeAccessRights.CreateNewInstance,
-                            AccessControlType.Allow));
-                    }
+                        pipeSecurity.AddAccessRule(new PipeAccessRule(currentUser, PipeAccessRights.FullControl | PipeAccessRights.CreateNewInstance, AccessControlType.Allow));
 
-                    // Allow all authenticated users to connect
-                    pipeSecurity.AddAccessRule(new PipeAccessRule(
-                        new SecurityIdentifier(WellKnownSidType.AuthenticatedUserSid, null),
-                        PipeAccessRights.ReadWrite | PipeAccessRights.CreateNewInstance,
-                        AccessControlType.Allow));
+                    pipeSecurity.AddAccessRule(new PipeAccessRule(new SecurityIdentifier(WellKnownSidType.AuthenticatedUserSid, null), PipeAccessRights.ReadWrite | PipeAccessRights.CreateNewInstance, AccessControlType.Allow));
+                    pipeSecurity.AddAccessRule(new PipeAccessRule(new SecurityIdentifier(WellKnownSidType.LocalSystemSid, null), PipeAccessRights.FullControl, AccessControlType.Allow));
 
-                    // Required for service connectivity
-                    pipeSecurity.AddAccessRule(new PipeAccessRule(
-                        new SecurityIdentifier(WellKnownSidType.LocalSystemSid, null),
-                        PipeAccessRights.FullControl,
-                        AccessControlType.Allow));
+                    Console.WriteLine($"[IPC Server] Creating pipe: {_pipeName}");
+                    pipeServer = NamedPipeServerStreamAcl.Create(_pipeName, PipeDirection.InOut, NamedPipeServerStream.MaxAllowedServerInstances, PipeTransmissionMode.Byte, PipeOptions.Asynchronous, 0, 0, pipeSecurity);
 
-                    pipeServer = NamedPipeServerStreamAcl.Create(
-                        PipeName, PipeDirection.InOut, NamedPipeServerStream.MaxAllowedServerInstances,
-                        PipeTransmissionMode.Byte, PipeOptions.Asynchronous,
-                        0, 0, pipeSecurity);
-
-                    using var timeoutCts = new CancellationTokenSource(TimeSpan.FromMinutes(5));
-                    using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(token, timeoutCts.Token);
-                    
-                    await pipeServer.WaitForConnectionAsync(linkedCts.Token).ConfigureAwait(false);
+                    Console.WriteLine("[IPC Server] Waiting for connection...");
+                    await pipeServer.WaitForConnectionAsync(token).ConfigureAwait(false);
+                    Console.WriteLine("[IPC Server] Client connected!");
                     
                     var clientPipe = pipeServer;
                     pipeServer = null; 
-                    _ = Task.Run(async () =>
-                    {
-                        try
-                        {
-                            await HandleClient(clientPipe, token).ConfigureAwait(false);
-                        }
-                        finally
-                        {
-                            clientPipe.Dispose();
-                        }
+                    _ = Task.Run(async () => {
+                        try { await HandleClient(clientPipe, token).ConfigureAwait(false); }
+                        catch (Exception ex) { Console.WriteLine($"[IPC Server] HandleClient error: {ex.Message}"); }
+                        finally { clientPipe.Dispose(); Console.WriteLine("[IPC Server] Client disconnected."); }
                     }, token);
                 }
-                catch (OperationCanceledException) { }
-                catch (UnauthorizedAccessException)
-                {
-                    Console.WriteLine("CRITICAL PIPE ERROR: Access Denied.");
-                    Console.WriteLine(">>> RANSOMGUARD REQUIRES ADMINISTRATIVE PRIVILEGES TO START THE COMMUNICATION ENGINE.");
-                    Console.WriteLine(">>> Please restart this service with 'Run as Administrator'.");
-                    
-                    pipeServer?.Dispose();
-                    if (!token.IsCancellationRequested)
-                        await Task.Delay(5000, token).ConfigureAwait(false);
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"Pipe Server Error: {ex.Message}");
-                    pipeServer?.Dispose();
-                    if (!token.IsCancellationRequested)
-                        await Task.Delay(2000, token).ConfigureAwait(false);
+                catch (Exception ex) 
+                { 
+                    pipeServer?.Dispose(); 
+                    if (!token.IsCancellationRequested) await Task.Delay(2000, token).ConfigureAwait(false); 
                 }
             }
         }
@@ -188,30 +160,12 @@ namespace RansomGuard.Service.Communication
             using var reader = new StreamReader(pipe);
             using var writer = new StreamWriter(pipe) { AutoFlush = true };
 
-            var clientId = Guid.NewGuid();
             var context = new ClientContext(writer);
-            
-            // Start the writer task for this specific client
             context.ProcessorTask = Task.Run(() => ProcessOutgoingMessages(context, token));
-            
-            _clients[clientId] = context;
+            _clients[context.Id] = context;
 
             try
             {
-                // Send initial state snapshot with specific snapshot types so the UI knows not to fire "Live" alerts
-                foreach (var activity in _monitorService.GetRecentFileActivities())
-                    EnqueueMessage(context, MessageType.FileActivitySnapshot, activity);
-
-                foreach (var threat in _monitorService.GetRecentThreats())
-                    EnqueueMessage(context, MessageType.ThreatDetectedSnapshot, threat);
-
-                // Send initial telemetry immediately on connect
-                EnqueueMessage(context, MessageType.TelemetryUpdate, _monitorService.GetTelemetry());
-                
-                // Send initial process list snapshot immediately on connect
-                EnqueueMessage(context, MessageType.ProcessListUpdate, _monitorService.GetActiveProcesses());
-
-                // Command Listener Loop (Inbound)
                 while (pipe.IsConnected && !token.IsCancellationRequested)
                 {
                     var line = await reader.ReadLineAsync(token).ConfigureAwait(false);
@@ -220,22 +174,44 @@ namespace RansomGuard.Service.Communication
                     try
                     {
                         var packet = JsonSerializer.Deserialize<IpcPacket>(line);
-                        if (packet?.Type == MessageType.CommandRequest)
+                        if (packet == null) continue;
+
+                        context.LastHeartbeat = DateTime.Now;
+
+                        if (packet.Type == MessageType.HandshakeRequest)
+                        {
+                            Console.WriteLine("[IPC Server] Handshake received from client.");
+                            context.IsHandshaked = true;
+                            EnqueueMessage(context, MessageType.HandshakeResponse, "READY");
+                            
+                            // Send Snapshots AFTER handshake
+                            foreach (var activity in _monitorService.GetRecentFileActivities())
+                                EnqueueMessage(context, MessageType.FileActivitySnapshot, activity);
+
+                            foreach (var threat in _monitorService.GetRecentThreats())
+                                EnqueueMessage(context, MessageType.ThreatDetectedSnapshot, threat);
+
+                            EnqueueMessage(context, MessageType.TelemetryUpdate, _monitorService.GetTelemetry());
+                        }
+                        else if (packet.Type == MessageType.Heartbeat)
+                        {
+                            // Already updated LastHeartbeat above
+                        }
+                        else if (packet.Type == MessageType.CommandRequest)
                         {
                             var request = JsonSerializer.Deserialize<CommandRequest>(packet.Payload);
+                            // ACK the command immediately
+                            EnqueueMessage(context, MessageType.Acknowledge, packet.SequenceId);
                             await HandleCommand(request, writer).ConfigureAwait(false);
                         }
                     }
-                    catch (Exception ex)
-                    {
-                        Console.WriteLine($"Failed to process command: {ex.Message}");
-                    }
+                    catch { }
                 }
             }
             finally
             {
                 context.MessageQueue.CompleteAdding();
-                _clients.TryRemove(clientId, out _);
+                _clients.TryRemove(context.Id, out _);
             }
         }
 
@@ -248,93 +224,53 @@ namespace RansomGuard.Service.Communication
                     context.Writer.WriteLine(message);
                 }
             }
-            catch (OperationCanceledException) { }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"ProcessOutgoingMessages error for client: {ex.Message}");
-            }
+            catch { }
         }
 
         private async Task HandleCommand(CommandRequest? request, StreamWriter writer)
         {
             if (request == null) return;
-
             switch (request.Command)
             {
-                case CommandType.PerformScan:
-                    await _monitorService.PerformQuickScan().ConfigureAwait(false);
-                    break;
+
                 case CommandType.KillProcess:
-                    if (int.TryParse(request.Arguments, out int pid))
-                    {
-                        await _monitorService.KillProcess(pid).ConfigureAwait(false);
-                    }
-                    break;
-                case CommandType.ToggleShield:
-                    // Reserved for future shield toggling logic
+                    if (int.TryParse(request.Arguments, out int pid)) await _monitorService.KillProcess(pid).ConfigureAwait(false);
                     break;
                 case CommandType.QuarantineFile:
                     if (!string.IsNullOrEmpty(request.Arguments))
                     {
                         await _monitorService.QuarantineFile(request.Arguments).ConfigureAwait(false);
-                        // Broadcast the updated threat status to ALL connected clients so every
-                        // page (Dashboard, Threat Alerts) removes the entry without needing a timer.
-                        var updatedThreats = _monitorService.GetRecentThreats()
-                            .Where(t => string.Equals(t.Path, request.Arguments, StringComparison.OrdinalIgnoreCase));
-                        foreach (var t in updatedThreats)
-                            Broadcast(MessageType.ThreatDetected, t);
+                        var updatedThreats = _monitorService.GetRecentThreats().Where(t => string.Equals(t.Path, request.Arguments, StringComparison.OrdinalIgnoreCase));
+                        foreach (var t in updatedThreats) ReliableBroadcast(MessageType.ThreatDetected, t);
                     }
                     break;
-                case CommandType.UpdatePaths:
-                    _monitorService.InitializeWatchers();
-                    break;
-                case CommandType.RestoreFile:
-                    if (!string.IsNullOrEmpty(request.Arguments))
-                    {
-                        await _monitorService.RestoreQuarantinedFile(request.Arguments).ConfigureAwait(false);
-                    }
-                    break;
-                case CommandType.DeleteFile:
-                    if (!string.IsNullOrEmpty(request.Arguments))
-                    {
-                        await _monitorService.DeleteQuarantinedFile(request.Arguments).ConfigureAwait(false);
-                    }
-                    break;
-                case CommandType.ClearSafeFiles:
-                    await _monitorService.ClearSafeFiles().ConfigureAwait(false);
-                    break;
-                case CommandType.GetProcessList:
-                    var processes = _monitorService.GetActiveProcesses();
-                    Broadcast(MessageType.ProcessListUpdate, processes);
-                    break;
-                case CommandType.WhitelistProcess:
-                    if (!string.IsNullOrEmpty(request.Arguments))
-                    {
-                        await _monitorService.WhitelistProcess(request.Arguments).ConfigureAwait(false);
-                    }
-                    break;
-                case CommandType.RemoveWhitelist:
-                    if (!string.IsNullOrEmpty(request.Arguments))
-                    {
-                        await _monitorService.RemoveWhitelist(request.Arguments).ConfigureAwait(false);
-                    }
-                    break;
+                case CommandType.UpdatePaths: _monitorService.InitializeWatchers(); break;
+                case CommandType.RestoreFile: if (!string.IsNullOrEmpty(request.Arguments)) await _monitorService.RestoreQuarantinedFile(request.Arguments).ConfigureAwait(false); break;
+                case CommandType.DeleteFile: if (!string.IsNullOrEmpty(request.Arguments)) await _monitorService.DeleteQuarantinedFile(request.Arguments).ConfigureAwait(false); break;
+                case CommandType.ClearSafeFiles: await _monitorService.ClearSafeFiles().ConfigureAwait(false); break;
+                case CommandType.WhitelistProcess: if (!string.IsNullOrEmpty(request.Arguments)) await _monitorService.WhitelistProcess(request.Arguments).ConfigureAwait(false); break;
+                case CommandType.RemoveWhitelist: if (!string.IsNullOrEmpty(request.Arguments)) await _monitorService.RemoveWhitelist(request.Arguments).ConfigureAwait(false); break;
             }
         }
 
-        private void Broadcast<T>(MessageType type, T data)
+        private void ReliableBroadcast<T>(MessageType type, T data) => Broadcast(type, data, dropOldest: false);
+
+        private void Broadcast<T>(MessageType type, T data, bool dropOldest)
         {
-            var packet = new IpcPacket
-            {
-                Type = type,
-                Payload = JsonSerializer.Serialize(data)
-            };
+            var packet = new IpcPacket { Type = type, Payload = JsonSerializer.Serialize(data) };
             var json = JsonSerializer.Serialize(packet);
 
             foreach (var ctx in _clients.Values)
             {
+                if (!ctx.IsHandshaked && type != MessageType.HandshakeResponse) continue;
+
                 if (!ctx.MessageQueue.IsAddingCompleted)
                 {
+                    if (dropOldest && ctx.MessageQueue.Count >= 90)
+                    {
+                        // Drop oldest to avoid blocking the broadcast loop
+                        ctx.MessageQueue.TryTake(out _);
+                    }
                     ctx.MessageQueue.TryAdd(json);
                 }
             }
@@ -342,23 +278,8 @@ namespace RansomGuard.Service.Communication
 
         private void EnqueueMessage<T>(ClientContext context, MessageType type, T data)
         {
-            var packet = new IpcPacket
-            {
-                Type = type,
-                Payload = JsonSerializer.Serialize(data)
-            };
+            var packet = new IpcPacket { Type = type, Payload = JsonSerializer.Serialize(data) };
             context.MessageQueue.TryAdd(JsonSerializer.Serialize(packet));
         }
-
-        private async Task SendMessage<T>(StreamWriter writer, MessageType type, T data)
-        {
-            var packet = new IpcPacket
-            {
-                Type = type,
-                Payload = JsonSerializer.Serialize(data)
-            };
-            await writer.WriteLineAsync(JsonSerializer.Serialize(packet)).ConfigureAwait(false);
-        }
     }
-
 }

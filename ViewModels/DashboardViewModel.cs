@@ -5,6 +5,7 @@ using RansomGuard.Core.Interfaces;
 using RansomGuard.Core.Helpers;
 using RansomGuard.Services;
 using RansomGuard.Core.Services;
+using RansomGuard.Core.IPC;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.ObjectModel;
@@ -77,8 +78,7 @@ namespace RansomGuard.ViewModels
         [ObservableProperty]
         private string _entropyScoreText = "2.4";
 
-        [ObservableProperty]
-        private string _lastScanText = "Never";
+
 
         [ObservableProperty]
         private string _networkLatency = "0.04ms";
@@ -98,9 +98,7 @@ namespace RansomGuard.ViewModels
         [ObservableProperty]
         private string _behavioralStatus = "STABLE";
 
-        [ObservableProperty]
-        [NotifyPropertyChangedFor(nameof(RescanButtonText))]
-        private bool _isScanning = false;
+
 
         // Computed: ring stroke offset — circumference ~283, offset = 283*(1 - score/100)
         public double ThreatRingOffset => 283.0 * (1.0 - Math.Min(100, ThreatRiskScore) / 100.0);
@@ -108,7 +106,7 @@ namespace RansomGuard.ViewModels
         // Computed: "3 NEW" badge text bound to actual alert count
         public string NewAlertsText => ActiveAlerts.Count > 0 ? $"{ActiveAlerts.Count} NEW" : "CLEAR";
 
-        public string RescanButtonText => IsScanning ? "SCANNING..." : "RESCAN";
+
 
         public ObservableCollection<FileActivity> RecentActivities { get; } = new();
         public ObservableCollection<Threat> ActiveAlerts { get; } = new();
@@ -123,6 +121,7 @@ namespace RansomGuard.ViewModels
             // Subscribe to live updates
             _monitorService.FileActivityDetected += OnFileActivityDetected;
             _monitorService.ThreatDetected += OnThreatDetected;
+
 
             // Notify NewAlertsText when collection changes
             ActiveAlerts.CollectionChanged += (s, e) => OnPropertyChanged(nameof(NewAlertsText));
@@ -256,7 +255,6 @@ namespace RansomGuard.ViewModels
 
         private void UpdateTelemetry()
         {
-            if (IsScanning) return;
 
             var telemetry = _monitorService.GetTelemetry();
             CpuUsagePercent = telemetry.CpuUsage;
@@ -295,18 +293,7 @@ namespace RansomGuard.ViewModels
             if (telemetry.EntropyScore > 0)
                 EntropyScoreText = $"{telemetry.EntropyScore:F1}";
 
-            var lastScan = _monitorService.GetLastScanTime();
-            if (lastScan == DateTime.MinValue)
-            {
-                LastScanText = "Never";
-            }
-            else
-            {
-                var diff = DateTime.Now - lastScan;
-                if (diff.TotalMinutes < 1) LastScanText = "Just now";
-                else if (diff.TotalMinutes < MinutesThresholdForRecent) LastScanText = $"{(int)diff.TotalMinutes} mins ago";
-                else LastScanText = $"{(int)diff.TotalHours} hours ago";
-            }
+
 
             // Dynamic telemetry (previously hardcoded)
             NetworkLatency = telemetry.NetworkLatencyMs > 0
@@ -327,22 +314,7 @@ namespace RansomGuard.ViewModels
             UpdateRiskScore();
         }
 
-        [RelayCommand]
-        private async Task Rescan()
-        {
-            if (IsScanning) return;
 
-            IsScanning = true;
-            try
-            {
-                await _monitorService.PerformQuickScan();
-            }
-            finally
-            {
-                IsScanning = false;
-                UpdateTelemetry();
-            }
-        }
 
         private void OnFileActivityDetected(FileActivity activity)
         {
@@ -451,6 +423,7 @@ namespace RansomGuard.ViewModels
             {
                 _monitorService.FileActivityDetected -= OnFileActivityDetected;
                 _monitorService.ThreatDetected -= OnThreatDetected;
+
             }
         }
     }

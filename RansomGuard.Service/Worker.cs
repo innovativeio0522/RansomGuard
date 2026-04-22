@@ -1,6 +1,8 @@
 using RansomGuard.Service.Engine;
 using RansomGuard.Service.Communication;
 using RansomGuard.Core.Interfaces;
+using RansomGuard.Service.Services;
+using RansomGuard.Core.Services;
 
 namespace RansomGuard.Service;
 
@@ -8,6 +10,8 @@ public class Worker : BackgroundService
 {
     private readonly ILogger<Worker> _logger;
     private readonly SentinelEngine _engine;
+    private readonly TelemetryService _telemetryService;
+    private readonly HistoryManager _historyManager;
     private readonly HoneyPotService _honeyPot;
     private readonly VssShieldService _vssShield;
     private readonly ActiveResponseService _activeResponse;
@@ -17,16 +21,31 @@ public class Worker : BackgroundService
     {
         _logger = logger;
         
-        // Initialize core engines
+        // 1. Initialize decoupled services
+        var historyStore = new HistoryStore();
+        _historyManager = new HistoryManager(historyStore);
+        _telemetryService = new TelemetryService();
+
+        // 2. Initialize analyzer/identity logic
         var entropyAnalyzer = new EntropyAnalysisService();
         var authenticodeVerifier = new AuthenticodeVerifier();
         var processClassifier = new ProcessIdentityService(authenticodeVerifier);
-        _engine = new SentinelEngine(entropyAnalyzer, processClassifier);
+        var quarantine = new QuarantineService(historyStore);
+
+        // 3. Initialize core engine with injected services
+        _engine = new SentinelEngine(
+            _telemetryService, 
+            _historyManager, 
+            entropyAnalyzer, 
+            processClassifier, 
+            quarantine);
+
         _activeResponse = new ActiveResponseService();
         _honeyPot = new HoneyPotService(_engine);
         _vssShield = new VssShieldService(_engine);
         
-        _pipeServer = new NamedPipeServer(_engine);
+        // 4. Initialize communication layer
+        _pipeServer = new NamedPipeServer(_engine, _telemetryService);
 
         // Wire up automated response
         _engine.ThreatDetected += (threat) => 
@@ -45,9 +64,6 @@ public class Worker : BackgroundService
         _logger.LogCritical("!!! EXTREME THREAT DETECTED: {name} !!!", threat.Name);
         _activeResponse.LockdownNetwork();
         _engine.IsPanicModeActive = true;
-        
-        // FUTURE: Check if Auto-Shutdown is enabled in config
-        // _activeResponse.PerformEmergencyShutdown();
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -56,6 +72,9 @@ public class Worker : BackgroundService
 
         try
         {
+            // Start all services
+            await _historyManager.LoadFromStoreAsync().ConfigureAwait(false);
+            _telemetryService.Start();
             _honeyPot.Start();
             _vssShield.Start();
             _pipeServer.Start();
@@ -63,7 +82,7 @@ public class Worker : BackgroundService
             _engine.IsHoneyPotActive = true;
             _engine.IsVssShieldActive = true;
 
-            _logger.LogInformation("All proactive shields engaged.");
+            _logger.LogInformation("All proactive shields engaged. Telemetry and Security engines are online.");
 
             while (!stoppingToken.IsCancellationRequested)
             {
@@ -72,7 +91,6 @@ public class Worker : BackgroundService
         }
         catch (OperationCanceledException)
         {
-            // Expected when service is stopping
             _logger.LogInformation("Service stop requested.");
         }
         catch (Exception ex)
@@ -86,6 +104,7 @@ public class Worker : BackgroundService
             // Stop all services
             try
             {
+                _telemetryService.Stop();
                 _vssShield.Stop();
                 _pipeServer.Stop();
                 _honeyPot.Stop();
@@ -98,11 +117,12 @@ public class Worker : BackgroundService
             // Dispose all resources
             try
             {
-                (_engine as IDisposable)?.Dispose();
-                (_honeyPot as IDisposable)?.Dispose();
+                _engine.Dispose();
+                _telemetryService.Dispose();
+                _historyManager.Dispose();
+                _honeyPot.Dispose();
                 (_vssShield as IDisposable)?.Dispose();
                 (_activeResponse as IDisposable)?.Dispose();
-                // Note: _pipeServer doesn't implement IDisposable currently
             }
             catch (Exception ex)
             {
