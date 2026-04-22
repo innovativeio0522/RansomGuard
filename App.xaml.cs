@@ -64,13 +64,19 @@ namespace RansomGuard
                     mainWindow.Hide();
                 };
 
-                if (isStartup)
+                // ── Notify user that protection is active (with slight delay for tray readiness) ──
+                _ = System.Threading.Tasks.Task.Run(async () =>
                 {
-                    // Startup mode: stay hidden, show balloon so the user knows we're running.
+                    await System.Threading.Tasks.Task.Delay(1500);
                     _tray.ShowBalloon(
                         "RansomGuard Active",
                         "Real-time ransomware protection is running in the background.",
                         System.Windows.Forms.ToolTipIcon.Info);
+                });
+
+                if (isStartup)
+                {
+                    // Startup mode: stay hidden.
                 }
                 else
                 {

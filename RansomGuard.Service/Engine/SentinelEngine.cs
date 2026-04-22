@@ -1,9 +1,11 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Diagnostics;
-using System.Timers;
+using System.Threading;
+using System.Threading.Channels;
+using System.Threading.Tasks;
 using RansomGuard.Core.Models;
 using RansomGuard.Core.Interfaces;
 using RansomGuard.Core.Services;
@@ -71,6 +73,11 @@ namespace RansomGuard.Service.Engine
         private readonly Queue<DateTime> _recentChanges = new();
         private readonly object _recentChangesLock = new();
         private readonly ConcurrentDictionary<string, DateTime> _eventDebounceCache = new();
+        private readonly Channel<FileEvent> _eventChannel;
+        private readonly CancellationTokenSource _cts = new();
+        private Task? _processorTask;
+
+        private record FileEvent(string Path, string Action);
 
         public bool IsHoneyPotActive { get; set; } = true;
         public bool IsVssShieldActive { get; set; } = true;
@@ -94,6 +101,13 @@ namespace RansomGuard.Service.Engine
             _processClassifier = processClassifier ?? new ProcessIdentityService();
             _quarantine = quarantine ?? new QuarantineService(new HistoryStore());
 
+            // Initialize background processing pipeline
+            _eventChannel = Channel.CreateUnbounded<FileEvent>(new UnboundedChannelOptions
+            {
+                SingleReader = true,
+                AllowSynchronousContinuations = false
+            });
+
             InitializeWatchers();
             
             // Re-trigger watchers on config change
@@ -111,6 +125,8 @@ namespace RansomGuard.Service.Engine
 
             // Initial historical load
             _ = _historyManager.LoadFromStoreAsync();
+
+            _processorTask = Task.Run(() => ProcessEventsAsync(_cts.Token));
         }
 
         private void CleanupDebounceCache()
@@ -173,11 +189,33 @@ namespace RansomGuard.Service.Engine
 
         internal void OnFileChanged(string path, string action)
         {
-            Console.WriteLine($"[SentinelEngine] Event: {action} on {path}");
             if (!ConfigurationService.Instance.RealTimeProtection || IsEventDebounced(path, action)) return;
+            
+            // Fast-path: Just enqueue the event and return to the watcher thread immediately
+            _eventChannel.Writer.TryWrite(new FileEvent(path, action));
+        }
+
+        private async Task ProcessEventsAsync(CancellationToken ct)
+        {
+            await foreach (var @event in _eventChannel.Reader.ReadAllAsync(ct))
+            {
+                try
+                {
+                    await AnalyzeEventAsync(@event.Path, @event.Action);
+                }
+                catch (OperationCanceledException) { break; }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"[SentinelEngine] Analysis error: {ex.Message}");
+                }
+            }
+        }
+
+        private async Task AnalyzeEventAsync(string path, string action)
+        {
             if (path.Contains("!$RansomGuard_Bait", StringComparison.OrdinalIgnoreCase)) return;
             
-            // Skip excluded directories in real-time as well
+            // Skip excluded directories
             if (_entropyAnalyzer.ShouldSkipDirectory(path) || path.Split(Path.DirectorySeparatorChar).Any(part => _entropyAnalyzer.ShouldSkipDirectory(part))) return;
 
             if (Directory.Exists(path) && !File.Exists(path)) return;
@@ -187,23 +225,21 @@ namespace RansomGuard.Service.Engine
             bool isBinary = _entropyAnalyzer.IsHighEntropyExtension(path);
             double entropy = 0;
 
-            // --- NEW: Process Attribution ---
+            // --- Process Attribution ---
             string culpritProcess = "Unknown";
             bool isTrustedProcess = false;
 
-            // NOTE: For RENAMED events the old file handle is already released, so process
-            // attribution via file-handle lookup is unreliable. Never let a trusted process
-            // suppress alerts for renamed files — we only use attribution for display purposes.
             try
             {
-                System.Threading.Thread.Sleep(50); 
+                // Wait briefly for the file handle to be released/stable if needed
+                await Task.Delay(50); 
                 var processes = _processClassifier.GetProcessesUsingFile(path);
                 foreach (var p in processes)
                 {
                     if (p.ProcessName.Contains("RansomGuard", StringComparison.OrdinalIgnoreCase)) continue;
                     culpritProcess = p.ProcessName;
                     var identity = _processClassifier.DetermineIdentity(p);
-                    // Only mark trusted for non-rename events; renames always run full checks.
+                    
                     if (!action.Contains("RENAMED"))
                     {
                         isTrustedProcess = identity.IsTrusted;
@@ -212,7 +248,6 @@ namespace RansomGuard.Service.Engine
                 }
             }
             catch { }
-            // --------------------------------
 
             if (action == "CHANGED" || action == "CREATED" || action.Contains("RENAMED") || suspExt || isMedia || isBinary)
             {

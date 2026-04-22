@@ -15,6 +15,7 @@ builder.Services.AddWindowsService(options =>
     options.ServiceName = "RansomGuardSentinel";
 });
 builder.Services.AddHostedService<Worker>();
+builder.Services.AddHostedService<RansomGuard.Service.Engine.WatchdogPersistenceService>();
 
 var host = builder.Build();
 host.Run();

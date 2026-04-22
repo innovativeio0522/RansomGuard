@@ -100,6 +100,10 @@ namespace RansomGuard.ViewModels
 
         partial void OnIsWatchdogEnabledChanged(bool value)
         {
+            // Update the configuration instance immediately so the Watchdog sees the correct state on startup
+            ConfigurationService.Instance.WatchdogEnabled = value;
+            ConfigurationService.Instance.Save();
+
             if (value)
             {
                 // Spawn Watchdog if not already running
