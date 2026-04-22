@@ -42,6 +42,9 @@ namespace RansomGuard.ViewModels
         [ObservableProperty]
         private bool _isAutoQuarantineEnabled;
 
+        [ObservableProperty]
+        private bool _isWatchdogEnabled;
+
         public string SensitivityLabel => SensitivityLevel switch
         {
             1 => "LOW",
@@ -70,6 +73,7 @@ namespace RansomGuard.ViewModels
             SensitivityLevel = ConfigurationService.Instance.SensitivityLevel;
             IsRealTimeProtectionEnabled = ConfigurationService.Instance.RealTimeProtection;
             IsAutoQuarantineEnabled = ConfigurationService.Instance.AutoQuarantine;
+            IsWatchdogEnabled = ConfigurationService.Instance.WatchdogEnabled;
 
             // Handle collection changes with debouncing
             _monitoredPaths.CollectionChanged += (s, e) => SaveConfig();
@@ -87,9 +91,24 @@ namespace RansomGuard.ViewModels
             
             // Auto-save on other property changes
             if (e.PropertyName == nameof(IsRealTimeProtectionEnabled) || 
-                e.PropertyName == nameof(IsAutoQuarantineEnabled))
+                e.PropertyName == nameof(IsAutoQuarantineEnabled) ||
+                e.PropertyName == nameof(IsWatchdogEnabled))
             {
                 SaveConfig();
+            }
+        }
+
+        partial void OnIsWatchdogEnabledChanged(bool value)
+        {
+            if (value)
+            {
+                // Spawn Watchdog if not already running
+                WatchdogManager.EnsureWatchdogRunning();
+            }
+            else
+            {
+                // Kill the Watchdog process
+                WatchdogManager.KillWatchdog();
             }
         }
 
@@ -151,6 +170,7 @@ namespace RansomGuard.ViewModels
             ConfigurationService.Instance.SensitivityLevel = SensitivityLevel;
             ConfigurationService.Instance.RealTimeProtection = IsRealTimeProtectionEnabled;
             ConfigurationService.Instance.AutoQuarantine = IsAutoQuarantineEnabled;
+            ConfigurationService.Instance.WatchdogEnabled = IsWatchdogEnabled;
             ConfigurationService.Instance.Save();
             
             // Notify other services (like SentinelEngine) that paths have changed

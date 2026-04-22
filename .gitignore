@@ -166,10 +166,12 @@ TestResults/
 process_debug.log
 app_output.txt
 
-# ─── Scratch / Temporary Scripts ─────────────────────────────────────────────
-scratch_app/
-scratch_test.cs
-scratch_test.exe
-insert_test_threats.ps1
-insert_threats.sql
-temp.sql
+# ─── RansomGuard Data & Debug ────────────────────────────────────────────────
+activity_log.db
+activity_log.db-shm
+activity_log.db-wal
+config.json
+debug.txt
+*.db
+*.db-shm
+*.db-wal

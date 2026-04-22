@@ -83,6 +83,7 @@ namespace RansomGuard.Service.Engine
                         {
                             if (nameLower is "code" or "brave" or "dotnet" or "node" or "git"
                                 or "chrome" or "ms-teams" or "discord" or "antigravity"
+                                or "msbuild" or "csc" or "cl" or "link" or "ninja"
                                 || nameLower.Contains("language_server"))
                                 return (true, "User Verified");
                         }
@@ -102,6 +103,7 @@ namespace RansomGuard.Service.Engine
 
                 // 4. Fallback name matching for common safe processes when path is inaccessible
                 if (nameLower is "dotnet" or "code" or "brave" or "explorer" or "antigravity" or "msmpeng"
+                    or "msbuild" or "csc" or "git" or "cl" or "link" or "ninja"
                     || nameLower.Contains("mbam") || nameLower.Contains("malwarebytes"))
                     return (true, "User Verified");
 
@@ -111,6 +113,14 @@ namespace RansomGuard.Service.Engine
             {
                 return (false, "Verification Error");
             }
+        }
+
+        /// <summary>
+        /// Attempts to find which processes are currently interacting with a file.
+        /// </summary>
+        public System.Collections.Generic.List<Process> GetProcessesUsingFile(string path)
+        {
+            return FileOwnershipResolver.GetProcessesUsingFile(path);
         }
     }
 }

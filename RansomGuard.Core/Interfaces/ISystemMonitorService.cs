@@ -26,10 +26,7 @@ namespace RansomGuard.Core.Interfaces
         /// </summary>
         event Action<bool> ConnectionStatusChanged;
 
-        /// <summary>
-        /// Raised when a system-wide scan completes with a summary of findings.
-        /// </summary>
-        event Action<ScanSummary> ScanCompleted;
+
         
         /// <summary>
         /// Raised when the process list has been updated with fresh data from the service.
@@ -64,17 +61,7 @@ namespace RansomGuard.Core.Interfaces
         /// <returns>A collection of process information objects.</returns>
         IEnumerable<ProcessInfo> GetActiveProcesses();
         
-        /// <summary>
-        /// Gets the timestamp of the last completed security scan.
-        /// </summary>
-        /// <returns>The date and time of the last scan, or DateTime.MinValue if never scanned.</returns>
-        DateTime GetLastScanTime();
-        
-        /// <summary>
-        /// Performs a quick scan of monitored directories for suspicious files and activities.
-        /// </summary>
-        /// <returns>A task representing the asynchronous scan operation.</returns>
-        Task PerformQuickScan();
+
 
         /// <summary>
         /// Gets the current system-wide CPU usage percentage.

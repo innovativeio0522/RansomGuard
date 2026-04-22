@@ -13,7 +13,11 @@ namespace RansomGuard.Core.IPC
         CommandRequest,
         CommandResponse,
         ScanCompleted,
-        ProcessListUpdate
+        ProcessListUpdate,
+        HandshakeRequest,
+        HandshakeResponse,
+        Heartbeat,
+        Acknowledge
     }
 
     public class IpcPacket
@@ -21,6 +25,7 @@ namespace RansomGuard.Core.IPC
         public const int CurrentVersion = 1;
         
         public int Version { get; set; } = CurrentVersion;
+        public long SequenceId { get; set; } = 0;
         public MessageType Type { get; set; }
         public string Payload { get; set; } = string.Empty; // JSON serialized
     }
@@ -60,7 +65,7 @@ namespace RansomGuard.Core.IPC
 
     public enum CommandType
     {
-        PerformScan,
+
         KillProcess,
         ToggleShield,
         UpdatePaths,

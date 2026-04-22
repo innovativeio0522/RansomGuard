@@ -69,7 +69,7 @@
                                 </Grid>
 
                                 <!-- Auto-quarantine Toggle -->
-                                <Grid>
+                                <Grid Margin="0,0,0,24">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="*"/>
                                         <ColumnDefinition Width="Auto"/>
@@ -87,6 +87,27 @@
                                                   Margin="24,0,0,0"
                                                   AutomationProperties.Name="Auto-quarantine Toggle"
                                                   AutomationProperties.HelpText="Enable or disable automatic quarantine of detected malware"/>
+                                </Grid>
+
+                                <!-- Self-healing (Watchdog) Toggle -->
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Grid.Column="0">
+                                        <TextBlock Text="Self-healing Protection" FontSize="14" FontWeight="Bold" Foreground="{StaticResource OnSurfaceBrush}"/>
+                                        <TextBlock Text="Ensures the protection engine and dashboard are always running. Restarts them automatically if they are terminated." FontSize="12" Foreground="{StaticResource OnSurfaceVariantBrush}" Opacity="0.7" Margin="0,4,0,0" TextWrapping="Wrap"/>
+                                    </StackPanel>
+                                    <ToggleButton Grid.Column="1" 
+                                                  Width="44" 
+                                                  Height="22" 
+                                                  IsChecked="{Binding IsWatchdogEnabled}" 
+                                                  Style="{StaticResource ToggleSwitchStyle}" 
+                                                  VerticalAlignment="Center" 
+                                                  Margin="24,0,0,0"
+                                                  AutomationProperties.Name="Self-healing Toggle"
+                                                  AutomationProperties.HelpText="Enable or disable the watchdog process that auto-restarts protection components"/>
                                 </Grid>
                             </StackPanel>
 

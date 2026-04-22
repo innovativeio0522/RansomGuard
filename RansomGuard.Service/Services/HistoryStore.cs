@@ -137,6 +137,19 @@ namespace RansomGuard.Service.Services
                 using var connection = new SqliteConnection(_connectionString);
                 await connection.OpenAsync().ConfigureAwait(false);
 
+                // Avoid duplicate rows: skip insert if the same path+name was logged within 24 hours.
+                var checkCmd = connection.CreateCommand();
+                checkCmd.CommandText = @"
+                    SELECT COUNT(*) FROM Threats
+                    WHERE Path = $path AND Name = $name
+                      AND Timestamp >= $since
+                ";
+                checkCmd.Parameters.AddWithValue("$path", threat.Path);
+                checkCmd.Parameters.AddWithValue("$name", threat.Name);
+                checkCmd.Parameters.AddWithValue("$since", threat.Timestamp.AddHours(-24));
+                var existing = (long)(await checkCmd.ExecuteScalarAsync().ConfigureAwait(false) ?? 0L);
+                if (existing > 0) return; // Duplicate within 24 h — skip
+
                 var command = connection.CreateCommand();
                 command.CommandText = @"
                     INSERT INTO Threats (Timestamp, Name, Description, Path, ProcessName, ProcessId, Severity, Status)
@@ -159,6 +172,7 @@ namespace RansomGuard.Service.Services
             }
         }
 
+
         public async Task<List<Threat>> GetActiveThreatsAsync()
         {
             var results = new List<Threat>();
@@ -174,12 +188,18 @@ namespace RansomGuard.Service.Services
                 while (await reader.ReadAsync().ConfigureAwait(false))
                 {
                     string severityStr = reader.GetString(7);
-                    ThreatSeverity severity = ThreatSeverity.Medium; // Default
+                    ThreatSeverity severity = ThreatSeverity.Medium;
                     if (Enum.TryParse<ThreatSeverity>(severityStr, out var parsedSeverity))
                     {
                         severity = parsedSeverity;
                     }
-                    
+
+                    // Column 8 is Status ("Active", "Quarantined", etc.)
+                    // Map DB Status → ActionTaken so the dashboard filter (ActionTaken == "Detected")
+                    // correctly includes unresolved threats.
+                    string dbStatus = reader.GetString(8);
+                    string actionTaken = dbStatus == "Active" ? "Detected" : dbStatus;
+
                     results.Add(new Threat
                     {
                         Timestamp = reader.GetDateTime(1),
@@ -188,7 +208,8 @@ namespace RansomGuard.Service.Services
                         Path = reader.GetString(4),
                         ProcessName = reader.GetString(5),
                         ProcessId = reader.GetInt32(6),
-                        Severity = severity
+                        Severity = severity,
+                        ActionTaken = actionTaken
                     });
                 }
             }

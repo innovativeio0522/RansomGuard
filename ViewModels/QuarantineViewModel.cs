@@ -19,17 +19,9 @@ namespace RansomGuard.ViewModels
         private readonly DispatcherTimer _refreshTimer;
         private bool _disposed;
 
-        [ObservableProperty]
-        private bool _isScanning;
 
-        [ObservableProperty]
-        private bool _isScanSummaryVisible;
 
-        [ObservableProperty]
-        private string _scanSummaryMessage = string.Empty;
 
-        [ObservableProperty]
-        private Brush _scanSummaryColor = Brushes.Transparent;
 
         private List<QuarantineItemViewModel> _allItems = new();
         public ObservableCollection<QuarantineItemViewModel> QuarantinedItems { get; } = new();
@@ -76,7 +68,6 @@ namespace RansomGuard.ViewModels
             _monitorService = monitorService;
             
             _monitorService.ThreatDetected += OnThreatDetected;
-            _monitorService.ScanCompleted += OnScanCompleted;
 
             LoadData();
 
@@ -256,76 +247,18 @@ namespace RansomGuard.ViewModels
         [RelayCommand]
         private async Task ClearSafeFiles()
         {
-            IsScanning = true;
             try
             {
                 await _monitorService.ClearSafeFiles();
-                System.Diagnostics.Debug.WriteLine("Requested ClearSafeFiles from service.");
+                LoadData();
             }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"ClearSafeFiles request failed: {ex.Message}");
             }
-            
-            IsScanning = false;
-            LoadData();
         }
 
-        [RelayCommand]
-        private async Task ScanAllRepositories()
-        {
-            Console.WriteLine("ScanAllRepositories command triggered.");
-            if (IsScanning) return;
-            
-            // Set scanning state and trigger refresh
-            IsScanning = true;
-            
-            try
-            {
-                Console.WriteLine("Starting PerformQuickScan...");
-                await _monitorService.PerformQuickScan();
-                
-                // We don't set IsScanning = false here anymore.
-                // We wait for the ScanCompleted event from the service.
-                // However, as a safety fallback, we'll auto-reset after 60 seconds.
-                _ = Task.Delay(60000).ContinueWith(_ => {
-                    if (IsScanning) IsScanning = false;
-                });
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Scan initiation failed: {ex.Message}");
-                IsScanning = false;
-            }
-        }
 
-        private void OnScanCompleted(ScanSummary summary)
-        {
-            App.Current.Dispatcher.Invoke(async () =>
-            {
-                Console.WriteLine($"UI received ScanCompleted signal. Checked: {summary.FilesChecked}, Threats: {summary.ThreatsFound}");
-                IsScanning = false;
-                LoadData();
-
-                // Generate feedback message
-                if (summary.ThreatsFound > 0)
-                {
-                    ScanSummaryMessage = $"SCAN COMPLETE: {summary.FilesChecked} files checked. {summary.ThreatsFound} THREATS IDENTIFIED AND ISOLATED.";
-                    ScanSummaryColor = (Brush)App.Current.TryFindResource("TertiaryBrush") ?? Brushes.Red;
-                }
-                else
-                {
-                    ScanSummaryMessage = $"SCAN COMPLETE: {summary.FilesChecked} files checked. No threats found.";
-                    ScanSummaryColor = (Brush)App.Current.TryFindResource("SecondaryBrush") ?? Brushes.Green;
-                }
-
-                IsScanSummaryVisible = true;
-
-                // Auto-hide after 7 seconds
-                await Task.Delay(7000);
-                IsScanSummaryVisible = false;
-            });
-        }
 
         private void OnThreatDetected(Threat threat)
         {
@@ -389,7 +322,6 @@ namespace RansomGuard.ViewModels
             _disposed = true;
             
             _monitorService.ThreatDetected -= OnThreatDetected;
-            _monitorService.ScanCompleted -= OnScanCompleted;
             
             // Stop and dispose refresh timer
             if (_refreshTimer != null)

@@ -5,5 +5,6 @@ namespace RansomGuard.Service.Engine
     public interface IProcessIdentityClassifier
     {
         (bool IsTrusted, string Status) DetermineIdentity(Process p);
+        System.Collections.Generic.List<Process> GetProcessesUsingFile(string path);
     }
 }

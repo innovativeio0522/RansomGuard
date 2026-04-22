@@ -14,44 +14,45 @@ using RansomGuard.Core.Helpers;
 
 namespace RansomGuard.Service.Engine
 {
+    /// <summary>
+    /// The core security engine of RansomGuard. Handles real-time file monitoring,
+    /// heuristic analysis, and threat classification.
+    /// Decomposed (#29): Telemetry and History management are now handled by specialized services.
+    /// </summary>
     public class SentinelEngine : ISystemMonitorService, IDisposable
     {
-        private const int WindowSeconds = 10;   // Increased to 10s window
+        private const int WindowSeconds = 10;
         private const int MaxActivityHistory = 100;
-        private const int MaxThreatCacheAgeMinutes = 1440; // 24 hours
 
-        /// <summary>
-        /// Returns the mass-change velocity threshold tuned to the current sensitivity level.
-        /// Paranoid mode triggers on fewer changes; Low mode requires more before alerting.
-        /// </summary>
         private static int GetChangeThreshold() => ConfigurationService.Instance.SensitivityLevel switch
         {
-            1 => 50,  // Low     — require 50+ rapid changes
-            2 => 40,  // Medium  — require 40+ rapid changes
-            3 => 30,  // High    — require 30+ rapid changes (previous default)
-            4 => 20,  // Paranoid — trigger on 20+ rapid changes
-            _ => 30
+            1 => 50, 2 => 40, 3 => 30, 4 => 20, _ => 30
         };
 
-        /// <summary>
-        /// Returns the entropy detection threshold tuned to the current sensitivity level.
-        /// Lower threshold = more sensitive (more detections). Higher = more permissive.
-        /// </summary>
-        private static double GetEntropyThreshold(bool isMediaFile)
+        private double GetEntropyThreshold(string path, bool isTrustedProcess = false, bool isScan = false)
         {
+            bool isMedia = _entropyAnalyzer.IsMediaFile(path);
+            bool isBinary = _entropyAnalyzer.IsHighEntropyExtension(path);
+
             double baseThreshold = ConfigurationService.Instance.SensitivityLevel switch
             {
-                1 => 7.2,  // Low     — only flag very obviously encrypted data
-                2 => 6.5,  // Medium
-                3 => 6.0,  // High    — previous hardcoded default
-                4 => 5.0,  // Paranoid — flag moderately encrypted content
-                _ => 6.0
+                1 => 7.8, // Low
+                2 => 7.5, // Medium
+                3 => 7.2, // High
+                4 => 6.8, // Paranoid
+                _ => 7.2
             };
-            // Media files (images, video, archives) are naturally high-entropy;
-            // apply a fixed +1.0 offset so they need a higher score to trigger.
-            return isMediaFile ? baseThreshold + 1.0 : baseThreshold;
+
+            if (isMedia || isBinary)
+            {
+                if (isTrustedProcess) return 7.99;
+                if (isScan) return 7.95;
+                return 7.85; 
+            }
+            
+            return baseThreshold;
         }
-        
+
         public bool IsConnected => true;
         public event Action<bool>? ConnectionStatusChanged = delegate { };
         public event Action<FileActivity>? FileActivityDetected;
@@ -60,337 +61,192 @@ namespace RansomGuard.Service.Engine
         public event Action? ProcessListUpdated = delegate { };
         public event Action<TelemetryData>? TelemetryUpdated;
 
-
         private readonly List<FileSystemWatcher> _watchers = new();
-        private readonly List<FileActivity> _activityHistory = new();
-        private readonly List<Threat> _threatHistory = new();
-        private readonly IHistoryStore _historyStore;
+        private readonly HistoryManager _historyManager;
+        private readonly ITelemetryService _telemetryService;
         private readonly IQuarantineService _quarantine;
         private readonly IEntropyAnalyzer _entropyAnalyzer;
         private readonly IProcessIdentityClassifier _processClassifier;
-        private readonly object _historyLock = new object();
+        
         private readonly Queue<DateTime> _recentChanges = new();
-        private readonly object _recentChangesLock = new object();
-        private readonly object _threatDedupLock = new object();
-        
-        // Track threat report times for periodic cleanup
-        private readonly Dictionary<string, DateTime> _reportedThreats = new();
-        
-        // Debounce cache for redundant file events (path -> last access time)
+        private readonly object _recentChangesLock = new();
         private readonly ConcurrentDictionary<string, DateTime> _eventDebounceCache = new();
 
-        public bool IsHoneyPotActive { get; set; }
-        public bool IsVssShieldActive { get; set; }
+        public bool IsHoneyPotActive { get; set; } = true;
+        public bool IsVssShieldActive { get; set; } = true;
         public bool IsPanicModeActive { get; set; }
 
-        private readonly SystemMetricsProvider _metricsProvider;
-        private double _currentKernelCpuUsage = 0;
-        private double _currentUserCpuUsage = 0;
-        private DateTime _lastScanTime = ConfigurationService.Instance.LastScanTime;
-        private System.Timers.Timer? _telemetryTimer;
-        private System.Timers.Timer? _cleanupTimer;
-
-        private double _currentCpuUsage = 0;
-        private long _currentMemoryUsage = 0;
-        private double _currentSystemRamUsedMb = 0;
-        private double _currentSystemRamTotalMb = 0;
         private double _lastEntropyScore = 1.5;
+        private DateTime _lastScanTime = ConfigurationService.Instance.LastScanTime;
         private bool _disposed;
-
-        // Cached process stats — updated by the 2s telemetry timer to avoid calling
-        // Process.GetProcesses() inside GetTelemetry() on every IPC broadcast tick.
-        private int _cachedProcessCount = 0;
-        private int _cachedThreadCount = 0;
-        private double _cachedTrustedPercent = 99.0;
-        private int _cachedSuspiciousCount = 0;
+        private System.Timers.Timer? _engineCleanupTimer;
 
         public SentinelEngine(
-            IEntropyAnalyzer? entropyAnalyzer = null, 
+            ITelemetryService? telemetry = null,
+            HistoryManager? history = null,
+            IEntropyAnalyzer? entropyAnalyzer = null,
             IProcessIdentityClassifier? processClassifier = null,
-            IHistoryStore? historyStore = null,
             IQuarantineService? quarantine = null)
         {
+            _telemetryService = telemetry ?? new TelemetryService();
+            _historyManager = history ?? new HistoryManager(new HistoryStore());
             _entropyAnalyzer = entropyAnalyzer ?? new EntropyAnalysisService();
             _processClassifier = processClassifier ?? new ProcessIdentityService();
-            _historyStore = historyStore ?? new Services.HistoryStore();
-            _quarantine = quarantine ?? new QuarantineService(_historyStore);
-            _metricsProvider = new SystemMetricsProvider();
+            _quarantine = quarantine ?? new QuarantineService(new HistoryStore());
 
-            try
-            {
-                bool isAdmin = false;
-                if (OperatingSystem.IsWindows())
-                {
-                    using var identity = System.Security.Principal.WindowsIdentity.GetCurrent();
-                    var principal = new System.Security.Principal.WindowsPrincipal(identity);
-                    isAdmin = principal.IsInRole(System.Security.Principal.WindowsBuiltInRole.Administrator);
-                }
-                Console.WriteLine($"[SentinelEngine] Initializing engine. Admin Privileges: {isAdmin}");
-            }
-            catch { Console.WriteLine("[SentinelEngine] Failed to check admin status."); }
-
-            InitializeCounters();
             InitializeWatchers();
-            StartTelemetryPolling();
-            StartCleanupTimer();
             
-            LoadHistoryFromDatabase();
-            
+            // Re-trigger watchers on config change
             ConfigurationService.Instance.PathsChanged += () => InitializeWatchers();
-        }
 
-        private void InitializeCounters()
-        {
-            // Performance Counters removed in favor of kernel-level SystemMetricsProvider
-        }
-
-        private void StartTelemetryPolling()
-        {
-            _telemetryTimer = new System.Timers.Timer(2000);
-            _telemetryTimer.Elapsed += (s, e) => {
-                var (total, kernel, user) = _metricsProvider.GetCpuUsage();
-                _currentCpuUsage = total;
-                _currentKernelCpuUsage = kernel;
-                _currentUserCpuUsage = user;
-                
-                try {
-                    _currentMemoryUsage = Process.GetCurrentProcess().WorkingSet64;
-                    
-                    // Fetch system RAM stats using NativeMemory helper
-                    if (NativeMemory.GetMemoryStatus(out var ms))
-                    {
-                        _currentSystemRamTotalMb = ms.ullTotalPhys / (1024.0 * 1024.0);
-                        _currentSystemRamUsedMb = (ms.ullTotalPhys - ms.ullAvailPhys) / (1024.0 * 1024.0);
-                    }
-
-                    // Cache process/thread stats here so GetTelemetry() doesn't need to
-                    // call Process.GetProcesses() on every IPC broadcast (fixes #28).
-                    var procs = Process.GetProcesses();
-                    int totalProcs = procs.Length;
-                    int totalThreads = 0;
-                    foreach (var p in procs) { try { totalThreads += p.Threads.Count; } catch { } }
-                    int suspicious = totalProcs > 0 ? Math.Max(1, (int)(totalProcs * 0.01)) : 0;
-                    double trusted = totalProcs > 0
-                        ? Math.Round(((double)(totalProcs - suspicious) / totalProcs) * 100, 1)
-                        : 100.0;
-                    _cachedProcessCount  = totalProcs;
-                    _cachedThreadCount   = totalThreads;
-                    _cachedSuspiciousCount = suspicious;
-                    _cachedTrustedPercent  = trusted;
-                } catch { }
-
-                TelemetryUpdated?.Invoke(GetTelemetry());
+            // Link telemetry updates
+            _telemetryService.TelemetryUpdated += (data) => TelemetryUpdated?.Invoke(GetTelemetry());
+            
+            _engineCleanupTimer = new System.Timers.Timer(3600000); // 1 hour
+            _engineCleanupTimer.Elapsed += (s, e) => {
+                _historyManager.CleanupCache();
+                CleanupDebounceCache();
             };
-            _telemetryTimer.Start();
+            _engineCleanupTimer.Start();
+
+            // Initial historical load
+            _ = _historyManager.LoadFromStoreAsync();
         }
 
-        private void StartCleanupTimer()
+        private void CleanupDebounceCache()
         {
-            _cleanupTimer = new System.Timers.Timer(3600000); // 1 hour
-            _cleanupTimer.Elapsed += (s, e) => {
-                CleanupThreatCache();
-                ProcessStatsProvider.Instance.Cleanup();
-            };
-            _cleanupTimer.Start();
-        }
-
-        private void CleanupThreatCache()
-        {
-            lock (_threatDedupLock)
-            {
-                var now = DateTime.Now;
-                var keysToRemove = _reportedThreats
-                    .Where(kvp => (now - kvp.Value).TotalMinutes > MaxThreatCacheAgeMinutes)
-                    .Select(kvp => kvp.Key)
-                    .ToList();
-
-                foreach (var key in keysToRemove)
-                    _reportedThreats.Remove(key);
-            }
-
-            // Cleanup debounce cache for entries older than 5 seconds
-            var debounceKeysToRemove = _eventDebounceCache
-                .Where(kvp => (DateTime.Now - kvp.Value).TotalSeconds > 5)
+            var now = DateTime.Now;
+            var keysToRemove = _eventDebounceCache
+                .Where(kvp => (now - kvp.Value).TotalSeconds > 10)
                 .Select(kvp => kvp.Key)
                 .ToList();
-            foreach (var key in debounceKeysToRemove)
+            foreach (var key in keysToRemove)
                 _eventDebounceCache.TryRemove(key, out _);
-        }
-
-        private void LogEngineEvent(string message)
-        {
-            try
-            {
-                var logPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "RansomGuard", "Logs", "engine_init.log");
-                var directory = Path.GetDirectoryName(logPath);
-                if (directory != null && !Directory.Exists(directory)) Directory.CreateDirectory(directory);
-                File.AppendAllText(logPath, $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] {message}{Environment.NewLine}");
-            }
-            catch { }
-            Console.WriteLine(message);
         }
 
         public void InitializeWatchers()
         {
-            LogEngineEvent("[SentinelEngine] InitializeWatchers() called.");
             lock (_watchers)
             {
-                foreach (var watcher in _watchers)
-                {
-                    watcher.EnableRaisingEvents = false;
-                    watcher.Dispose();
-                }
+                foreach (var w in _watchers) { w.EnableRaisingEvents = false; w.Dispose(); }
                 _watchers.Clear();
 
-                LogEngineEvent($"[SentinelEngine] RealTimeProtection state: {ConfigurationService.Instance.RealTimeProtection}");
-                if (!ConfigurationService.Instance.RealTimeProtection)
-                {
-                    LogEngineEvent("[SentinelEngine] Real-time protection is DISABLED. Watchers NOT started.");
-                    return;
-                }
+                if (!ConfigurationService.Instance.RealTimeProtection) return;
 
-                var rawPaths = ConfigurationService.Instance.MonitoredPaths.Distinct().ToList();
-                foreach (var rawPath in rawPaths)
+                foreach (var rawPath in ConfigurationService.Instance.MonitoredPaths.Distinct())
                 {
-                    // Strict Normalization: Ensure path is absolute, trimmed and lowercase
                     string path = Path.GetFullPath(rawPath).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar).ToLowerInvariant();
+                    if (!Directory.Exists(path)) continue;
 
-                    if (Directory.Exists(path))
+                    try
                     {
-                        try
+                        var watcher = new FileSystemWatcher(path)
                         {
-                            var watcher = new FileSystemWatcher(path)
-                            {
-                                NotifyFilter = NotifyFilters.FileName | NotifyFilters.DirectoryName | NotifyFilters.LastWrite | NotifyFilters.Attributes,
-                                IncludeSubdirectories = true,
-                                InternalBufferSize = 65536
-                            };
+                            NotifyFilter = NotifyFilters.FileName | NotifyFilters.DirectoryName | NotifyFilters.LastWrite | NotifyFilters.Attributes,
+                            IncludeSubdirectories = true,
+                            InternalBufferSize = 65536
+                        };
 
-                            watcher.Created += (s, e) => OnFileChanged(e.FullPath, "CREATED");
-                            watcher.Changed += (s, e) => OnFileChanged(e.FullPath, "CHANGED");
-                            watcher.Deleted += (s, e) => OnFileChanged(e.FullPath, "DELETED");
-                            watcher.Renamed += (s, e) => OnFileChanged(e.FullPath, $"RENAMED FROM {e.OldName} TO {e.Name}");
-                            watcher.Error += (s, e) => LogEngineEvent($"[SentinelEngine] WATCHER ERROR for {path}: {e.GetException()?.Message}");
+                        watcher.Created += (s, e) => OnFileChanged(e.FullPath, "CREATED");
+                        watcher.Changed += (s, e) => OnFileChanged(e.FullPath, "CHANGED");
+                        watcher.Deleted += (s, e) => OnFileChanged(e.FullPath, "DELETED");
+                        watcher.Renamed += (s, e) => OnFileChanged(e.FullPath, $"RENAMED FROM {e.OldName} TO {e.Name}");
 
-                            watcher.EnableRaisingEvents = true;
-                            _watchers.Add(watcher);
-                            LogEngineEvent($"[SentinelEngine] SUCCESSFULLY started watcher for: {path}");
-                        }
-
-                        catch (Exception ex)
-                        {
-                            LogEngineEvent($"[SentinelEngine] Failed to start watcher for {path}: {ex.Message}");
-                        }
-                    }
-                    else
-                    {
-                        LogEngineEvent($"[SentinelEngine] Directory NOT found or inaccessible: {path}");
-                    }
+                        watcher.EnableRaisingEvents = true;
+                        _watchers.Add(watcher);
+                    } catch { }
                 }
-                LogEngineEvent($"[SentinelEngine] Initialized {_watchers.Count} file system watchers.");
             }
         }
 
         private bool IsEventDebounced(string path, string action)
         {
-            var normalizedPath = path.ToLowerInvariant();
             var now = DateTime.Now;
-            
-            // Deduplicate based on Path AND Action within a short window
-            string key = $"{normalizedPath}|{action}";
-            
+            string key = $"{path.ToLowerInvariant()}|{action}";
             bool isNew = true;
-            _eventDebounceCache.AddOrUpdate(key, now, (k, lastTime) => 
-            {
-                if ((now - lastTime).TotalMilliseconds < 500) // Increased to 500ms for strict deduplication
-                {
-                    isNew = false;
-                    return lastTime; 
-                }
+            _eventDebounceCache.AddOrUpdate(key, now, (k, lastTime) => {
+                if ((now - lastTime).TotalMilliseconds < 500) { isNew = false; return lastTime; }
                 return now;
             });
-            
-            // Special Rule: If a file was just CREATED, ignore any CHANGED events for it for 1 second 
-            // (OS often fires both during creation)
-            if (action == "CHANGED")
-            {
-                string createKey = $"{normalizedPath}|CREATED";
-                if (_eventDebounceCache.TryGetValue(createKey, out var lastCreate) && (now - lastCreate).TotalMilliseconds < 1000)
-                {
-                    return true; // Already handled by the "Born" event
-                }
-            }
-
             return !isNew;
         }
 
         internal void OnFileChanged(string path, string action)
         {
-            if (!ConfigurationService.Instance.RealTimeProtection) return;
-
-            // Ignore internal bait file deployment/updates to keep activity logs clean for the user
+            Console.WriteLine($"[SentinelEngine] Event: {action} on {path}");
+            if (!ConfigurationService.Instance.RealTimeProtection || IsEventDebounced(path, action)) return;
             if (path.Contains("!$RansomGuard_Bait", StringComparison.OrdinalIgnoreCase)) return;
+            
+            // Skip excluded directories in real-time as well
+            if (_entropyAnalyzer.ShouldSkipDirectory(path) || path.Split(Path.DirectorySeparatorChar).Any(part => _entropyAnalyzer.ShouldSkipDirectory(part))) return;
 
-            // 1. FILTER: Ignore directory-level change events (only interested in files)
             if (Directory.Exists(path) && !File.Exists(path)) return;
 
-            // 2. DEBOUNCE: Use high-fidelity unique identification to suppress redundant bursts
-            if (IsEventDebounced(path, action)) return;
-
-            Console.WriteLine($"[SentinelEngine] EVENT DETECTED: {action} - {path}");
-
-            // Delegate heuristic analysis to EntropyAnalysisService
             bool suspExt = _entropyAnalyzer.IsSuspiciousExtension(path);
-            bool isMedia  = _entropyAnalyzer.IsMediaFile(path);
-
+            bool isMedia = _entropyAnalyzer.IsMediaFile(path);
+            bool isBinary = _entropyAnalyzer.IsHighEntropyExtension(path);
             double entropy = 0;
-            if (action == "CHANGED" || action.Contains("RENAMED") || suspExt || isMedia)
+
+            // --- NEW: Process Attribution ---
+            string culpritProcess = "Unknown";
+            bool isTrustedProcess = false;
+
+            // NOTE: For RENAMED events the old file handle is already released, so process
+            // attribution via file-handle lookup is unreliable. Never let a trusted process
+            // suppress alerts for renamed files — we only use attribution for display purposes.
+            try
+            {
+                System.Threading.Thread.Sleep(50); 
+                var processes = _processClassifier.GetProcessesUsingFile(path);
+                foreach (var p in processes)
+                {
+                    if (p.ProcessName.Contains("RansomGuard", StringComparison.OrdinalIgnoreCase)) continue;
+                    culpritProcess = p.ProcessName;
+                    var identity = _processClassifier.DetermineIdentity(p);
+                    // Only mark trusted for non-rename events; renames always run full checks.
+                    if (!action.Contains("RENAMED"))
+                    {
+                        isTrustedProcess = identity.IsTrusted;
+                        if (isTrustedProcess) break;
+                    }
+                }
+            }
+            catch { }
+            // --------------------------------
+
+            if (action == "CHANGED" || action == "CREATED" || action.Contains("RENAMED") || suspExt || isMedia || isBinary)
             {
                 entropy = _entropyAnalyzer.CalculateShannonEntropy(path);
                 _lastEntropyScore = entropy;
             }
 
-            // For media files, use a near-maximum entropy threshold throughout the entire 
-            // write sequence. This prevents valid screenshots/videos from triggering 
-            // "Suspicious" alerts during their creation/finalization phase.
-            double threshold = isMedia ? 7.8 : GetEntropyThreshold(isMedia);
-
+            double threshold = GetEntropyThreshold(path, isTrustedProcess, isScan: false);
             bool isEntropyAlert = entropy > threshold;
-            bool isRenameAlert  = _entropyAnalyzer.IsSuspiciousRenamePattern(action);
-
+            bool isRenameAlert = _entropyAnalyzer.IsSuspiciousRenamePattern(action);
+            
             var activity = new FileActivity
             {
                 Id = Guid.NewGuid().ToString(),
-                Timestamp    = DateTime.Now,
-                FilePath     = path,
-                Action       = action,
-                ProcessName  = "System", // Future: Implement PID attribution via ETW
-                Entropy      = entropy,
+                Timestamp = DateTime.Now,
+                FilePath = path,
+                Action = action,
+                ProcessName = culpritProcess,
+                Entropy = entropy,
                 IsSuspicious = isEntropyAlert || isRenameAlert
             };
 
-            lock (_historyLock)
-            {
-                _activityHistory.Insert(0, activity);
-                if (_activityHistory.Count > MaxActivityHistory) _activityHistory.RemoveAt(MaxActivityHistory);
-            }
-
-            _ = _historyStore.SaveActivityAsync(activity);
+            _historyManager.AddActivity(activity);
             FileActivityDetected?.Invoke(activity);
 
             if (activity.IsSuspicious)
             {
                 string reason = suspExt ? "Suspicious Extension" : (isEntropyAlert ? "High Entropy Data" : "Suspicious Pattern");
-                string threatAction = "Detected";
+                string threatAction = ConfigurationService.Instance.AutoQuarantine ? "Quarantined" : "Detected";
                 
-                if (ConfigurationService.Instance.AutoQuarantine)
-                {
-                    _ = _quarantine.QuarantineFile(path);
-                    threatAction = "Quarantined";
-                }
+                if (ConfigurationService.Instance.AutoQuarantine) _ = _quarantine.QuarantineFile(path);
 
                 ReportThreat(path, $"{reason} Detected", "System generated alert based on heuristic pattern mismatch.",
-                    isEntropyAlert ? ThreatSeverity.High : ThreatSeverity.Medium, threatAction);
+                    culpritProcess, 0, isEntropyAlert ? ThreatSeverity.High : ThreatSeverity.Medium, threatAction);
             }
 
             CheckMassChangeVelocity();
@@ -402,287 +258,122 @@ namespace RansomGuard.Service.Engine
             lock (_recentChangesLock)
             {
                 _recentChanges.Enqueue(now);
-                while (_recentChanges.Count > 0 && (now - _recentChanges.Peek()).TotalSeconds > WindowSeconds)
-                {
-                    _recentChanges.Dequeue();
-                }
+                while (_recentChanges.Count > 0 && (now - _recentChanges.Peek()).TotalSeconds > WindowSeconds) _recentChanges.Dequeue();
 
                 if (_recentChanges.Count >= GetChangeThreshold())
                 {
-                    ReportThreat("ALL_DRIVES", "MASSIVE FILE ENCRYPTION ACTION DETECTED", $"Multiple rapid file changes detected in a short window (threshold: {GetChangeThreshold()} in {WindowSeconds}s). Potential active ransomware spray.", ThreatSeverity.Critical);
+                    ReportThreat("ALL_DRIVES", "MASSIVE FILE ENCRYPTION ACTION DETECTED", 
+                        $"Multiple rapid file changes detected in a short window (threshold: {GetChangeThreshold()} in {WindowSeconds}s).", 
+                        "System", 0, ThreatSeverity.Critical);
                     _recentChanges.Clear();
                 }
             }
         }
 
-        public void ReportThreat(string path, string threatName, string description, ThreatSeverity severity = ThreatSeverity.Medium, string actionTaken = "Detected")
+        public void ReportThreat(string path, string threatName, string description, 
+            string processName = "Sentinel Heuristics", int processId = 0,
+            ThreatSeverity severity = ThreatSeverity.Medium, string actionTaken = "Detected")
         {
-            string threatKey = $"{path}|{threatName}";
-            bool shouldReport = false;
-            
-            lock (_threatDedupLock)
-            {
-                if (!_reportedThreats.ContainsKey(threatKey))
-                {
-                    _reportedThreats[threatKey] = DateTime.Now;
-                    shouldReport = true;
-                }
-            }
-            
-            if (!shouldReport) return;
+            if (!_historyManager.ShouldReportThreat(path, threatName)) return;
 
             var threat = new Threat
             {
                 Name = threatName,
                 Description = description,
                 Path = path,
-                ProcessName = "Sentinel Heuristics",
-                ProcessId = 0, // In production, this would be looked up via ETW/Kernel
+                ProcessName = processName,
+                ProcessId = processId,
                 Severity = severity,
                 Timestamp = DateTime.Now,
                 ActionTaken = actionTaken
             };
 
-            lock (_historyLock)
-            {
-                _threatHistory.Insert(0, threat);
-            }
-            
-            // Persist threat to database
-            _ = _historyStore.SaveThreatAsync(threat);
-            
+            _historyManager.AddThreat(threat);
             ThreatDetected?.Invoke(threat);
         }
 
-        public IEnumerable<Threat> GetRecentThreats()
-        {
-            lock (_historyLock) { return _threatHistory.Take(50).ToList(); }
-        }
-
-        public IEnumerable<FileActivity> GetRecentFileActivities()
-        {
-            lock (_historyLock) { return _activityHistory.Take(50).ToList(); }
-        }
-
-        private void LoadHistoryFromDatabase()
-        {
-            Task.Run(async () => {
-                var history = await _historyStore.GetHistoryAsync(50).ConfigureAwait(false);
-                lock (_historyLock)
-                {
-                    _activityHistory.Clear();
-                    _activityHistory.AddRange(history);
-                }
-                Console.WriteLine($"[SentinelEngine] Loaded {history.Count} historical activities from database.");
-                
-                // Load active threats from database
-                var threats = await _historyStore.GetActiveThreatsAsync().ConfigureAwait(false);
-                
-                lock (_threatDedupLock)
-                lock (_historyLock)
-                {
-                    _threatHistory.Clear();
-                    
-                    // Deduplicate results while loading into memory to handle "dirty" database states
-                    foreach (var threat in threats)
-                    {
-                        string threatKey = $"{threat.Path}|{threat.Name}";
-                        if (!_reportedThreats.ContainsKey(threatKey))
-                        {
-                            _threatHistory.Add(threat);
-                            _reportedThreats[threatKey] = threat.Timestamp;
-                        }
-                    }
-                }
-                
-                Console.WriteLine($"[SentinelEngine] Loaded {_threatHistory.Count} unique active threats and initialized deduplication memory.");
-            });
-        }
-
+        public IEnumerable<Threat> GetRecentThreats() => _historyManager.GetRecentThreats();
+        public IEnumerable<FileActivity> GetRecentFileActivities() => _historyManager.GetRecentActivities();
         public DateTime GetLastScanTime() => _lastScanTime;
 
-        public async Task PerformQuickScan()
-        {
-            await Task.Run(() => {
-                var paths = ConfigurationService.Instance.MonitoredPaths;
-                int filesChecked = 0;
-                int threatsFound = 0;
 
-                // Clear previous scan's false positives from the dashboard list via IPC if needed, 
-                // but since the dashboard aggregates, we'll just ensure we don't alert twice.
-                foreach (var path in paths)
-                {
-                    if (Directory.Exists(path))
-                    {
-                        try
-                        {
-                            var files = Directory.EnumerateFiles(path, "*.*", SearchOption.AllDirectories);
-                            foreach (var file in files)
-                            {
-                                filesChecked++;
-                                
-                                bool suspExt = _entropyAnalyzer.IsSuspiciousExtension(file);
-                                double scanEntropy = 0;
-                                
-                                // Optimization: Entropy without a baseline (real-time before/after) is fundamentally flawed 
-                                // for static disk scanning because valid packed archives and encrypted DBs sit at ~7.99 H/b.
-                                // We ONLY flag static files if they actively sport a known ransomware extension.
-                                // Real-time encryption detection is handled by OnFileChanged.
 
-                                if (suspExt)
-                                {
-                                    threatsFound++;
-                                    string reason = "Suspicious Extension";
-                                    string desc = "A file with a known ransomware-associated extension was discovered during a system scan.";
-                                    string threatAction = "Detected";
-
-                                    // If Auto-Quarantine is enabled, move the file immediately
-                                    if (ConfigurationService.Instance.AutoQuarantine)
-                                    {
-                                        _ = _quarantine.QuarantineFile(file);
-                                        threatAction = "Quarantined";
-                                    }
-
-                                    ReportThreat(file, $"{reason} Found", desc, ThreatSeverity.High, threatAction);
-                                }
-                            }
-                        }
-                        catch (Exception ex)
-                        {
-                            Console.WriteLine($"Error scanning {path}: {ex.Message}");
-                        }
-                    }
-                }
-                _lastScanTime = DateTime.Now;
-                ConfigurationService.Instance.LastScanTime = _lastScanTime;
-                ConfigurationService.Instance.Save();
-
-                ScanCompleted?.Invoke(new ScanSummary 
-                { 
-                    FilesChecked = filesChecked, 
-                    ThreatsFound = threatsFound,
-                    Timestamp = DateTime.Now
-                });
-            });
-        }
 
         public IEnumerable<ProcessInfo> GetActiveProcesses()
         {
-            var processes  = Process.GetProcesses();
-            int logCount   = 0;
-
-            // Delegate identity classification to ProcessIdentityService
-            var allProcessInfos = processes.Select(p =>
-            {
-                try
-                {
+            // This is still fairly expensive, but we delegate identity to the classifier
+            return Process.GetProcesses().Select(p => {
+                try {
                     (bool isTrusted, string status) = _processClassifier.DetermineIdentity(p);
-                    var info = new ProcessInfo
-                    {
-                        Pid             = p.Id,
-                        Name            = p.ProcessName,
-                        CpuUsage        = ProcessStatsProvider.Instance.GetCpuUsage(p),
-                        MemoryUsage     = p.WorkingSet64,
-                        IsTrusted       = isTrusted,
-                        SignatureStatus  = status,
-                        IoRate          = Math.Round(Random.Shared.NextDouble() * 5, 2) // #31 fixed: use Random.Shared
+                    return new ProcessInfo {
+                        Pid = p.Id, Name = p.ProcessName, CpuUsage = 0, // Simplified for this view
+                        MemoryUsage = p.WorkingSet64, IsTrusted = isTrusted, SignatureStatus = status,
+                        IoRate = Math.Round(Random.Shared.NextDouble() * 5, 2)
                     };
-                    if (logCount++ < 10)
-                        Console.WriteLine($"[SentinelEngine] Process: {p.ProcessName}, PID={p.Id}, Trusted={isTrusted}");
-                    return info;
-                }
-                catch { return null; }
-            }).Where(p => p != null).Cast<ProcessInfo>().ToList();
-            
-            // Smart selection: Always include system/trusted processes, then fill with top user processes
-            var trustedProcesses = allProcessInfos.Where(p => p.IsTrusted).OrderByDescending(p => p.MemoryUsage).ToList();
-            var userProcesses = allProcessInfos.Where(p => !p.IsTrusted).OrderByDescending(p => p.MemoryUsage).ToList();
-            
-            // Take up to 20 trusted processes and 30 user processes (total 50)
-            var selectedProcesses = trustedProcesses.Take(20).Concat(userProcesses.Take(30)).ToList();
-            
-            var trustedCount = selectedProcesses.Count(p => p.IsTrusted);
-            var untrustedCount = selectedProcesses.Count - trustedCount;
-            Console.WriteLine($"[SentinelEngine] GetActiveProcesses: Total={selectedProcesses.Count}, Trusted={trustedCount}, Untrusted={untrustedCount}");
-            
-            return selectedProcesses;
+                } catch { return null; }
+            }).Where(p => p != null).Cast<ProcessInfo>().OrderByDescending(p => p.MemoryUsage).Take(50).ToList();
         }
 
-        public double GetSystemCpuUsage() => _currentCpuUsage;
-        public long GetSystemMemoryUsage() => _currentMemoryUsage;
+        public double GetSystemCpuUsage() => _telemetryService.CurrentCpuUsage;
+        public long GetSystemMemoryUsage() => _telemetryService.CurrentMemoryUsage;
         public int GetMonitoredFilesCount() => _watchers.Count;
 
-        public RansomGuard.Core.IPC.TelemetryData GetTelemetry()
+        public TelemetryData GetTelemetry()
         {
-            // Process/thread counts come from cached fields updated by the 2s timer.
-            // This avoids an expensive Process.GetProcesses() call on every IPC broadcast.
+            var data = _telemetryService.GetLatestTelemetry();
+            
             int activeWatcherCount;
-            lock (_watchers)
-            {
-                activeWatcherCount = _watchers.Count(w => w.EnableRaisingEvents);
-            }
+            lock (_watchers) { activeWatcherCount = _watchers.Count(w => w.EnableRaisingEvents); }
 
-            return new RansomGuard.Core.IPC.TelemetryData
-            {
-                CpuUsage = _currentCpuUsage,
-                KernelCpuUsage = _currentKernelCpuUsage,
-                UserCpuUsage = _currentUserCpuUsage,
-                MemoryUsage = _currentMemoryUsage,
-                SystemRamUsedMb = _currentSystemRamUsedMb,
-                SystemRamTotalMb = _currentSystemRamTotalMb,
-                EntropyScore = _lastEntropyScore,
-                MonitoredFilesCount = _watchers.Count,
-                ActiveWatchers = activeWatcherCount,
-                ProcessesCount = _cachedProcessCount,
-                ActiveThreadsCount = _cachedThreadCount,
-                TrustedProcessPercent = _cachedTrustedPercent,
-                SuspiciousProcessCount = _cachedSuspiciousCount,
-                IsHoneyPotActive = IsHoneyPotActive,
-                IsVssShieldActive = IsVssShieldActive,
-                IsPanicModeActive = IsPanicModeActive,
-                QuarantinedFilesCount = GetQuarantinedFiles().Count(),
-                QuarantineStorageMb = GetQuarantineStorageUsage(),
-                IsRealTimeProtectionEnabled = ConfigurationService.Instance.RealTimeProtection,
-                MonitoredPaths = _watchers.Select(w => w.Path).ToArray(),
-                LastScanTime = _lastScanTime,
-                TotalScansCount = ConfigurationService.Instance.TotalScansCount
-            };
+            data.EntropyScore = _lastEntropyScore;
+            data.MonitoredFilesCount = _watchers.Count;
+            data.ActiveWatchers = activeWatcherCount;
+            data.IsHoneyPotActive = IsHoneyPotActive;
+            data.IsVssShieldActive = IsVssShieldActive;
+            data.IsPanicModeActive = IsPanicModeActive;
+            data.QuarantinedFilesCount = GetQuarantinedFiles().Count();
+            data.QuarantineStorageMb = GetQuarantineStorageUsage();
+            data.IsRealTimeProtectionEnabled = ConfigurationService.Instance.RealTimeProtection;
+            data.MonitoredPaths = _watchers.Select(w => w.Path).ToArray();
+            data.LastScanTime = _lastScanTime;
+            data.TotalScansCount = ConfigurationService.Instance.TotalScansCount;
+            
+            return data;
         }
 
-
-        // --- Quarantine delegation (all I/O handled by QuarantineService) ---
-
-        public IEnumerable<string> GetQuarantinedFiles()      => _quarantine.GetQuarantinedFiles();
-        public double GetQuarantineStorageUsage()             => _quarantine.GetStorageUsageMb();
-        public async Task QuarantineFile(string path)         
+        public IEnumerable<string> GetQuarantinedFiles() => _quarantine.GetQuarantinedFiles();
+        public double GetQuarantineStorageUsage() => _quarantine.GetStorageUsageMb();
+        
+        public async Task QuarantineFile(string path)
         {
             await _quarantine.QuarantineFile(path).ConfigureAwait(false);
-            lock (_historyLock)
-            {
-                var matchingThreats = _threatHistory.Where(t => string.Equals(t.Path, path, StringComparison.OrdinalIgnoreCase));
-                foreach (var t in matchingThreats) t.ActionTaken = "Quarantined";
-            }
+            _historyManager.UpdateThreatStatus(path, "Quarantined");
         }
-        public async Task RestoreQuarantinedFile(string path) => await _quarantine.RestoreQuarantinedFile(path).ConfigureAwait(false);
-        public async Task DeleteQuarantinedFile(string path)  => await _quarantine.DeleteQuarantinedFile(path).ConfigureAwait(false);
-        public async Task ClearSafeFiles()                    => await _quarantine.ClearOldFiles().ConfigureAwait(false);
+
+        public async Task RestoreQuarantinedFile(string path)
+        {
+            await _quarantine.RestoreQuarantinedFile(path).ConfigureAwait(false);
+            _historyManager.UpdateThreatStatus(path, "Restored");
+        }
+
+        public async Task DeleteQuarantinedFile(string path)
+        {
+            await _quarantine.DeleteQuarantinedFile(path).ConfigureAwait(false);
+            _historyManager.UpdateThreatStatus(path, "Deleted");
+        }
+
+        public async Task ClearSafeFiles() => await _quarantine.ClearOldFiles().ConfigureAwait(false);
 
         public async Task KillProcess(int pid)
         {
-            await Task.Run(() =>
-            {
-                try   { Process.GetProcessById(pid).Kill(true); }
-                catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"KillProcess error: {ex.Message}"); }
-            });
+            await Task.Run(() => { try { Process.GetProcessById(pid).Kill(true); } catch { } });
         }
 
         public async Task WhitelistProcess(string name)
         {
             if (string.IsNullOrEmpty(name)) return;
-            
             await Task.Run(() => {
-                if (!ConfigurationService.Instance.WhitelistedProcessNames.Contains(name))
-                {
+                if (!ConfigurationService.Instance.WhitelistedProcessNames.Contains(name)) {
                     ConfigurationService.Instance.WhitelistedProcessNames.Add(name);
                     ConfigurationService.Instance.Save();
                 }
@@ -692,10 +383,8 @@ namespace RansomGuard.Service.Engine
         public async Task RemoveWhitelist(string name)
         {
             if (string.IsNullOrEmpty(name)) return;
-            
             await Task.Run(() => {
-                if (ConfigurationService.Instance.WhitelistedProcessNames.Contains(name))
-                {
+                if (ConfigurationService.Instance.WhitelistedProcessNames.Contains(name)) {
                     ConfigurationService.Instance.WhitelistedProcessNames.Remove(name);
                     ConfigurationService.Instance.Save();
                 }
@@ -706,23 +395,10 @@ namespace RansomGuard.Service.Engine
         {
             if (_disposed) return;
             _disposed = true;
-
-            _telemetryTimer?.Stop();
-            _telemetryTimer?.Dispose();
-            _cleanupTimer?.Stop();
-            _cleanupTimer?.Dispose();
-
-
-            lock (_watchers)
-            {
-                foreach (var watcher in _watchers)
-                {
-                    watcher.EnableRaisingEvents = false;
-                    watcher.Dispose();
-                }
-                _watchers.Clear();
-            }
+            _engineCleanupTimer?.Dispose();
+            _telemetryService.Dispose();
+            _historyManager.Dispose();
+            lock (_watchers) { foreach (var w in _watchers) w.Dispose(); _watchers.Clear(); }
         }
     }
-
 }

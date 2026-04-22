@@ -66,24 +66,32 @@
                     </Grid>
                 </Border>
 
-                <!-- Last Scan -->
+                <!-- Real-Time Protection Status -->
                 <Border Grid.Column="4" Background="{StaticResource SurfaceContainerLowBrush}" 
                         CornerRadius="8" ClipToBounds="True">
                     <Grid>
-                        <Path Data="M21 10.12h-6.78l2.74-2.82c-2.73-2.7-7.15-2.8-9.88-.1-2.73 2.71-2.73 7.08 0 9.79 s7.15 2.71 9.88 0C18.32 15.65 19 14.08 19 12.1h2c0 2.5-.98 4.81-2.73 6.56-3.52 3.49-9.21 3.49-12.73 0-3.52-3.5-3.52-9.18 0-12.68 3.52-3.5 9.21-3.5 12.73 0l2.84-2.92V10.12z" 
-                              Fill="{StaticResource OnSurfaceBrush}" Opacity="0.05" Stretch="Uniform"
-                              HorizontalAlignment="Right" VerticalAlignment="Top" Width="32" Margin="0,4,4,0"/>
+                        <Path Data="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-2 16l-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z" 
+                               Fill="{StaticResource SecondaryBrush}" Opacity="0.05" Stretch="Uniform"
+                               HorizontalAlignment="Right" VerticalAlignment="Top" Width="32" Margin="0,4,4,0"/>
                         <StackPanel Margin="10,8">
-                            <TextBlock Text="LAST SCAN" Style="{StaticResource TextLabel}" FontSize="8"/>
+                            <TextBlock Text="PROTECTION STATUS" Style="{StaticResource TextLabel}" FontSize="8"/>
                             <StackPanel Orientation="Horizontal" Margin="0,4,0,0" Height="26">
-                                <TextBlock Text="{Binding LastScanText}" FontSize="16" FontWeight="Black" 
-                                          Foreground="{StaticResource OnSurfaceBrush}" VerticalAlignment="Center"/>
+                                <TextBlock Text="REAL-TIME ACTIVE" FontSize="16" FontWeight="Black" 
+                                          Foreground="{StaticResource SecondaryBrush}" VerticalAlignment="Center"/>
                             </StackPanel>
                             <Grid Margin="0,6,0,0">
-                                <TextBlock Text="SYSTEM SECURED" Style="{StaticResource TextStatusSafe}" FontWeight="Bold" VerticalAlignment="Center" FontSize="8"/>
-                                <Button Content="{Binding RescanButtonText}" Style="{StaticResource PrimaryButton}" 
-                                       Command="{Binding RescanCommand}"
-                                       HorizontalAlignment="Right" Padding="8,4" FontSize="9"/>
+                                <TextBlock Text="MONITORING ACTIVE" Style="{StaticResource TextStatusSafe}" FontWeight="Bold" VerticalAlignment="Center" FontSize="8"/>
+                                <Ellipse Width="8" Height="8" Fill="{StaticResource SecondaryBrush}" HorizontalAlignment="Right" VerticalAlignment="Center">
+                                    <Ellipse.Triggers>
+                                        <EventTrigger RoutedEvent="Loaded">
+                                            <BeginStoryboard>
+                                                <Storyboard RepeatBehavior="Forever">
+                                                    <DoubleAnimation Storyboard.TargetProperty="Opacity" From="1" To="0.2" Duration="0:0:1" AutoReverse="True"/>
+                                                </Storyboard>
+                                            </BeginStoryboard>
+                                        </EventTrigger>
+                                    </Ellipse.Triggers>
+                                </Ellipse>
                             </Grid>
                         </StackPanel>
                     </Grid>

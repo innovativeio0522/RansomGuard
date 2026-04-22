@@ -8,7 +8,7 @@ using RansomGuard.Core.Models;
 
 namespace RansomGuard.Service.Engine
 {
-    public class HoneyPotService
+    public class HoneyPotService : IDisposable
     {
         private readonly SentinelEngine _engine;
         private readonly List<FileSystemWatcher> _baitWatchers = new();
@@ -78,7 +78,9 @@ namespace RansomGuard.Service.Engine
 
         private void HandleBaitHit(string path)
         {
-            _engine.ReportThreat(path, "HONEY POT TRIPWIRE TRIGGERED", "An unauthorized process attempted to access or modify a hidden Sentinel bait file, indicating potential lateral movement or encryption activity.", ThreatSeverity.High);
+            _engine.ReportThreat(path, "HONEY POT TRIPWIRE TRIGGERED", 
+                "An unauthorized process attempted to access or modify a hidden Sentinel bait file.", 
+                "Unknown", 0, ThreatSeverity.High);
         }
 
         private void CleanupBaits()
@@ -122,6 +124,11 @@ namespace RansomGuard.Service.Engine
             locations.AddRange(ConfigurationService.Instance.MonitoredPaths);
 
             return locations.Distinct().ToList();
+        }
+
+        public void Dispose()
+        {
+            Stop();
         }
     }
 }
