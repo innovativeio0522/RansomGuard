@@ -2,6 +2,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using RansomGuard.Core.Models;
 using RansomGuard.Core.Interfaces;
+using RansomGuard.Core.IPC;
 using RansomGuard.Services;
 using System.Collections.ObjectModel;
 using System.IO;
@@ -80,7 +81,7 @@ namespace RansomGuard.ViewModels
         {
             try
             {
-                var telemetry = _monitorService.GetTelemetry();
+                var telemetry = _monitorService?.GetTelemetry() ?? new TelemetryData();
                 
                 // Failsafe: if IPC transport drops these specific values to 0 during a race condition, calculate them locally.
                 int activeThreads = telemetry.ActiveThreadsCount;
@@ -104,24 +105,27 @@ namespace RansomGuard.ViewModels
 
                 UpdateChart(telemetry.KernelCpuUsage, telemetry.UserCpuUsage);
 
-                var processes = _monitorService.GetActiveProcesses().ToList();
+                var processes = (_monitorService?.GetActiveProcesses() ?? Enumerable.Empty<ProcessInfo>()).Where(p => p != null).ToList();
                 var debugMsg = $"[LoadData] Retrieved {processes.Count} processes. IsConnected={_monitorService.IsConnected}";
                 System.Diagnostics.Debug.WriteLine(debugMsg);
-                File.AppendAllText("process_debug.log", $"{DateTime.Now}: {debugMsg}\n");
+                LogToFile(debugMsg);
                 
                 _allProcesses.Clear();
                 foreach (var process in processes)
                 {
-                    _allProcesses.Add(process);
+                    if (process != null)
+                    {
+                        _allProcesses.Add(process);
+                    }
                 }
 
                 System.Diagnostics.Debug.WriteLine($"[LoadData] _allProcesses has {_allProcesses.Count} items");
                 System.Diagnostics.Debug.WriteLine($"[LoadData] ActiveProcesses has {ActiveProcesses.Count} items before ApplyFilter");
 
                 // Auto-select most suspicious process for Alert Detail if available
-                if (SelectedProcess == null || !_allProcesses.Any(p => p.Pid == SelectedProcess.Pid))
+                if (SelectedProcess == null || !_allProcesses.Any(p => p != null && p.Pid == SelectedProcess.Pid))
                 {
-                    SelectedProcess = _allProcesses.FirstOrDefault(p => !p.IsTrusted) ?? _allProcesses.FirstOrDefault();
+                    SelectedProcess = _allProcesses.FirstOrDefault(p => p != null && !p.IsTrusted) ?? _allProcesses.FirstOrDefault(p => p != null);
                     System.Diagnostics.Debug.WriteLine($"[LoadData] SelectedProcess set to {SelectedProcess?.Name ?? "null"}");
                 }
 
@@ -131,7 +135,7 @@ namespace RansomGuard.ViewModels
             {
                 var errorMsg = $"[LoadData] EXCEPTION: {ex.Message}\n{ex.StackTrace}";
                 System.Diagnostics.Debug.WriteLine(errorMsg);
-                File.AppendAllText("process_debug.log", $"{DateTime.Now}: {errorMsg}\n");
+                LogToFile(errorMsg);
             }
         }
 
@@ -139,11 +143,12 @@ namespace RansomGuard.ViewModels
         {
             var filtered = string.IsNullOrWhiteSpace(SearchQuery) 
                 ? _allProcesses 
-                : _allProcesses.Where(p => p.Name.Contains(SearchQuery, StringComparison.OrdinalIgnoreCase) || 
-                                           p.Pid.ToString().Contains(SearchQuery)).ToList();
+                : _allProcesses.Where(p => p != null && 
+                                           ((p.Name != null && p.Name.Contains(SearchQuery, StringComparison.OrdinalIgnoreCase)) || 
+                                            p.Pid.ToString().Contains(SearchQuery))).ToList();
 
             System.Diagnostics.Debug.WriteLine($"[DEBUG] ApplyFilter: filtered has {filtered.Count} items");
-            File.AppendAllText("process_debug.log", $"{DateTime.Now}: [ApplyFilter] filtered={filtered.Count}\n");
+            LogToFile($"[ApplyFilter] filtered={filtered.Count}");
 
             // CRITICAL FIX: The UI loses selection and binding state because objects are recreated on every refresh.
             // We use reconciliation to update existing instances instead of clearing the collection.
@@ -173,7 +178,7 @@ namespace RansomGuard.ViewModels
             }
 
             System.Diagnostics.Debug.WriteLine($"[DEBUG] ApplyFilter: ActiveProcesses now has {ActiveProcesses.Count} items");
-            File.AppendAllText("process_debug.log", $"{DateTime.Now}: [ApplyFilter] ActiveProcesses.Count={ActiveProcesses.Count}\n");
+            LogToFile($"[ApplyFilter] ActiveProcesses.Count={ActiveProcesses.Count}");
         }
 
         private void UpdateChart(double kernelCpu, double userCpu)
@@ -290,14 +295,25 @@ namespace RansomGuard.ViewModels
 
         public void Dispose()
         {
-            if (_disposed) return;
             _disposed = true;
-            
-            // Stop and dispose refresh timer
-            if (_refreshTimer != null)
+            _refreshTimer.Stop();
+        }
+
+        private void LogToFile(string message)
+        {
+            try
             {
-                _refreshTimer.Stop();
+                string logPath = @"C:\ProgramData\RansomGuard\Logs\ui_process.log";
+                string dir = Path.GetDirectoryName(logPath)!;
+                if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
+
+                using (var fs = new FileStream(logPath, FileMode.Append, FileAccess.Write, FileShare.ReadWrite))
+                using (var sw = new StreamWriter(fs))
+                {
+                    sw.WriteLine($"{DateTime.Now}: {message}");
+                }
             }
+            catch { }
         }
     }
 }

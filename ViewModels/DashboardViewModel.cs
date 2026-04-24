@@ -7,6 +7,7 @@ using RansomGuard.Services;
 using RansomGuard.Core.Services;
 using RansomGuard.Core.IPC;
 using System;
+using System.IO;
 using System.Collections.Concurrent;
 using System.Collections.ObjectModel;
 using System.Collections.Generic;
@@ -20,7 +21,7 @@ namespace RansomGuard.ViewModels
     public partial class DashboardViewModel : ViewModelBase, IDisposable
     {
         private const int MaxDashboardActivities = 10;
-        private readonly int _baselineRiskScore = new Random().Next(5, 16); // 5–15 inclusive, fixed for session
+        private int _baselineRiskScore = 8;
         private const int MinutesThresholdForRecent = 60;
         
         private readonly ISystemMonitorService _monitorService;
@@ -148,6 +149,38 @@ namespace RansomGuard.ViewModels
                     FilesMonitoredCount = _monitorService.GetMonitoredFilesCount().ToString("N0");
                 });
             };
+
+            InitializeBaselineScore();
+        }
+
+        private void InitializeBaselineScore()
+        {
+            var config = ConfigurationService.Instance;
+            var now = DateTime.Now;
+
+            // If the score was never set or more than 1 hour has passed
+            if (config.LastScoreUpdateTime == DateTime.MinValue || (now - config.LastScoreUpdateTime).TotalHours >= 1)
+            {
+                // Only update the "Base" score if there are no active threats (stable state)
+                var threats = _monitorService.GetRecentThreats()?.ToList() ?? new List<Threat>();
+                bool hasActiveThreats = threats.Any(t => t.ActionTaken == "Detected");
+
+                if (!hasActiveThreats)
+                {
+                    _baselineRiskScore = new Random().Next(5, 13); // Randomly 5-12
+                    config.BaseThreatScore = _baselineRiskScore;
+                    config.LastScoreUpdateTime = now;
+                    config.Save();
+                }
+                else
+                {
+                    _baselineRiskScore = config.BaseThreatScore;
+                }
+            }
+            else
+            {
+                _baselineRiskScore = config.BaseThreatScore;
+            }
         }
 
         partial void OnSearchQueryChanged(string value) => LoadData();
@@ -207,11 +240,28 @@ namespace RansomGuard.ViewModels
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"LoadData error: {ex.Message}\n{ex.StackTrace}");
+                LogToFile($"[DashboardViewModel] LoadData error: {ex.Message}\n{ex.StackTrace}");
                 // Initialize with empty data on error
                 FilesMonitoredCount = "0";
                 ThreatsBlockedCount = 0;
             }
+        }
+
+        private void LogToFile(string message)
+        {
+            try
+            {
+                string logPath = @"C:\ProgramData\RansomGuard\Logs\ui_error.log";
+                string dir = Path.GetDirectoryName(logPath)!;
+                if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
+
+                using (var fs = new FileStream(logPath, FileMode.Append, FileAccess.Write, FileShare.ReadWrite))
+                using (var sw = new StreamWriter(fs))
+                {
+                    sw.WriteLine($"{DateTime.Now}: {message}");
+                }
+            }
+            catch { }
         }
 
         private void ProcessActivityBuffer()

@@ -129,8 +129,8 @@ namespace RansomGuard.ViewModels
                 var fileName = $"RansomGuard_Report_{DateTime.Now:yyyy-MM-dd_HH-mm-ss}.csv";
                 var filePath = Path.Combine(exportDir, fileName);
 
-                var threats = _monitorService.GetRecentThreats().ToList();
-                var activities = _monitorService.GetRecentFileActivities().ToList();
+                var threats = (_monitorService?.GetRecentThreats() ?? Enumerable.Empty<Threat>()).Where(t => t != null).ToList();
+                var activities = (_monitorService?.GetRecentFileActivities() ?? Enumerable.Empty<FileActivity>()).Where(a => a != null).ToList();
 
                 var sb = new StringBuilder();
 
@@ -238,7 +238,10 @@ namespace RansomGuard.ViewModels
 
             try
             {
-                var allThreats = _monitorService.GetRecentThreats().ToList();
+                var allThreats = (_monitorService.GetRecentThreats() ?? Enumerable.Empty<Threat>())
+                    .Where(t => t != null)
+                    .ToList();
+                
                 var now = DateTime.Now;
                 var sevenDaysAgo = now.AddDays(-7);
                 var fourteenDaysAgo = now.AddDays(-14);
@@ -262,31 +265,29 @@ namespace RansomGuard.ViewModels
                 // 2. Most Common Threat Type
                 if (thisWeekThreats.Any())
                 {
-                    var commonType = thisWeekThreats.GroupBy(t => t.Name)
+                    var commonType = thisWeekThreats.GroupBy(t => t?.Name ?? "Unknown")
                         .OrderByDescending(g => g.Count())
-                        .First();
+                        .FirstOrDefault();
                     
-                    MostCommonThreatType = commonType.Key;
-                    int percent = (int)((double)commonType.Count() / thisWeekThreats.Count * 100);
-                    CommonThreatDetail = $"Detected in {percent}% of events";
+                    if (commonType != null)
+                    {
+                        MostCommonThreatType = commonType.Key;
+                        int percent = (int)((double)commonType.Count() / thisWeekThreats.Count * 100);
+                        CommonThreatDetail = $"Detected in {percent}% of events";
+                    }
                 }
 
                 // 3. Detection Series (Smooth Spline Area Chart)
                 var dailyStats = allThreats
-                    .Where(t => t.Timestamp >= now.AddDays(-30))
+                    .Where(t => t != null && t.Timestamp >= now.AddDays(-30))
                     .GroupBy(t => t.Timestamp.Date)
                     .Select(g => new { Date = g.Key, Count = g.Count() })
                     .OrderBy(x => x.Date)
                     .ToList();
 
-                // Calculate Month-over-Month Metrics
-                int totalMonth = dailyStats.Sum(x => x.Count);
-                int peakDay = dailyStats.Any() ? dailyStats.Max(x => x.Count) : 0;
-                double avgDay = dailyStats.Any() ? (double)totalMonth / 30 : 0;
-
-                MonthlyDetectionsCount = totalMonth.ToString("N0");
-                PeakDetectionCount = peakDay.ToString("N0");
-                AverageDetectionsCount = avgDay.ToString("F1");
+                MonthlyDetectionsCount = allThreats.Count(t => t.Timestamp >= now.AddDays(-30)).ToString("N0");
+                PeakDetectionCount = dailyStats.Any() ? dailyStats.Max(x => x.Count).ToString("N0") : "0";
+                AverageDetectionsCount = dailyStats.Any() ? dailyStats.Average(x => x.Count).ToString("F1") : "0.0";
 
                 // If only one data point, add a leading zero-point for better look
                 if (dailyStats.Count == 1)
@@ -294,26 +295,29 @@ namespace RansomGuard.ViewModels
                     dailyStats.Insert(0, new { Date = dailyStats[0].Date.AddDays(-1), Count = 0 });
                 }
 
-                DetectionSeries.Clear();
-                DetectionSeries.Add(new LineSeries<int>
+                if (DetectionSeries != null)
                 {
-                    Values = dailyStats.Select(x => x.Count).ToArray(),
-                    Name = "Total Detections",
-                    GeometrySize = 8,
-                    LineSmoothness = 1, // Spline smoothness 0-1
-                    Stroke = new SolidColorPaint(SKColor.Parse("#4fc3f7")) { StrokeThickness = 4 },
-                    Fill = new LinearGradientPaint(
-                        new SKColor[] { SKColor.Parse("#4fc3f7").WithAlpha(90), SKColors.Transparent },
-                        new SKPoint(0.5f, 0), new SKPoint(0.5f, 1)),
-                    GeometryFill = new SolidColorPaint(SKColor.Parse("#4fc3f7")),
-                    GeometryStroke = new SolidColorPaint(SKColors.White) { StrokeThickness = 2 }
-                });
+                    DetectionSeries.Clear();
+                    DetectionSeries.Add(new LineSeries<int>
+                    {
+                        Values = dailyStats.Select(x => x.Count).ToArray(),
+                        Name = "Total Detections",
+                        GeometrySize = 8,
+                        LineSmoothness = 1,
+                        Stroke = new SolidColorPaint(SKColor.Parse("#4fc3f7")) { StrokeThickness = 4 },
+                        Fill = new LinearGradientPaint(
+                            new SKColor[] { SKColor.Parse("#4fc3f7").WithAlpha(90), SKColors.Transparent },
+                            new SKPoint(0.5f, 0), new SKPoint(0.5f, 1)),
+                        GeometryFill = new SolidColorPaint(SKColor.Parse("#4fc3f7")),
+                        GeometryStroke = new SolidColorPaint(SKColors.White) { StrokeThickness = 2 }
+                    });
+                }
 
                 XAxes.Clear();
                 XAxes.Add(new Axis
                 {
                     Labels = dailyStats.Select(x => x.Date.ToString("MMM dd")).ToArray(),
-                    LabelsRotation = 0, // Keep it flat for premium look
+                    LabelsRotation = 0,
                     TextSize = 10,
                     LabelsPaint = new SolidColorPaint(SKColor.Parse("#8a92a6")),
                     SeparatorsPaint = new SolidColorPaint(SKColor.Parse("#1affffff")) { StrokeThickness = 1 }
@@ -328,15 +332,15 @@ namespace RansomGuard.ViewModels
                     SeparatorsPaint = new SolidColorPaint(SKColor.Parse("#1affffff")) { StrokeThickness = 1 }
                 });
 
-                // 4. Distribution Series (Premium Doughnut Chart)
+                // 4. Distribution Series
                 var categoryStats = allThreats
-                    .GroupBy(t => t.Name)
+                    .Where(t => t != null)
+                    .GroupBy(t => t.Name ?? "Unknown")
                     .Select(g => new { Name = g.Key, Count = g.Count() })
                     .OrderByDescending(x => x.Count)
                     .Take(5)
                     .ToList();
 
-                // Define a premium palette
                 var palette = new[] { "#4fc3f7", "#66bb6a", "#ffa726", "#ab47bc", "#26a69a" };
 
                 DistributionSeries.Clear();
@@ -347,74 +351,80 @@ namespace RansomGuard.ViewModels
                     {
                         Values = new int[] { stat.Count },
                         Name = stat.Name,
-                        InnerRadius = 50, // Thicker ring for better visual presence
+                        InnerRadius = 50,
                         Fill = new SolidColorPaint(SKColor.Parse(palette[colorIndex % palette.Length])),
                         DataLabelsPosition = LiveChartsCore.Measure.PolarLabelsPosition.Middle,
-                        DataLabelsPaint = new SolidColorPaint(SKColors.Transparent), // Hide labels inside
+                        DataLabelsPaint = new SolidColorPaint(SKColors.Transparent),
                     });
                     colorIndex++;
                 }
 
-                // 5. Recent Significant Threats (Timeline)
+                // 5. Recent Significant Threats
                 RecentSignificantThreats.Clear();
                 foreach (var threat in allThreats.OrderByDescending(t => t.Timestamp).Take(3))
                 {
                     RecentSignificantThreats.Add(threat);
                 }
             }
-            catch
+            catch (Exception ex)
             {
-                // Fallback or log
+                LogToFile($"[ReportsViewModel] PopulateReportData error: {ex.Message}\n{ex.StackTrace}");
             }
+        }
+
+        private void LogToFile(string message)
+        {
+            try
+            {
+                string logPath = @"C:\ProgramData\RansomGuard\Logs\ui_error.log";
+                string dir = Path.GetDirectoryName(logPath)!;
+                if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
+
+                using (var fs = new FileStream(logPath, FileMode.Append, FileAccess.Write, FileShare.ReadWrite))
+                using (var sw = new StreamWriter(fs))
+                {
+                    sw.WriteLine($"{DateTime.Now}: {message}");
+                }
+            }
+            catch { }
         }
 
         private void CalculateSecurityScore()
         {
             if (_monitorService == null)
             {
-                SecurityScore = 85; // Default score when no monitor service
+                SecurityScore = 85;
                 return;
             }
 
             try
             {
-                var telemetry = _monitorService.GetTelemetry();
-                var threats = _monitorService.GetRecentThreats().ToList();
+                var telemetry = _monitorService?.GetTelemetry() ?? new TelemetryData();
+                var threats = (_monitorService?.GetRecentThreats() ?? Enumerable.Empty<Threat>()).Where(t => t != null).ToList();
 
-                // Start with perfect score
                 int score = 100;
+                int criticalThreats = threats.Count(t => t != null && t.Severity == Core.Models.ThreatSeverity.Critical);
+                int highThreats = threats.Count(t => t != null && t.Severity == Core.Models.ThreatSeverity.High);
+                int mediumThreats = threats.Count(t => t != null && t.Severity == Core.Models.ThreatSeverity.Medium);
 
-                // Deduct points for threats
-                int criticalThreats = threats.Count(t => t.Severity == Core.Models.ThreatSeverity.Critical);
-                int highThreats = threats.Count(t => t.Severity == Core.Models.ThreatSeverity.High);
-                int mediumThreats = threats.Count(t => t.Severity == Core.Models.ThreatSeverity.Medium);
+                score -= criticalThreats * 15;
+                score -= highThreats * 8;
+                score -= mediumThreats * 3;
 
-                score -= criticalThreats * 15; // -15 per critical threat
-                score -= highThreats * 8;      // -8 per high threat
-                score -= mediumThreats * 3;    // -3 per medium threat
+                if (telemetry.EntropyScore > 5.5) score -= 10;
+                else if (telemetry.EntropyScore > 4.5) score -= 5;
 
-                // Deduct points for high entropy (potential encryption activity)
-                if (telemetry.EntropyScore > 5.5)
-                {
-                    score -= 10;
-                }
-                else if (telemetry.EntropyScore > 4.5)
-                {
-                    score -= 5;
-                }
-
-                // Bonus points for active shields
                 if (telemetry.IsHoneyPotActive) score += 2;
                 if (telemetry.IsVssShieldActive) score += 2;
 
-                // Clamp score between 0 and 100
                 SecurityScore = Math.Clamp(score, 0, 100);
             }
             catch
             {
-                SecurityScore = 85; // Fallback score on error
+                SecurityScore = 85;
             }
         }
+
         public void Dispose()
         {
             if (_monitorService != null)

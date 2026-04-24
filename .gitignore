@@ -175,3 +175,6 @@ debug.txt
 *.db
 *.db-shm
 *.db-wal
+qc
+query
+\!$RansomGuard_Bait/

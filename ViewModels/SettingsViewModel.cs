@@ -5,6 +5,7 @@ using System.Linq;
 using System.ComponentModel;
 using System.Windows.Threading;
 using System.IO;
+using System.Diagnostics;
 using Microsoft.Win32;
 using RansomGuard.Services;
 using RansomGuard.Core.Services;
@@ -45,6 +46,12 @@ namespace RansomGuard.ViewModels
         [ObservableProperty]
         private bool _isWatchdogEnabled;
 
+        [ObservableProperty]
+        private bool _isNetworkIsolationEnabled;
+
+        [ObservableProperty]
+        private bool _isEmergencyShutdownEnabled;
+
         public string SensitivityLabel => SensitivityLevel switch
         {
             1 => "LOW",
@@ -74,6 +81,8 @@ namespace RansomGuard.ViewModels
             IsRealTimeProtectionEnabled = ConfigurationService.Instance.RealTimeProtection;
             IsAutoQuarantineEnabled = ConfigurationService.Instance.AutoQuarantine;
             IsWatchdogEnabled = ConfigurationService.Instance.WatchdogEnabled;
+            IsNetworkIsolationEnabled = ConfigurationService.Instance.NetworkIsolationEnabled;
+            IsEmergencyShutdownEnabled = ConfigurationService.Instance.EmergencyShutdownEnabled;
 
             // Handle collection changes with debouncing
             _monitoredPaths.CollectionChanged += (s, e) => SaveConfig();
@@ -92,7 +101,9 @@ namespace RansomGuard.ViewModels
             // Auto-save on other property changes
             if (e.PropertyName == nameof(IsRealTimeProtectionEnabled) || 
                 e.PropertyName == nameof(IsAutoQuarantineEnabled) ||
-                e.PropertyName == nameof(IsWatchdogEnabled))
+                e.PropertyName == nameof(IsWatchdogEnabled) ||
+                e.PropertyName == nameof(IsNetworkIsolationEnabled) ||
+                e.PropertyName == nameof(IsEmergencyShutdownEnabled))
             {
                 SaveConfig();
             }
@@ -175,10 +186,39 @@ namespace RansomGuard.ViewModels
             ConfigurationService.Instance.RealTimeProtection = IsRealTimeProtectionEnabled;
             ConfigurationService.Instance.AutoQuarantine = IsAutoQuarantineEnabled;
             ConfigurationService.Instance.WatchdogEnabled = IsWatchdogEnabled;
+            ConfigurationService.Instance.NetworkIsolationEnabled = IsNetworkIsolationEnabled;
+            ConfigurationService.Instance.EmergencyShutdownEnabled = IsEmergencyShutdownEnabled;
             ConfigurationService.Instance.Save();
             
             // Notify other services (like SentinelEngine) that paths have changed
             ConfigurationService.Instance.NotifyPathsChanged();
+        }
+
+        [RelayCommand]
+        private void ShowLicenseInfo()
+        {
+            System.Windows.MessageBox.Show(
+                "Product: RansomGuard Business Edition\n" +
+                "License: Active (Node ID: TS-8849-PX)\n" +
+                "Expiration: 12-NOV-2025\n\n" +
+                "This node is registered to 'Enterprise Security Cluster 01'.",
+                "License Information",
+                System.Windows.MessageBoxButton.OK,
+                System.Windows.MessageBoxImage.Information);
+        }
+
+        [RelayCommand]
+        private void OpenHelp(string url)
+        {
+            try
+            {
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName = url ?? "https://github.com/innovativeio0522/RansomGuard",
+                    UseShellExecute = true
+                });
+            }
+            catch { }
         }
 
         [RelayCommand]

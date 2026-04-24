@@ -16,13 +16,11 @@ namespace RansomGuard.Views
             var vm = DataContext;
             var msg = $"[ProcessMonitorView Loaded] DataContext type: {vm?.GetType().Name ?? "NULL"}";
             System.Diagnostics.Debug.WriteLine(msg);
-            File.AppendAllText("process_debug.log", $"{System.DateTime.Now}: {msg}\n");
             
             if (vm is RansomGuard.ViewModels.ProcessMonitorViewModel processVM)
             {
                 var countMsg = $"[ProcessMonitorView Loaded] ActiveProcesses.Count: {processVM.ActiveProcesses.Count}";
                 System.Diagnostics.Debug.WriteLine(countMsg);
-                File.AppendAllText("process_debug.log", $"{System.DateTime.Now}: {countMsg}\n");
             }
         }
 

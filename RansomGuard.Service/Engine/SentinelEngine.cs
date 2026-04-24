@@ -294,14 +294,75 @@ namespace RansomGuard.Service.Engine
             {
                 _recentChanges.Enqueue(now);
                 while (_recentChanges.Count > 0 && (now - _recentChanges.Peek()).TotalSeconds > WindowSeconds) _recentChanges.Dequeue();
-
-                if (_recentChanges.Count >= GetChangeThreshold())
+                if (_recentChanges.Count > GetChangeThreshold())
                 {
                     ReportThreat("ALL_DRIVES", "MASSIVE FILE ENCRYPTION ACTION DETECTED", 
                         $"Multiple rapid file changes detected in a short window (threshold: {GetChangeThreshold()} in {WindowSeconds}s).", 
                         "System", 0, ThreatSeverity.Critical);
                     _recentChanges.Clear();
+                    
+                    // Trigger Critical Response for mass encryption
+                    ExecuteCriticalResponse();
                 }
+            }
+        }
+
+        private void ExecuteCriticalResponse()
+        {
+            var config = ConfigurationService.Instance;
+
+            if (config.NetworkIsolationEnabled)
+            {
+                IsolateNetwork();
+            }
+
+            if (config.EmergencyShutdownEnabled)
+            {
+                EmergencyShutdown();
+            }
+        }
+
+        private void IsolateNetwork()
+        {
+            try
+            {
+                Debug.WriteLine("[SentinelEngine] CRITICAL: Triggering Network Isolation...");
+                // Disables all active network adapters using netsh
+                var process = new Process
+                {
+                    StartInfo = new ProcessStartInfo
+                    {
+                        FileName = "powershell.exe",
+                        Arguments = "-Command \"Get-NetAdapter | Where-Object { $_.Status -eq 'Up' } | Disable-NetAdapter -Confirm:$false\"",
+                        UseShellExecute = false,
+                        CreateNoWindow = true,
+                        Verb = "runas"
+                    }
+                };
+                process.Start();
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[SentinelEngine] Failed to isolate network: {ex.Message}");
+            }
+        }
+
+        private void EmergencyShutdown()
+        {
+            try
+            {
+                Debug.WriteLine("[SentinelEngine] CRITICAL: Triggering Emergency Shutdown...");
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName = "shutdown.exe",
+                    Arguments = "/s /f /t 5 /c \"RansomGuard: Critical Threat Detected. Emergency Shutdown triggered to prevent data loss.\"",
+                    CreateNoWindow = true,
+                    UseShellExecute = false
+                });
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[SentinelEngine] Failed to trigger shutdown: {ex.Message}");
             }
         }
 
@@ -325,6 +386,12 @@ namespace RansomGuard.Service.Engine
 
             _historyManager.AddThreat(threat);
             ThreatDetected?.Invoke(threat);
+
+            // If the threat is critical, trigger response protocols
+            if (severity == ThreatSeverity.Critical)
+            {
+                ExecuteCriticalResponse();
+            }
         }
 
         public IEnumerable<Threat> GetRecentThreats() => _historyManager.GetRecentThreats();

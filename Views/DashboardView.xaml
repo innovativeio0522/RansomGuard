@@ -10,6 +10,9 @@
             <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
+
+        <TextBlock Text="v1.0.5-DIAG" Grid.Row="0" HorizontalAlignment="Right" VerticalAlignment="Top" 
+                   FontSize="10" FontWeight="Bold" Foreground="{StaticResource OutlineBrush}" Opacity="0.5" Margin="0,-12,0,0"/>
             
         <!-- Stats Row (4 cards) -->
         <Grid Grid.Row="0" Margin="0,0,0,8">

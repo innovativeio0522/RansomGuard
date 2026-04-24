@@ -124,31 +124,40 @@ namespace RansomGuard.Service.Communication
                 NamedPipeServerStream? pipeServer = null;
                 try
                 {
-                    var pipeSecurity = new PipeSecurity();
-                    var currentUser = WindowsIdentity.GetCurrent().User;
-                    if (currentUser != null)
-                        pipeSecurity.AddAccessRule(new PipeAccessRule(currentUser, PipeAccessRights.FullControl | PipeAccessRights.CreateNewInstance, AccessControlType.Allow));
+                    string logDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "RansomGuard", "Logs");
+                    if (!Directory.Exists(logDir)) Directory.CreateDirectory(logDir);
+                    string logPath = Path.Combine(logDir, "ipc.log");
 
-                    pipeSecurity.AddAccessRule(new PipeAccessRule(new SecurityIdentifier(WellKnownSidType.AuthenticatedUserSid, null), PipeAccessRights.ReadWrite | PipeAccessRights.CreateNewInstance, AccessControlType.Allow));
+                    var pipeSecurity = new PipeSecurity();
+                    
+                    // Allow everyone for now to rule out permissions
+                    pipeSecurity.AddAccessRule(new PipeAccessRule(new SecurityIdentifier(WellKnownSidType.WorldSid, null), PipeAccessRights.FullControl, AccessControlType.Allow));
+                    pipeSecurity.AddAccessRule(new PipeAccessRule(new SecurityIdentifier(WellKnownSidType.AuthenticatedUserSid, null), PipeAccessRights.FullControl, AccessControlType.Allow));
                     pipeSecurity.AddAccessRule(new PipeAccessRule(new SecurityIdentifier(WellKnownSidType.LocalSystemSid, null), PipeAccessRights.FullControl, AccessControlType.Allow));
 
-                    Console.WriteLine($"[IPC Server] Creating pipe: {_pipeName}");
+                    File.AppendAllText(logPath, $"{DateTime.Now}: [IPC Server] Creating pipe: {_pipeName}\n");
                     pipeServer = NamedPipeServerStreamAcl.Create(_pipeName, PipeDirection.InOut, NamedPipeServerStream.MaxAllowedServerInstances, PipeTransmissionMode.Byte, PipeOptions.Asynchronous, 0, 0, pipeSecurity);
 
-                    Console.WriteLine("[IPC Server] Waiting for connection...");
+                    File.AppendAllText(logPath, $"{DateTime.Now}: [IPC Server] Waiting for connection...\n");
                     await pipeServer.WaitForConnectionAsync(token).ConfigureAwait(false);
-                    Console.WriteLine("[IPC Server] Client connected!");
+                    File.AppendAllText(logPath, $"{DateTime.Now}: [IPC Server] Client connected!\n");
                     
                     var clientPipe = pipeServer;
                     pipeServer = null; 
                     _ = Task.Run(async () => {
                         try { await HandleClient(clientPipe, token).ConfigureAwait(false); }
-                        catch (Exception ex) { Console.WriteLine($"[IPC Server] HandleClient error: {ex.Message}"); }
-                        finally { clientPipe.Dispose(); Console.WriteLine("[IPC Server] Client disconnected."); }
+                        catch (Exception ex) { 
+                            try { File.AppendAllText(logPath, $"{DateTime.Now}: [IPC Server] HandleClient error: {ex.Message}\n"); } catch { }
+                        }
+                        finally { clientPipe.Dispose(); }
                     }, token);
                 }
                 catch (Exception ex) 
                 { 
+                    try {
+                        string logPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "RansomGuard", "Logs", "ipc.log");
+                        File.AppendAllText(logPath, $"{DateTime.Now}: [IPC Server] EXCEPTION in ListenLoop: {ex.Message}\n{ex.StackTrace}\n");
+                    } catch { }
                     pipeServer?.Dispose(); 
                     if (!token.IsCancellationRequested) await Task.Delay(2000, token).ConfigureAwait(false); 
                 }
@@ -164,11 +173,21 @@ namespace RansomGuard.Service.Communication
             context.ProcessorTask = Task.Run(() => ProcessOutgoingMessages(context, token));
             _clients[context.Id] = context;
 
+            LogToFile($"[IPC Server] Client connected. ID: {context.Id}");
+
             try
             {
                 while (pipe.IsConnected && !token.IsCancellationRequested)
                 {
                     var line = await reader.ReadLineAsync(token).ConfigureAwait(false);
+                    if (line == null) 
+                    {
+                        LogToFile($"[IPC Server] Client {context.Id} disconnected (EOF).");
+                        break;
+                    }
+
+                    LogToFile($"[IPC Server] Received from {context.Id}: {line.Substring(0, Math.Min(line.Length, 100))}");
+
                     if (line == null) break;
 
                     try
@@ -280,6 +299,22 @@ namespace RansomGuard.Service.Communication
         {
             var packet = new IpcPacket { Type = type, Payload = JsonSerializer.Serialize(data) };
             context.MessageQueue.TryAdd(JsonSerializer.Serialize(packet));
+        }
+        private void LogToFile(string message)
+        {
+            try
+            {
+                string logPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "RansomGuard", "Logs", "ipc.log");
+                string dir = Path.GetDirectoryName(logPath)!;
+                if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
+
+                using (var fs = new FileStream(logPath, FileMode.Append, FileAccess.Write, FileShare.ReadWrite))
+                using (var sw = new StreamWriter(fs))
+                {
+                    sw.WriteLine($"{DateTime.Now}: {message}");
+                }
+            }
+            catch { }
         }
     }
 }

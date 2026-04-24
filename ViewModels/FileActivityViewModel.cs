@@ -59,7 +59,15 @@ namespace RansomGuard.ViewModels
             }
 
             // Initial load - try fetching data immediately
-            Refresh();
+            if (_monitorService.IsConnected)
+            {
+                Refresh();
+            }
+            else
+            {
+                // If not connected yet, the OnConnectionStatusChanged handler will trigger it
+                Refresh(); 
+            }
 
             // Subscribe to live updates
             _monitorService.FileActivityDetected += OnFileActivityDetected;
@@ -146,10 +154,10 @@ namespace RansomGuard.ViewModels
                 // Verify against the total history AND what we've already picked in this batch
                 bool isDuplicateInHistory = _allRecentActivities.Any(r => 
                     r.Id == item.Id || 
-                    (r.FilePath == item.FilePath && Math.Abs((r.Timestamp - item.Timestamp).TotalSeconds) < 2));
+                    (r.FilePath == item.FilePath && r.Action == item.Action && Math.Abs((r.Timestamp - item.Timestamp).TotalSeconds) < 2));
                 
                 bool isDuplicateInBatch = uniqueNewItems.Any(u => 
-                    u.FilePath == item.FilePath && Math.Abs((u.Timestamp - item.Timestamp).TotalSeconds) < 2);
+                    u.FilePath == item.FilePath && u.Action == item.Action && Math.Abs((u.Timestamp - item.Timestamp).TotalSeconds) < 2);
 
                 if (!isDuplicateInHistory && !isDuplicateInBatch)
                 {

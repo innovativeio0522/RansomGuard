@@ -181,6 +181,29 @@ namespace RansomGuard.Core.Services
         /// When disabled, the Watchdog is killed and nothing auto-restarts.
         /// </summary>
         public bool WatchdogEnabled { get; set; } = true;
+        
+        /// <summary>
+        /// The persistent baseline risk score shown on the dashboard. 
+        /// Regenerated only after 1 hour of inactivity.
+        /// </summary>
+        public int BaseThreatScore { get; set; } = 8;
+
+        /// <summary>
+        /// The last time the baseline threat score was updated.
+        /// </summary>
+        public DateTime LastScoreUpdateTime { get; set; } = DateTime.MinValue;
+
+        /// <summary>
+        /// Gets or sets a value indicating whether to automatically disconnect 
+        /// from the internet when a critical threat is detected.
+        /// </summary>
+        public bool NetworkIsolationEnabled { get; set; } = false;
+
+        /// <summary>
+        /// Gets or sets a value indicating whether to automatically shut down 
+        /// the PC when a critical threat is detected.
+        /// </summary>
+        public bool EmergencyShutdownEnabled { get; set; } = false;
 
 
         /// <summary>

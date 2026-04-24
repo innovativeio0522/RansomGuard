@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Package
+  xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10"
+  xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10"
+  xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities"
+  xmlns:desktop6="http://schemas.microsoft.com/appx/manifest/desktop/windows10/6"
+  xmlns:desktop7="http://schemas.microsoft.com/appx/manifest/desktop/windows10/7"
+  IgnorableNamespaces="uap rescap desktop6 desktop7">
+
+  <Identity
+    Name="RansomGuard"
+    Publisher="CN=RansomGuard"
+    Version="1.0.0.0" />
+
+  <Properties>
+    <DisplayName>RansomGuard</DisplayName>
+    <PublisherDisplayName>RansomGuard</PublisherDisplayName>
+    <Logo>Images\StoreLogo.png</Logo>
+  </Properties>
+
+  <Dependencies>
+    <TargetDeviceFamily Name="Windows.Desktop" MinVersion="10.0.17763.0" MaxVersionTested="10.0.22621.0" />
+  </Dependencies>
+
+  <Resources>
+    <Resource Language="en-us"/>
+  </Resources>
+
+  <Applications>
+    <Application
+      Id="App"
+      Executable="MaintenanceUI.exe"
+      EntryPoint="Windows.FullTrustApplication">
+      <uap:VisualElements
+        DisplayName="RansomGuard"
+        Description="Advanced Real-Time Ransomware Protection"
+        BackgroundColor="#1e1e2e"
+        Square150x150Logo="Images\Square150x150Logo.png"
+        Square44x44Logo="Images\Square44x44Logo.png">
+        <uap:DefaultTile Wide310x150Logo="Images\Wide310x150Logo.png" />
+        <uap:SplashScreen Image="Images\SplashScreen.png" BackgroundColor="#1e1e2e" />
+      </uap:VisualElements>
+      <Extensions>
+        <desktop7:Extension Category="windows.shortcut">
+          <desktop7:Shortcut File="[{Desktop}]\RansomGuard.lnk" Icon="Images\Square44x44Logo.png" DisplayName="RansomGuard" />
+        </desktop7:Extension>
+      </Extensions>
+    </Application>
+    <Application
+      Id="Service"
+      Executable="WinMaintenanceSvc.exe"
+      EntryPoint="Windows.FullTrustApplication">
+      <uap:VisualElements
+        AppListEntry="none"
+        DisplayName="RansomGuard Sentinel"
+        Description="RansomGuard Sentinel Service"
+        BackgroundColor="transparent"
+        Square150x150Logo="Images\Square150x150Logo.png"
+        Square44x44Logo="Images\Square44x44Logo.png">
+      </uap:VisualElements>
+      <Extensions>
+        <desktop6:Extension Category="windows.service" Executable="WinMaintenanceSvc.exe" EntryPoint="Windows.FullTrustApplication">
+          <desktop6:Service
+            Name="WinMaintenance"
+            StartupType="auto"
+            StartAccount="localSystem" />
+        </desktop6:Extension>
+      </Extensions>
+    </Application>
+  </Applications>
+
+  <Capabilities>
+    <Capability Name="internetClient" />
+    <rescap:Capability Name="runFullTrust" />
+    <rescap:Capability Name="packagedServices" />
+    <rescap:Capability Name="localSystemServices" />
+  </Capabilities>
+</Package>

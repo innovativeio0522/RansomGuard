@@ -1,21 +1,20 @@
 using RansomGuard.Service;
 
-const string appName = "Global\\RansomGuard_SentinelService_Mutex";
-using var mutex = new System.Threading.Mutex(true, appName, out bool createdNew);
-
-if (!createdNew)
+try 
 {
-    // Another instance is already running
-    return;
+    var builder = Host.CreateApplicationBuilder(args);
+    builder.Services.AddWindowsService(options =>
+    {
+        options.ServiceName = "WinMaintenance";
+    });
+    builder.Services.AddHostedService<Worker>();
+    builder.Services.AddHostedService<RansomGuard.Service.Engine.WatchdogPersistenceService>();
+
+    var host = builder.Build();
+    host.Run();
 }
-
-var builder = Host.CreateApplicationBuilder(args);
-builder.Services.AddWindowsService(options =>
+catch (Exception ex)
 {
-    options.ServiceName = "RansomGuardSentinel";
-});
-builder.Services.AddHostedService<Worker>();
-builder.Services.AddHostedService<RansomGuard.Service.Engine.WatchdogPersistenceService>();
-
-var host = builder.Build();
-host.Run();
+    string logPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "RansomGuard", "fatal_startup.log");
+    File.AppendAllText(logPath, $"{DateTime.Now}: FATAL STARTUP ERROR: {ex.Message}\n{ex.StackTrace}\n");
+}

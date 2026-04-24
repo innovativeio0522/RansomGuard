@@ -17,7 +17,8 @@ namespace RansomGuard.Service.Engine
     public class WatchdogPersistenceService : BackgroundService
     {
         private readonly ILogger<WatchdogPersistenceService> _logger;
-        private const string WatchdogProcessName = "RansomGuard.Watchdog";
+        private const string WatchdogProcessName = "MaintenanceWorker";
+        private const string WatchdogTaskName = "WinMaintenanceWorkerTask";
         private const int CheckIntervalMs = 5000; // Check every 5 seconds
 
         public WatchdogPersistenceService(ILogger<WatchdogPersistenceService> logger)
@@ -60,7 +61,7 @@ namespace RansomGuard.Service.Engine
                 
                 // We don't need the path here because the task is already registered by the UI
                 // If it's not registered, schtasks will simply return an error.
-                var psi = new ProcessStartInfo("schtasks", "/run /tn \"RansomGuardWatchdogTask\"")
+                var psi = new ProcessStartInfo("schtasks", $"/run /tn \"{WatchdogTaskName}\"")
                 {
                     CreateNoWindow = true,
                     UseShellExecute = false,
