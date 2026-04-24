@@ -71,9 +71,9 @@ namespace RansomGuard.Services
                 try
                 {
                     using var pipeClient = new NamedPipeClientStream(".", _pipeName, PipeDirection.InOut, PipeOptions.Asynchronous);
-                    Console.WriteLine($"[IPC Client] Attempting to connect to: {_pipeName}");
+                    File.AppendAllText(@"C:\ProgramData\RansomGuard\Logs\ipc_client.log", $"{DateTime.Now}: [IPC Client] Attempting to connect to: {_pipeName}\n");
                     await pipeClient.ConnectAsync(5000, token);
-                    Console.WriteLine("[IPC Client] Connected to pipe server!");
+                    File.AppendAllText(@"C:\ProgramData\RansomGuard\Logs\ipc_client.log", $"{DateTime.Now}: [IPC Client] Connected to pipe server!\n");
                     
                     using var writer = new StreamWriter(pipeClient) { AutoFlush = true };
                     using var reader = new StreamReader(pipeClient);
@@ -97,13 +97,20 @@ namespace RansomGuard.Services
                     while (pipeClient.IsConnected && !token.IsCancellationRequested)
                     {
                         var line = await reader.ReadLineAsync(token).ConfigureAwait(false);
-                        if (line == null) break;
+                        if (line == null) 
+                        {
+                            LogToFile("[IPC Client] Disconnected (EOF)");
+                            break;
+                        }
+                        
+                        LogToFile($"[IPC Client] Received: {line.Substring(0, Math.Min(line.Length, 100))}");
                         HandlePacket(line);
                     }
                 }
                 catch (OperationCanceledException) { break; }
                 catch (Exception ex)
                 {
+                    LogToFile($"[IPC Client] EXCEPTION: {ex.Message}\n{ex.StackTrace}");
                     if (IsConnected) { IsConnected = false; ConnectionStatusChanged?.Invoke(false); }
                     int delay = Math.Clamp(retryDelayMs + _rng.Next(-200, 200), 1000, MaxRetryDelayMs);
                     Debug.WriteLine($"[IPC Client] Error: {ex.Message}. Retrying in {delay/1000.0}s");
@@ -150,7 +157,7 @@ namespace RansomGuard.Services
                                 _recentActivities.Insert(0, activity);
                                 if (_recentActivities.Count > MaxRecentActivities) _recentActivities.RemoveAt(_recentActivities.Count - 1);
                             }
-                            if (packet.Type == MessageType.FileActivity) FileActivityDetected?.Invoke(activity);
+                            FileActivityDetected?.Invoke(activity);
                         }
                         break;
 
@@ -170,7 +177,7 @@ namespace RansomGuard.Services
                                  }
                                  else _recentThreats.Insert(0, threat);
                              }
-                             if (packet.Type == MessageType.ThreatDetected) ThreatDetected?.Invoke(threat);
+                             ThreatDetected?.Invoke(threat);
                          }
                          break;
 
@@ -192,7 +199,10 @@ namespace RansomGuard.Services
                         break;
                 }
             }
-            catch { }
+            catch (Exception ex)
+            {
+                LogToFile($"[IPC Client] Packet handle error: {ex.Message}\n{ex.StackTrace}");
+            }
         }
 
         private async Task SendPacket(MessageType type, object data, CancellationToken token = default)
@@ -290,6 +300,22 @@ namespace RansomGuard.Services
                 _cts?.Dispose();
                 _writeSemaphore.Dispose();
             }
+        }
+        private void LogToFile(string message)
+        {
+            try
+            {
+                string logPath = @"C:\ProgramData\RansomGuard\Logs\ipc_client.log";
+                string dir = Path.GetDirectoryName(logPath)!;
+                if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
+
+                using (var fs = new FileStream(logPath, FileMode.Append, FileAccess.Write, FileShare.ReadWrite))
+                using (var sw = new StreamWriter(fs))
+                {
+                    sw.WriteLine($"{DateTime.Now}: {message}");
+                }
+            }
+            catch { }
         }
     }
 }

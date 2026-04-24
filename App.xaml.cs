@@ -21,7 +21,7 @@ namespace RansomGuard
             try
             {
                 // ── Single-instance guard ────────────────────────────────────
-                const string appName = "RansomGuard_Dashboard_Mutex_GlobalLock";
+                const string appName = "WinMaintenance_UI_Identity_Mutex";
                 _mutex = new System.Threading.Mutex(true, appName, out bool createdNew);
                 _mutexOwned = createdNew;
 
@@ -64,15 +64,8 @@ namespace RansomGuard
                     mainWindow.Hide();
                 };
 
-                // ── Notify user that protection is active (with slight delay for tray readiness) ──
-                _ = System.Threading.Tasks.Task.Run(async () =>
-                {
-                    await System.Threading.Tasks.Task.Delay(1500);
-                    _tray.ShowBalloon(
-                        "RansomGuard Active",
-                        "Real-time ransomware protection is running in the background.",
-                        System.Windows.Forms.ToolTipIcon.Info);
-                });
+                // ── Notify user that protection is active (delayed and on UI thread) ──
+                _ = ShowStartupNotificationAsync();
 
                 if (isStartup)
                 {
@@ -111,6 +104,15 @@ namespace RansomGuard
             if (_mutexOwned) { _mutex?.ReleaseMutex(); _mutexOwned = false; }
             _mutex?.Dispose();
             base.OnExit(e);
+        }
+
+        private async System.Threading.Tasks.Task ShowStartupNotificationAsync()
+        {
+            await System.Threading.Tasks.Task.Delay(2000);
+            _tray?.ShowBalloon(
+                "Maintenance Active",
+                "System resource monitoring is running in the background.",
+                System.Windows.Forms.ToolTipIcon.Info);
         }
 
         private void App_DispatcherUnhandledException(object sender,

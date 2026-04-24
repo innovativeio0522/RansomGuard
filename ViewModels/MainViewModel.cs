@@ -1,3 +1,4 @@
+using System.IO;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using System.Windows;
@@ -151,8 +152,25 @@ namespace RansomGuard.ViewModels
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"MainViewModel init error: {ex.Message}");
+                LogToFile($"[MainViewModel] FATAL INIT ERROR: {ex.Message}\n{ex.StackTrace}");
             }
+        }
+        
+        private void LogToFile(string message)
+        {
+            try
+            {
+                string logPath = @"C:\ProgramData\RansomGuard\Logs\ui_error.log";
+                string dir = Path.GetDirectoryName(logPath)!;
+                if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
+
+                using (var fs = new FileStream(logPath, FileMode.Append, FileAccess.Write, FileShare.ReadWrite))
+                using (var sw = new StreamWriter(fs))
+                {
+                    sw.WriteLine($"{DateTime.Now}: {message}");
+                }
+            }
+            catch { }
         }
         
         partial void OnSearchTextChanged(string value) => UpdateCurrentViewSearch();
@@ -195,6 +213,20 @@ namespace RansomGuard.ViewModels
         {
             Notifications.Clear();
             UnreadNotificationsCount = 0;
+        }
+
+        [RelayCommand]
+        private void OpenHelp(string url)
+        {
+            try
+            {
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                {
+                    FileName = url ?? "https://github.com/innovativeio0522/RansomGuard",
+                    UseShellExecute = true
+                });
+            }
+            catch { }
         }
 
         [RelayCommand]

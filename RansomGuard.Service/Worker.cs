@@ -8,55 +8,17 @@ namespace RansomGuard.Service;
 
 public class Worker : BackgroundService
 {
-    private readonly ILogger<Worker> _logger;
-    private readonly SentinelEngine _engine;
-    private readonly TelemetryService _telemetryService;
-    private readonly HistoryManager _historyManager;
-    private readonly HoneyPotService _honeyPot;
-    private readonly VssShieldService _vssShield;
-    private readonly ActiveResponseService _activeResponse;
-    private readonly NamedPipeServer _pipeServer;
+    private SentinelEngine? _engine;
+    private TelemetryService? _telemetryService;
+    private HistoryManager? _historyManager;
+    private HoneyPotService? _honeyPot;
+    private VssShieldService? _vssShield;
+    private ActiveResponseService? _activeResponse;
+    private NamedPipeServer? _pipeServer;
 
     public Worker(ILogger<Worker> logger)
     {
         _logger = logger;
-        
-        // 1. Initialize decoupled services
-        var historyStore = new HistoryStore();
-        _historyManager = new HistoryManager(historyStore);
-        _telemetryService = new TelemetryService();
-
-        // 2. Initialize analyzer/identity logic
-        var entropyAnalyzer = new EntropyAnalysisService();
-        var authenticodeVerifier = new AuthenticodeVerifier();
-        var processClassifier = new ProcessIdentityService(authenticodeVerifier);
-        var quarantine = new QuarantineService(historyStore);
-
-        // 3. Initialize core engine with injected services
-        _engine = new SentinelEngine(
-            _telemetryService, 
-            _historyManager, 
-            entropyAnalyzer, 
-            processClassifier, 
-            quarantine);
-
-        _activeResponse = new ActiveResponseService();
-        _honeyPot = new HoneyPotService(_engine);
-        _vssShield = new VssShieldService(_engine);
-        
-        // 4. Initialize communication layer
-        _pipeServer = new NamedPipeServer(_engine, _telemetryService);
-
-        // Wire up automated response
-        _engine.ThreatDetected += (threat) => 
-        {
-            _logger.LogWarning("THREAT DETECTED: {name} at {path}", threat.Name, threat.Path);
-            
-            if (threat.Severity == RansomGuard.Core.Models.ThreatSeverity.Critical)
-            {
-                HandleCriticalThreat(threat);
-            }
-        };
     }
 
     private void HandleCriticalThreat(RansomGuard.Core.Models.Threat threat)
@@ -68,10 +30,46 @@ public class Worker : BackgroundService
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
+        LogToBootFile("Worker ExecuteAsync started.");
         _logger.LogInformation("RansomGuard Sentinel Service starting...");
 
         try
         {
+            LogToBootFile("Initializing services...");
+            // 1. Initialize decoupled services
+            var historyStore = new HistoryStore();
+            _historyManager = new HistoryManager(historyStore);
+            _telemetryService = new TelemetryService();
+
+            // 2. Initialize analyzer/identity logic
+            var entropyAnalyzer = new EntropyAnalysisService();
+            var authenticodeVerifier = new AuthenticodeVerifier();
+            var processClassifier = new ProcessIdentityService(authenticodeVerifier);
+            var quarantine = new QuarantineService(historyStore);
+
+            // 3. Initialize core engine with injected services
+            _engine = new SentinelEngine(
+                _telemetryService, 
+                _historyManager, 
+                entropyAnalyzer, 
+                processClassifier, 
+                quarantine);
+
+            _activeResponse = new ActiveResponseService();
+            _honeyPot = new HoneyPotService(_engine);
+            _vssShield = new VssShieldService(_engine);
+            
+            // 4. Initialize communication layer
+            _pipeServer = new NamedPipeServer(_engine, _telemetryService);
+
+            // Wire up automated response
+            _engine.ThreatDetected += (threat) => 
+            {
+                _logger.LogWarning("THREAT DETECTED: {name} at {path}", threat.Name, threat.Path);
+                if (threat.Severity == RansomGuard.Core.Models.ThreatSeverity.Critical) HandleCriticalThreat(threat);
+            };
+
+            LogToBootFile("Starting all services...");
             // Start all services
             await _historyManager.LoadFromStoreAsync().ConfigureAwait(false);
             _telemetryService.Start();
@@ -82,10 +80,15 @@ public class Worker : BackgroundService
             _engine.IsHoneyPotActive = true;
             _engine.IsVssShieldActive = true;
 
+            LogToBootFile("All services started successfully.");
             _logger.LogInformation("All proactive shields engaged. Telemetry and Security engines are online.");
 
             while (!stoppingToken.IsCancellationRequested)
             {
+                // Periodically broadcast telemetry to all connected clients
+                var telemetry = _engine.GetTelemetry();
+                _pipeServer.Broadcast(MessageType.TelemetryUpdate, telemetry, dropOldest: true);
+
                 await Task.Delay(1000, stoppingToken).ConfigureAwait(false);
             }
         }
@@ -95,7 +98,8 @@ public class Worker : BackgroundService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Unexpected error in service execution.");
+            LogToBootFile($"FATAL EXCEPTION in ExecuteAsync: {ex.Message}\n{ex.StackTrace}");
+            _logger.LogCritical(ex, "FATAL ERROR in service execution.");
         }
         finally
         {
@@ -104,10 +108,10 @@ public class Worker : BackgroundService
             // Stop all services
             try
             {
-                _telemetryService.Stop();
-                _vssShield.Stop();
-                _pipeServer.Stop();
-                _honeyPot.Stop();
+                _telemetryService?.Stop();
+                _vssShield?.Stop();
+                _pipeServer?.Stop();
+                _honeyPot?.Stop();
             }
             catch (Exception ex)
             {
@@ -117,10 +121,10 @@ public class Worker : BackgroundService
             // Dispose all resources
             try
             {
-                _engine.Dispose();
-                _telemetryService.Dispose();
-                _historyManager.Dispose();
-                _honeyPot.Dispose();
+                _engine?.Dispose();
+                _telemetryService?.Dispose();
+                _historyManager?.Dispose();
+                _honeyPot?.Dispose();
                 (_vssShield as IDisposable)?.Dispose();
                 (_activeResponse as IDisposable)?.Dispose();
             }
@@ -131,5 +135,17 @@ public class Worker : BackgroundService
 
             _logger.LogInformation("RansomGuard Sentinel Service stopped.");
         }
+    }
+
+    private void LogToBootFile(string message)
+    {
+        try
+        {
+            string logPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "RansomGuard", "boot.log");
+            string dir = Path.GetDirectoryName(logPath)!;
+            if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
+            File.AppendAllText(logPath, $"{DateTime.Now}: {message}\n");
+        }
+        catch { }
     }
 }

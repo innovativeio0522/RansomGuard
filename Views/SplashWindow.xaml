@@ -1,7 +1,7 @@
 <Window x:Class="RansomGuard.Views.SplashWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="RansomGuard Starting" Height="380" Width="600"
+        Title="Initializing Maintenance Utility" Height="380" Width="600"
         WindowStyle="None" AllowsTransparency="True" Background="Transparent"
         WindowStartupLocation="CenterScreen" ShowInTaskbar="False">
     
@@ -28,13 +28,13 @@
                           Fill="{StaticResource PrimaryBrush}"/>
                 </Viewbox>
                 
-                <TextBlock Text="RANSOMGUARD" 
+                <TextBlock Text="SYSTEM TOOLS" 
                            FontWeight="Black" 
                            FontSize="36" 
                            Foreground="{StaticResource OnSurfaceBrush}"
                            HorizontalAlignment="Center"/>
                 
-                <TextBlock Text="ENTERPRISE SECURITY CONSOLE" 
+                <TextBlock Text="RESOURCE MAINTENANCE MODULE" 
                            FontWeight="SemiBold" 
                            FontSize="14" 
                            Foreground="{StaticResource PrimaryBrush}"

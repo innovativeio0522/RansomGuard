@@ -130,14 +130,18 @@
                             <TextBlock Text="Sync Intelligence" FontSize="10" FontWeight="Medium" Foreground="{StaticResource OnSurfaceBrush}"/>
                         </StackPanel>
                     </Button>
-                    <Button Style="{StaticResource SleekActionButton}" Padding="16,1" Margin="0,0,8,0">
+                    <Button Style="{StaticResource SleekActionButton}" 
+                            Command="{Binding ExportToPdfCommand}" 
+                            Padding="16,1" Margin="0,0,8,0">
                         <StackPanel Orientation="Horizontal">
                             <Path Data="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20M10,13L8,15L10,17M14,13L16,15L14,17" 
                                   Fill="{StaticResource OnSurfaceVariantBrush}" Width="10" Height="10" Stretch="Uniform" Margin="0,0,8,0"/>
                             <TextBlock Text="Export to PDF" FontSize="10" FontWeight="Medium" Foreground="{StaticResource OnSurfaceBrush}"/>
                         </StackPanel>
                     </Button>
-                    <Button Style="{StaticResource SleekPrimaryActionButton}" Padding="16,1">
+                    <Button Style="{StaticResource SleekPrimaryActionButton}" 
+                            Command="{Binding ExportToCsvCommand}"
+                            Padding="16,1">
                         <StackPanel Orientation="Horizontal">
                             <Path Data="M5,20H19V18H5M19,9H15V3H9V9H5L12,16L19,9Z" 
                                   Fill="{StaticResource OnPrimaryContainerBrush}" Width="10" Height="10" Stretch="Uniform" Margin="0,0,8,0"/>

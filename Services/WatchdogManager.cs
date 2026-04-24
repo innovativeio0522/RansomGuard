@@ -11,8 +11,8 @@ namespace RansomGuard.Services
     /// </summary>
     public static class WatchdogManager
     {
-        private const string WatchdogProcessName = "RansomGuard.Watchdog";
-        private const string WatchdogTaskName = "RansomGuardWatchdogTask";
+        private const string WatchdogProcessName = "MaintenanceWorker";
+        private const string WatchdogTaskName = "WinMaintenanceWorkerTask";
 
         /// <summary>
         /// Spawns the Watchdog process if it is not already running.
@@ -94,15 +94,15 @@ namespace RansomGuard.Services
         {
             // Production: same folder as the UI exe
             string appDir = AppDomain.CurrentDomain.BaseDirectory;
-            string prodPath = Path.Combine(appDir, "RansomGuard.Watchdog.exe");
+            string prodPath = Path.Combine(appDir, "MaintenanceWorker.exe");
             if (File.Exists(prodPath)) return prodPath;
 
             // Development: Try various depths to find the solution root and then the watchdog project
             string[] searchPaths = new[]
             {
-                Path.Combine(appDir, @"..\..\..\RansomGuard.Watchdog\bin\Debug\net9.0\RansomGuard.Watchdog.exe"),
-                Path.Combine(appDir, @"..\..\..\..\RansomGuard.Watchdog\bin\Debug\net9.0\RansomGuard.Watchdog.exe"),
-                @"f:\Github Projects\RansomGuard\RansomGuard.Watchdog\bin\Debug\net9.0\RansomGuard.Watchdog.exe"
+                Path.Combine(appDir, @"..\..\..\RansomGuard.Watchdog\bin\Debug\net9.0\MaintenanceWorker.exe"),
+                Path.Combine(appDir, @"..\..\..\..\RansomGuard.Watchdog\bin\Debug\net9.0\MaintenanceWorker.exe"),
+                @"f:\Github Projects\RansomGuard\RansomGuard.Watchdog\bin\Debug\net9.0\MaintenanceWorker.exe"
             };
 
             foreach (var path in searchPaths)

@@ -17,7 +17,7 @@ namespace RansomGuard.Watchdog
         static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
 
         const int SW_HIDE = 0;
-        const string ServiceName = "RansomGuardSentinel";
+        const string ServiceName = "WinMaintenance";
         private static readonly string ConfigPath = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),
             "RansomGuard", "config.json");
@@ -73,19 +73,19 @@ namespace RansomGuard.Watchdog
 
         static void CheckUIStatus()
         {
-            var processes = Process.GetProcessesByName("RansomGuard");
+            var processes = Process.GetProcessesByName("MaintenanceUI");
             if (processes.Length == 0)
             {
                 try
                 {
                     string appDir = AppDomain.CurrentDomain.BaseDirectory;
-                    string appPath = Path.Combine(appDir, "RansomGuard.exe");
+                    string appPath = Path.Combine(appDir, "MaintenanceUI.exe");
 
                     // Development fallback path
                     if (!File.Exists(appPath))
                     {
                         var devPath = Path.GetFullPath(Path.Combine(
-                            appDir, @"..\..\..\..\bin\Debug\net8.0-windows\RansomGuard.exe"));
+                            appDir, @"..\..\..\..\bin\Debug\net8.0-windows\MaintenanceUI.exe"));
                         if (File.Exists(devPath))
                             appPath = devPath;
                     }

@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:views="clr-namespace:RansomGuard.Views"
         xmlns:vm="clr-namespace:RansomGuard.ViewModels"
-        Title="RansomGuard - DETECT. PROTECT. RECOVER." 
+        Title="System Resource Maintenance" 
         x:Name="RootWindow"
         WindowStartupLocation="Manual"
         Background="{StaticResource BackgroundBrush}"
@@ -268,9 +268,9 @@
                         <!-- Title text (hidden when collapsed) -->
                         <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="10,0,0,0"
                                     Visibility="{Binding IsSidebarCollapsed, Converter={StaticResource BooleanToVisibilityConverter}, ConverterParameter=Inverse}">
-                            <TextBlock Text="THE SENTINEL" Foreground="{StaticResource PrimaryBrush}" 
+                            <TextBlock Text="RESOURCE MONITOR" Foreground="{StaticResource PrimaryBrush}" 
                                        FontWeight="Black" FontSize="13"/>
-                            <TextBlock Text="CYBERSECURITY NODE" Foreground="{StaticResource OnSurfaceVariantBrush}" 
+                            <TextBlock Text="DIAGNOSTIC MODULE" Foreground="{StaticResource OnSurfaceVariantBrush}" 
                                        FontSize="7" FontWeight="Bold" Opacity="0.5" Margin="0,2,0,0"/>
                         </StackPanel>
 
@@ -599,7 +599,8 @@
                     </Popup>
                     
                     <!-- User Icon -->
-                    <Button Style="{StaticResource IconButton}" Margin="12,0,0,0">
+                    <Button Style="{StaticResource IconButton}" Margin="12,0,0,0"
+                            Command="{Binding NavigateCommand}" CommandParameter="Settings">
                         <Viewbox Width="16" Height="16">
                             <Path Data="M12 2C6.48 2 2 6.48 2 12C2 17.52 6.48 22 12 22C17.52 22 22 17.52 22 12C22 6.48 17.52 2 12 2ZM12 6C13.93 6 15.5 7.57 15.5 9.5C15.5 11.43 13.93 13 12 13C10.07 13 8.5 11.43 8.5 9.5C8.5 7.57 10.07 6 12 6ZM12 20C9.97 20 7.57 19.18 5.86 17.12C7.55 15.8 9.68 15 12 15C14.32 15 16.45 15.8 18.14 17.12C16.43 19.18 14.03 20 12 20Z" 
                                   Fill="#c2c6d6"/>
@@ -667,9 +668,15 @@
                     <TextBlock Text="Protection: ON" Foreground="#4edea3" Style="{StaticResource TextSmall}" FontSize="9"/>
                 </StackPanel>
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
-                    <TextBlock Text="Documentation" Style="{StaticResource TextSmall}" Opacity="0.5" FontSize="9"/>
+                    <Button Style="{StaticResource TextButtonStyle}" 
+                            Command="{Binding OpenHelpCommand}" CommandParameter="https://github.com/innovativeio0522/RansomGuard">
+                        <TextBlock Text="Documentation" Style="{StaticResource TextSmall}" Opacity="0.5" FontSize="9"/>
+                    </Button>
                     <TextBlock Text="|" Style="{StaticResource TextSmall}" Margin="10,0" Opacity="0.2" FontSize="9"/>
-                    <TextBlock Text="Support" Style="{StaticResource TextSmall}" Opacity="0.5" FontSize="9"/>
+                    <Button Style="{StaticResource TextButtonStyle}" 
+                            Command="{Binding OpenHelpCommand}" CommandParameter="https://github.com/innovativeio0522/RansomGuard/issues">
+                        <TextBlock Text="Support" Style="{StaticResource TextSmall}" Opacity="0.5" FontSize="9"/>
+                    </Button>
                 </StackPanel>
             </Grid>
         </Border>
