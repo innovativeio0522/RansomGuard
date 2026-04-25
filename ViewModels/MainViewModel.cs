@@ -6,6 +6,8 @@ using System.Windows.Threading;
 using RansomGuard.Services;
 using RansomGuard.Core.Interfaces;
 using RansomGuard.Core.Models;
+using RansomGuard.Core.Helpers;
+using RansomGuard.Core.Configuration;
 using System.Collections.ObjectModel;
 using System.Linq;
 
@@ -143,7 +145,7 @@ namespace RansomGuard.ViewModels
                 // Setup global status bar timer (3 second interval for background task)
                 _statusBarTimer = new DispatcherTimer
                 {
-                    Interval = TimeSpan.FromSeconds(3)
+                    Interval = TimeSpan.FromSeconds(AppConstants.Timers.StatusBarUpdateSeconds)
                 };
                 _statusBarTimer.Tick += (s, e) => UpdateStatusBarTelemetry();
                 _statusBarTimer.Start();
@@ -152,25 +154,8 @@ namespace RansomGuard.ViewModels
             }
             catch (Exception ex)
             {
-                LogToFile($"[MainViewModel] FATAL INIT ERROR: {ex.Message}\n{ex.StackTrace}");
+                FileLogger.LogError("ui_error.log", "FATAL INIT ERROR", ex);
             }
-        }
-        
-        private void LogToFile(string message)
-        {
-            try
-            {
-                string logPath = @"C:\ProgramData\RansomGuard\Logs\ui_error.log";
-                string dir = Path.GetDirectoryName(logPath)!;
-                if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
-
-                using (var fs = new FileStream(logPath, FileMode.Append, FileAccess.Write, FileShare.ReadWrite))
-                using (var sw = new StreamWriter(fs))
-                {
-                    sw.WriteLine($"{DateTime.Now}: {message}");
-                }
-            }
-            catch { }
         }
         
         partial void OnSearchTextChanged(string value) => UpdateCurrentViewSearch();
@@ -226,7 +211,10 @@ namespace RansomGuard.ViewModels
                     UseShellExecute = true
                 });
             }
-            catch { }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[MainViewModel] OpenHelp failed: {ex.Message}");
+            }
         }
 
         [RelayCommand]

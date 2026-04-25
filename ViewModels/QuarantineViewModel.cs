@@ -17,11 +17,8 @@ namespace RansomGuard.ViewModels
     {
         private readonly ISystemMonitorService _monitorService;
         private readonly DispatcherTimer _refreshTimer;
+        private readonly CancellationTokenSource _cts = new();
         private bool _disposed;
-
-
-
-
 
         private List<QuarantineItemViewModel> _allItems = new();
         public ObservableCollection<QuarantineItemViewModel> QuarantinedItems { get; } = new();
@@ -208,8 +205,16 @@ namespace RansomGuard.ViewModels
 
             foreach (var item in selected)
             {
-                try { await _monitorService.RestoreQuarantinedFile(item.Threat.Description); }
-                catch { }
+                if (_disposed) break; // Check if disposed during iteration
+                
+                try 
+                { 
+                    await _monitorService.RestoreQuarantinedFile(item.Threat.Description); 
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[QuarantineViewModel] Failed to restore {item.Threat.Description}: {ex.Message}");
+                }
             }
         }
 
@@ -238,8 +243,16 @@ namespace RansomGuard.ViewModels
 
                 foreach (var item in selected)
                 {
-                    try { await _monitorService.DeleteQuarantinedFile(item.Threat.Description); }
-                    catch { }
+                    if (_disposed) break; // Check if disposed during iteration
+                    
+                    try 
+                    { 
+                        await _monitorService.DeleteQuarantinedFile(item.Threat.Description); 
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"[QuarantineViewModel] Failed to delete {item.Threat.Description}: {ex.Message}");
+                    }
                 }
             }
         }
@@ -320,6 +333,10 @@ namespace RansomGuard.ViewModels
         {
             if (_disposed) return;
             _disposed = true;
+            
+            // Cancel all pending operations
+            _cts.Cancel();
+            _cts.Dispose();
             
             _monitorService.ThreatDetected -= OnThreatDetected;
             

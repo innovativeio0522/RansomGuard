@@ -3,6 +3,8 @@ using CommunityToolkit.Mvvm.Input;
 using RansomGuard.Core.Models;
 using RansomGuard.Core.Interfaces;
 using RansomGuard.Core.IPC;
+using RansomGuard.Core.Helpers;
+using RansomGuard.Core.Configuration;
 using RansomGuard.Services;
 using System.Collections.ObjectModel;
 using System.IO;
@@ -14,9 +16,11 @@ namespace RansomGuard.ViewModels
     {
         private readonly ISystemMonitorService _monitorService;
         private readonly DispatcherTimer _refreshTimer;
+        private readonly Action _processListUpdatedHandler;
         private bool _disposed;
 
         private List<ProcessInfo> _allProcesses = new();
+        private readonly object _processesLock = new();
         public ObservableCollection<ProcessInfo> ActiveProcesses { get; } = new();
 
         [ObservableProperty]
@@ -60,16 +64,19 @@ namespace RansomGuard.ViewModels
             // Auto-refresh process list every 3 seconds
             _refreshTimer = new DispatcherTimer
             {
-                Interval = TimeSpan.FromSeconds(3)
+                Interval = TimeSpan.FromSeconds(AppConstants.Timers.ProcessMonitorRefreshSeconds)
             };
             _refreshTimer.Tick += (s, e) => LoadData();
             _refreshTimer.Start();
 
-            // Reactive update: Refresh instantly when a new process list arrives from the service
-            _monitorService.ProcessListUpdated += () => {
+            // Store handler reference for proper cleanup
+            _processListUpdatedHandler = () => {
                 System.Diagnostics.Debug.WriteLine("[ProcessMonitorViewModel] ProcessListUpdated event received");
                 System.Windows.Application.Current.Dispatcher.Invoke(() => LoadData());
             };
+            
+            // Reactive update: Refresh instantly when a new process list arrives from the service
+            _monitorService.ProcessListUpdated += _processListUpdatedHandler;
         }
 
         partial void OnSearchQueryChanged(string value)
@@ -81,52 +88,82 @@ namespace RansomGuard.ViewModels
         {
             try
             {
-                var telemetry = _monitorService?.GetTelemetry() ?? new TelemetryData();
+                // Validate telemetry data
+                var telemetry = _monitorService?.GetTelemetry();
+                if (telemetry == null)
+                {
+                    System.Diagnostics.Debug.WriteLine("[ProcessMonitorViewModel] Telemetry is null - service may be disconnected");
+                    FileLogger.Log("ui_process.log", "[LoadData] Telemetry is null");
+                    telemetry = new TelemetryData(); // Use default values
+                }
                 
                 // Failsafe: if IPC transport drops these specific values to 0 during a race condition, calculate them locally.
                 int activeThreads = telemetry.ActiveThreadsCount;
                 double trustedPercent = telemetry.TrustedProcessPercent;
                 int suspiciousCount = telemetry.SuspiciousProcessCount;
+                double cpuUsage = telemetry.CpuUsage;
+                double kernelCpu = telemetry.KernelCpuUsage;
+                double userCpu = telemetry.UserCpuUsage;
                 
                 if (activeThreads == 0)
                 {
                     var procs = System.Diagnostics.Process.GetProcesses();
-                    foreach (var p in procs) { try { activeThreads += p.Threads.Count; } catch { } }
+                    foreach (var p in procs) 
+                    { 
+                        try 
+                        { 
+                            activeThreads += p.Threads.Count; 
+                        } 
+                        catch (Exception ex) 
+                        { 
+                            // Process may have exited - this is expected
+                            System.Diagnostics.Debug.WriteLine($"[ProcessMonitorViewModel] Failed to get thread count for {p.ProcessName}: {ex.Message}");
+                        } 
+                    }
                     int total = procs.Length;
                     trustedPercent = 100;
                     suspiciousCount = 0;
                 }
 
                 ActiveThreads = $"{activeThreads:N0}";
-                CpuLoad = $"{telemetry.CpuUsage:F1}%";
-                CpuLoadValue = telemetry.CpuUsage;
+                CpuLoad = $"{cpuUsage:F1}%";
+                CpuLoadValue = cpuUsage;
                 TrustedProcPercent = $"{trustedPercent:F1}%";
                 SuspiciousCount = suspiciousCount.ToString("D2");
 
-                UpdateChart(telemetry.KernelCpuUsage, telemetry.UserCpuUsage);
+                UpdateChart(kernelCpu, userCpu);
 
-                var processes = (_monitorService?.GetActiveProcesses() ?? Enumerable.Empty<ProcessInfo>()).Where(p => p != null).ToList();
-                var debugMsg = $"[LoadData] Retrieved {processes.Count} processes. IsConnected={_monitorService.IsConnected}";
-                System.Diagnostics.Debug.WriteLine(debugMsg);
-                LogToFile(debugMsg);
-                
-                _allProcesses.Clear();
-                foreach (var process in processes)
+                // Validate process list
+                var processes = _monitorService?.GetActiveProcesses();
+                if (processes == null)
                 {
-                    if (process != null)
-                    {
-                        _allProcesses.Add(process);
-                    }
+                    System.Diagnostics.Debug.WriteLine("[ProcessMonitorViewModel] Process list is null - service may be disconnected");
+                    FileLogger.Log("ui_process.log", "[LoadData] Process list is null");
+                    return; // Don't update process list if service is unavailable
+                }
+
+                var validProcesses = processes.Where(p => p != null).ToList();
+                var debugMsg = $"[LoadData] Retrieved {validProcesses.Count} processes. IsConnected={_monitorService?.IsConnected ?? false}";
+                System.Diagnostics.Debug.WriteLine(debugMsg);
+                FileLogger.Log("ui_process.log", debugMsg);
+                
+                lock (_processesLock)
+                {
+                    _allProcesses.Clear();
+                    _allProcesses.AddRange(validProcesses);
                 }
 
                 System.Diagnostics.Debug.WriteLine($"[LoadData] _allProcesses has {_allProcesses.Count} items");
                 System.Diagnostics.Debug.WriteLine($"[LoadData] ActiveProcesses has {ActiveProcesses.Count} items before ApplyFilter");
 
                 // Auto-select most suspicious process for Alert Detail if available
-                if (SelectedProcess == null || !_allProcesses.Any(p => p != null && p.Pid == SelectedProcess.Pid))
+                lock (_processesLock)
                 {
-                    SelectedProcess = _allProcesses.FirstOrDefault(p => p != null && !p.IsTrusted) ?? _allProcesses.FirstOrDefault(p => p != null);
-                    System.Diagnostics.Debug.WriteLine($"[LoadData] SelectedProcess set to {SelectedProcess?.Name ?? "null"}");
+                    if (SelectedProcess == null || !_allProcesses.Any(p => p != null && p.Pid == SelectedProcess.Pid))
+                    {
+                        SelectedProcess = _allProcesses.FirstOrDefault(p => p != null && !p.IsTrusted) ?? _allProcesses.FirstOrDefault(p => p != null);
+                        System.Diagnostics.Debug.WriteLine($"[LoadData] SelectedProcess set to {SelectedProcess?.Name ?? "null"}");
+                    }
                 }
 
                 ApplyFilter();
@@ -135,20 +172,27 @@ namespace RansomGuard.ViewModels
             {
                 var errorMsg = $"[LoadData] EXCEPTION: {ex.Message}\n{ex.StackTrace}";
                 System.Diagnostics.Debug.WriteLine(errorMsg);
-                LogToFile(errorMsg);
+                FileLogger.LogError("ui_process.log", "[LoadData] EXCEPTION", ex);
             }
         }
 
         private void ApplyFilter()
         {
+            // Create a snapshot of _allProcesses to avoid collection modification during iteration
+            List<ProcessInfo> snapshot;
+            lock (_processesLock)
+            {
+                snapshot = _allProcesses.ToList();
+            }
+            
             var filtered = string.IsNullOrWhiteSpace(SearchQuery) 
-                ? _allProcesses 
-                : _allProcesses.Where(p => p != null && 
-                                           ((p.Name != null && p.Name.Contains(SearchQuery, StringComparison.OrdinalIgnoreCase)) || 
-                                            p.Pid.ToString().Contains(SearchQuery))).ToList();
+                ? snapshot 
+                : snapshot.Where(p => p != null && 
+                                      ((p.Name != null && p.Name.Contains(SearchQuery, StringComparison.OrdinalIgnoreCase)) || 
+                                       p.Pid.ToString().Contains(SearchQuery))).ToList();
 
             System.Diagnostics.Debug.WriteLine($"[DEBUG] ApplyFilter: filtered has {filtered.Count} items");
-            LogToFile($"[ApplyFilter] filtered={filtered.Count}");
+            FileLogger.Log("ui_process.log", $"[ApplyFilter] filtered={filtered.Count}");
 
             // CRITICAL FIX: The UI loses selection and binding state because objects are recreated on every refresh.
             // We use reconciliation to update existing instances instead of clearing the collection.
@@ -178,7 +222,7 @@ namespace RansomGuard.ViewModels
             }
 
             System.Diagnostics.Debug.WriteLine($"[DEBUG] ApplyFilter: ActiveProcesses now has {ActiveProcesses.Count} items");
-            LogToFile($"[ApplyFilter] ActiveProcesses.Count={ActiveProcesses.Count}");
+            FileLogger.Log("ui_process.log", $"[ApplyFilter] ActiveProcesses.Count={ActiveProcesses.Count}");
         }
 
         private void UpdateChart(double kernelCpu, double userCpu)
@@ -215,6 +259,13 @@ namespace RansomGuard.ViewModels
 
             await Task.Run(() =>
             {
+                // Create a snapshot to avoid collection modification during iteration
+                List<ProcessInfo> processSnapshot;
+                lock (_processesLock)
+                {
+                    processSnapshot = _allProcesses.ToList();
+                }
+                
                 foreach (var folder in potentialFolders)
                 {
                     if (string.IsNullOrEmpty(folder)) continue;
@@ -227,7 +278,7 @@ namespace RansomGuard.ViewModels
                         using (var writer = new StreamWriter(path, false))
                         {
                             writer.WriteLine("PID,Name,CPU,Memory,Trusted");
-                            foreach (var p in _allProcesses)
+                            foreach (var p in processSnapshot)
                             {
                                 writer.WriteLine($"{p.Pid},{p.Name},{p.CpuUsage},{p.MemoryUsage},{p.IsTrusted}");
                             }
@@ -254,7 +305,14 @@ namespace RansomGuard.ViewModels
                 
                 if (result == System.Windows.MessageBoxResult.Yes)
                 {
-                    try { System.Diagnostics.Process.Start("explorer.exe", $"/select,\"{path}\""); } catch { }
+                    try 
+                    { 
+                        System.Diagnostics.Process.Start("explorer.exe", $"/select,\"{path}\""); 
+                    } 
+                    catch (Exception ex) 
+                    { 
+                        System.Diagnostics.Debug.WriteLine($"[ProcessMonitorViewModel] Failed to open explorer: {ex.Message}");
+                    }
                 }
             }
             else
@@ -295,25 +353,16 @@ namespace RansomGuard.ViewModels
 
         public void Dispose()
         {
+            if (_disposed) return;
             _disposed = true;
+            
             _refreshTimer.Stop();
-        }
-
-        private void LogToFile(string message)
-        {
-            try
+            
+            // Unsubscribe from event to prevent memory leak
+            if (_monitorService != null)
             {
-                string logPath = @"C:\ProgramData\RansomGuard\Logs\ui_process.log";
-                string dir = Path.GetDirectoryName(logPath)!;
-                if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
-
-                using (var fs = new FileStream(logPath, FileMode.Append, FileAccess.Write, FileShare.ReadWrite))
-                using (var sw = new StreamWriter(fs))
-                {
-                    sw.WriteLine($"{DateTime.Now}: {message}");
-                }
+                _monitorService.ProcessListUpdated -= _processListUpdatedHandler;
             }
-            catch { }
         }
     }
 }

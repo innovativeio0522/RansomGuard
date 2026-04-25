@@ -46,6 +46,19 @@ if %errorlevel% neq 0 (
     dotnet build RansomGuard.csproj -v q
 )
 
+echo [2.5/5] Building and copying Watchdog...
+dotnet build RansomGuard.Watchdog\RansomGuard.Watchdog.csproj -c Debug -v q
+if %errorlevel% equ 0 (
+    copy /Y RansomGuard.Watchdog\bin\Debug\net8.0\MaintenanceWorker.exe bin\Debug\net8.0-windows\ >nul 2>&1
+    if exist bin\Debug\net8.0-windows\MaintenanceWorker.exe (
+        echo [+] Watchdog copied successfully
+    ) else (
+        echo [!] WARNING: Failed to copy Watchdog executable
+    )
+) else (
+    echo [!] WARNING: Watchdog build failed
+)
+
 echo [3/5] Publishing service with all dependencies...
 dotnet publish RansomGuard.Service/RansomGuard.Service.csproj -c Debug -o RansomGuard.Service/publish --self-contained true -r win-x64 -v q
 

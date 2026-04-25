@@ -19,7 +19,10 @@ namespace RansomGuard.Tests.Engine
         {
             _mockHistory = new Mock<IHistoryStore>();
             _testQuarantinePath = Path.Combine(Path.GetTempPath(), "RG_Test_Quarantine_" + Guid.NewGuid());
-            _tempSourcePath = Path.Combine(Path.GetTempPath(), "RG_Test_Source_" + Guid.NewGuid());
+            
+            // Use user profile path for test files (required by security validation)
+            string userProfile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+            _tempSourcePath = Path.Combine(userProfile, "RG_Test_Source_" + Guid.NewGuid());
             
             Directory.CreateDirectory(_testQuarantinePath);
             Directory.CreateDirectory(_tempSourcePath);

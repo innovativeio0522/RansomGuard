@@ -1,13 +1,15 @@
 using System;
 using System.Collections.Concurrent;
 using System.Diagnostics;
+using System.Threading;
 
 namespace RansomGuard.Core.Helpers
 {
     /// <summary>
     /// Provides accurate per-process CPU usage tracking by calculating deltas in ProcessorTime.
+    /// Includes automatic background cleanup of stale entries.
     /// </summary>
-    public class ProcessStatsProvider
+    public class ProcessStatsProvider : IDisposable
     {
         private static readonly Lazy<ProcessStatsProvider> _instance = 
             new Lazy<ProcessStatsProvider>(() => new ProcessStatsProvider());
@@ -16,8 +18,16 @@ namespace RansomGuard.Core.Helpers
 
         private readonly ConcurrentDictionary<int, (TimeSpan processorTime, DateTime timestamp)> _statsMap = new();
         private readonly int _processorCount = Environment.ProcessorCount;
+        private readonly Timer? _cleanupTimer;
+        private bool _disposed;
 
-        private ProcessStatsProvider() { }
+        private ProcessStatsProvider()
+        {
+            // Start background cleanup timer (runs every 5 minutes)
+            _cleanupTimer = new Timer(CleanupCallback, null, 
+                TimeSpan.FromMinutes(5), 
+                TimeSpan.FromMinutes(5));
+        }
 
         /// <summary>
         /// Calculates the CPU usage percentage for a process since the last poll.
@@ -60,20 +70,60 @@ namespace RansomGuard.Core.Helpers
         }
 
         /// <summary>
+        /// Background cleanup callback - runs on timer thread.
+        /// </summary>
+        private void CleanupCallback(object? state)
+        {
+            if (_disposed) return;
+            
+            try
+            {
+                Cleanup();
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[ProcessStatsProvider] Cleanup error: {ex.Message}");
+            }
+        }
+
+        /// <summary>
         /// Cleans up stats for processes that are no longer running.
+        /// Now runs on background timer instead of blocking main thread.
         /// </summary>
         public void Cleanup()
         {
-            var pids = Process.GetProcesses();
-            var activePids = new System.Collections.Generic.HashSet<int>(System.Linq.Enumerable.Select(pids, p => p.Id));
-            
-            foreach (var key in _statsMap.Keys)
+            try
             {
-                if (!activePids.Contains(key))
+                var pids = Process.GetProcesses();
+                var activePids = new System.Collections.Generic.HashSet<int>(System.Linq.Enumerable.Select(pids, p => p.Id));
+                
+                foreach (var key in _statsMap.Keys)
                 {
-                    _statsMap.TryRemove(key, out _);
+                    if (!activePids.Contains(key))
+                    {
+                        _statsMap.TryRemove(key, out _);
+                    }
+                }
+                
+                // Dispose process objects
+                foreach (var p in pids)
+                {
+                    try { p.Dispose(); } catch { }
                 }
             }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[ProcessStatsProvider] Cleanup error: {ex.Message}");
+            }
+        }
+
+        public void Dispose()
+        {
+            if (_disposed) return;
+            _disposed = true;
+            
+            _cleanupTimer?.Dispose();
+            _statsMap.Clear();
         }
     }
 }

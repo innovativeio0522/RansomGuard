@@ -46,15 +46,23 @@ namespace RansomGuard
                 // ── Build tray icon (always) ─────────────────────────────────
                 _tray = new Services.TrayIconService();
 
-                // ── Spawn Watchdog if enabled ────────────────────────────────
+                // ── Engage Protection (Service + Watchdog) ──────────────────
                 if (ConfigurationService.Instance.WatchdogEnabled)
                 {
-                    WatchdogManager.EnsureWatchdogRunning();
+                    WatchdogManager.EnsureProtectionEngaged();
                 }
 
 
                 // ── Create main window ───────────────────────────────────────
                 var mainWindow = new MainWindow();
+                if (mainWindow == null)
+                {
+                    MessageBox.Show("Failed to create main window. Application will exit.",
+                        "Fatal Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                    Current.Shutdown();
+                    return;
+                }
+                
                 MainWindow = mainWindow;
 
                 // Closing the window hides it to tray rather than exiting.

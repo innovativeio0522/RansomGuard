@@ -9,7 +9,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
     <UseWindowsForms>true</UseWindowsForms>
-    <!-- <ApplicationIcon>Assets\Icons\RansomGuard.ico</ApplicationIcon> -->
+    <ApplicationIcon>Assets\Icons\RansomGuard.ico</ApplicationIcon>
     <RootNamespace>RansomGuard</RootNamespace>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>

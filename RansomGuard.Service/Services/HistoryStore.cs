@@ -17,13 +17,14 @@ namespace RansomGuard.Service.Services
             string dbPath = PathConfiguration.ActivityLogDatabasePath;
             
             // Ensure directory exists
-            string dir = Path.GetDirectoryName(dbPath);
+            string? dir = Path.GetDirectoryName(dbPath);
             if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
             {
                 Directory.CreateDirectory(dir);
             }
 
-            _connectionString = $"Data Source={dbPath}";
+            // Enable connection pooling and set performance options
+            _connectionString = $"Data Source={dbPath};Mode=ReadWriteCreate;Cache=Shared;Pooling=True;Max Pool Size=10";
             InitializeDatabase();
         }
 
@@ -33,6 +34,11 @@ namespace RansomGuard.Service.Services
             {
                 using var connection = new SqliteConnection(_connectionString);
                 connection.Open();
+
+                // Enable WAL mode for better concurrency
+                var walCommand = connection.CreateCommand();
+                walCommand.CommandText = "PRAGMA journal_mode=WAL;";
+                walCommand.ExecuteNonQuery();
 
                 var command = connection.CreateCommand();
                 command.CommandText = @"

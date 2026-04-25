@@ -12,13 +12,15 @@ using RansomGuard.Core.Models;
 using RansomGuard.Core.IPC;
 using RansomGuard.Core.Services;
 using RansomGuard.Core.Helpers;
+using RansomGuard.Core.Configuration;
 
 namespace RansomGuard.Services
 {
     public class ServicePipeClient : ISystemMonitorService, IDisposable
     {
         private readonly string _pipeName;
-        private const int MaxRecentActivities = 200;
+        private const int MaxRecentActivities = AppConstants.Limits.MaxRecentActivities;
+        private const int MaxRecentThreats = AppConstants.Limits.MaxRecentThreats;
         
         private NamedPipeClientStream? _pipeClient;
         private StreamWriter? _writer;
@@ -48,6 +50,7 @@ namespace RansomGuard.Services
         private readonly object _telemetryLock = new();
         private readonly object _processLock = new object();
         private readonly HashSet<string> _processedEventIds = new();
+        private readonly object _eventIdsLock = new();
 
         public ServicePipeClient(string pipeName = "SentinelGuardPipe")
         {
@@ -63,17 +66,17 @@ namespace RansomGuard.Services
 
         private async Task ConnectLoop(CancellationToken token)
         {
-            int retryDelayMs = 2000;
-            const int MaxRetryDelayMs = 30_000;
+            int retryDelayMs = AppConstants.Ipc.InitialRetryDelayMs;
+            const int MaxRetryDelayMs = AppConstants.Ipc.MaxRetryDelayMs;
 
             while (!token.IsCancellationRequested)
             {
                 try
                 {
                     using var pipeClient = new NamedPipeClientStream(".", _pipeName, PipeDirection.InOut, PipeOptions.Asynchronous);
-                    File.AppendAllText(@"C:\ProgramData\RansomGuard\Logs\ipc_client.log", $"{DateTime.Now}: [IPC Client] Attempting to connect to: {_pipeName}\n");
-                    await pipeClient.ConnectAsync(5000, token);
-                    File.AppendAllText(@"C:\ProgramData\RansomGuard\Logs\ipc_client.log", $"{DateTime.Now}: [IPC Client] Connected to pipe server!\n");
+                    FileLogger.Log("ipc_client.log", $"[IPC Client] Attempting to connect to: {_pipeName}");
+                    await pipeClient.ConnectAsync(AppConstants.Ipc.ConnectionTimeoutMs, token);
+                    FileLogger.Log("ipc_client.log", "[IPC Client] Connected to pipe server!");
                     
                     using var writer = new StreamWriter(pipeClient) { AutoFlush = true };
                     using var reader = new StreamReader(pipeClient);
@@ -87,11 +90,12 @@ namespace RansomGuard.Services
                     // 2. Start Heartbeat
                     _ = HeartbeatLoop(token);
 
-                    retryDelayMs = 2000;
+                    retryDelayMs = AppConstants.Ipc.InitialRetryDelayMs;
                     IsConnected = true;
                     
                     lock (_activitiesLock) { _recentActivities.Clear(); }
                     lock (_threatsLock) { _recentThreats.Clear(); }
+                    lock (_eventIdsLock) { _processedEventIds.Clear(); }
                     ConnectionStatusChanged?.Invoke(true);
 
                     while (pipeClient.IsConnected && !token.IsCancellationRequested)
@@ -99,20 +103,21 @@ namespace RansomGuard.Services
                         var line = await reader.ReadLineAsync(token).ConfigureAwait(false);
                         if (line == null) 
                         {
-                            LogToFile("[IPC Client] Disconnected (EOF)");
+                            FileLogger.Log("ipc_client.log", "[IPC Client] Disconnected (EOF)");
                             break;
                         }
                         
-                        LogToFile($"[IPC Client] Received: {line.Substring(0, Math.Min(line.Length, 100))}");
+                        FileLogger.Log("ipc_client.log", $"[IPC Client] Received: {line.Substring(0, Math.Min(line.Length, 100))}");
                         HandlePacket(line);
                     }
                 }
                 catch (OperationCanceledException) { break; }
                 catch (Exception ex)
                 {
-                    LogToFile($"[IPC Client] EXCEPTION: {ex.Message}\n{ex.StackTrace}");
+                    FileLogger.LogError("ipc_client.log", "[IPC Client] EXCEPTION", ex);
                     if (IsConnected) { IsConnected = false; ConnectionStatusChanged?.Invoke(false); }
-                    int delay = Math.Clamp(retryDelayMs + _rng.Next(-200, 200), 1000, MaxRetryDelayMs);
+                    int delay = Math.Clamp(retryDelayMs + _rng.Next(-AppConstants.Ipc.RetryDelayJitterMs, AppConstants.Ipc.RetryDelayJitterMs), 
+                                          AppConstants.Ipc.MinRetryDelayMs, MaxRetryDelayMs);
                     Debug.WriteLine($"[IPC Client] Error: {ex.Message}. Retrying in {delay/1000.0}s");
                     if (!token.IsCancellationRequested) await Task.Delay(delay, token);
                     retryDelayMs = Math.Min(retryDelayMs * 2, MaxRetryDelayMs);
@@ -129,7 +134,7 @@ namespace RansomGuard.Services
         {
             while (!token.IsCancellationRequested && IsConnected)
             {
-                await Task.Delay(10000, token);
+                await Task.Delay(AppConstants.Timers.IpcHeartbeatMs, token);
                 await SendPacket(MessageType.Heartbeat, string.Empty, token);
             }
         }
@@ -148,15 +153,36 @@ namespace RansomGuard.Services
                         var activity = JsonSerializer.Deserialize<FileActivity>(packet.Payload);
                         if (activity != null)
                         {
+                            // Check for duplicate events with proper thread safety
+                            bool isDuplicate = false;
+                            lock (_eventIdsLock)
+                            {
+                                if (_processedEventIds.Contains(activity.Id))
+                                {
+                                    isDuplicate = true;
+                                }
+                                else
+                                {
+                                    _processedEventIds.Add(activity.Id);
+                                    
+                                    // Trim the set if it grows too large
+                                    if (_processedEventIds.Count > AppConstants.Limits.MaxProcessedEventIds)
+                                    {
+                                        _processedEventIds.Remove(_processedEventIds.First());
+                                    }
+                                }
+                            }
+                            
+                            if (isDuplicate) return;
+                            
+                            // Add to activities list (separate lock to avoid holding multiple locks)
                             lock (_activitiesLock)
                             {
-                                if (_processedEventIds.Contains(activity.Id)) return;
-                                _processedEventIds.Add(activity.Id);
-                                if (_processedEventIds.Count > 1000) _processedEventIds.Remove(_processedEventIds.First());
-
                                 _recentActivities.Insert(0, activity);
-                                if (_recentActivities.Count > MaxRecentActivities) _recentActivities.RemoveAt(_recentActivities.Count - 1);
+                                if (_recentActivities.Count > MaxRecentActivities) 
+                                    _recentActivities.RemoveAt(_recentActivities.Count - 1);
                             }
+                            
                             FileActivityDetected?.Invoke(activity);
                         }
                         break;
@@ -175,7 +201,16 @@ namespace RansomGuard.Services
                                      existing.Severity = threat.Severity;
                                      existing.Timestamp = threat.Timestamp;
                                  }
-                                 else _recentThreats.Insert(0, threat);
+                                 else 
+                                 {
+                                     _recentThreats.Insert(0, threat);
+                                     
+                                     // Enforce size limit
+                                     if (_recentThreats.Count > MaxRecentThreats)
+                                     {
+                                         _recentThreats.RemoveAt(_recentThreats.Count - 1);
+                                     }
+                                 }
                              }
                              ThreatDetected?.Invoke(threat);
                          }
@@ -201,18 +236,27 @@ namespace RansomGuard.Services
             }
             catch (Exception ex)
             {
-                LogToFile($"[IPC Client] Packet handle error: {ex.Message}\n{ex.StackTrace}");
+                FileLogger.LogError("ipc_client.log", "[IPC Client] Packet handle error", ex);
             }
         }
 
         private async Task SendPacket(MessageType type, object data, CancellationToken token = default)
         {
-            if (_writer == null || _pipeClient?.IsConnected != true || _disposed) return;
+            if (_disposed) return;
             
             await _writeSemaphore.WaitAsync(token).ConfigureAwait(false);
             try
             {
-                if (_writer == null || _disposed) return;
+                // Double-check disposal after acquiring semaphore
+                if (_disposed) return;
+                
+                // Capture references inside the lock to prevent race conditions with Dispose()
+                var writer = _writer;
+                var pipe = _pipeClient;
+                
+                // Check if disposed or disconnected after acquiring the semaphore
+                if (writer == null || pipe?.IsConnected != true)
+                    return;
                 
                 var packet = new IpcPacket
                 {
@@ -220,11 +264,38 @@ namespace RansomGuard.Services
                     SequenceId = Interlocked.Increment(ref _nextSequenceId),
                     Payload = JsonSerializer.Serialize(data)
                 };
-                await _writer.WriteLineAsync(JsonSerializer.Serialize(packet)).ConfigureAwait(false);
+                
+                // Use null-conditional operator for additional safety
+                // This prevents NullReferenceException if Dispose() is called between check and use
+                var json = JsonSerializer.Serialize(packet);
+                if (writer != null && !_disposed)
+                {
+                    await writer.WriteLineAsync(json).ConfigureAwait(false);
+                }
+            }
+            catch (ObjectDisposedException)
+            {
+                // Expected during shutdown - ignore
+            }
+            catch (IOException ex)
+            {
+                // Pipe disconnected - log but don't crash
+                Debug.WriteLine($"[IPC Client] SendPacket IO error: {ex.Message}");
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[IPC Client] SendPacket error: {ex.Message}");
             }
             finally
             {
-                _writeSemaphore.Release();
+                try
+                {
+                    _writeSemaphore.Release();
+                }
+                catch (ObjectDisposedException)
+                {
+                    // Semaphore was disposed - ignore during shutdown
+                }
             }
         }
 
@@ -253,7 +324,11 @@ namespace RansomGuard.Services
         public IEnumerable<string> GetQuarantinedFiles()
         {
             try { return Directory.GetFiles(PathConfiguration.QuarantinePath, "*.quarantine"); }
-            catch { return Enumerable.Empty<string>(); }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[ServicePipeClient] GetQuarantinedFiles failed: {ex.Message}");
+                return Enumerable.Empty<string>();
+            }
         }
 
         public async Task KillProcess(int pid) => await SendCommand(CommandType.KillProcess, pid.ToString());
@@ -261,7 +336,11 @@ namespace RansomGuard.Services
 
         public async Task QuarantineFile(string filePath)
         {
-            if (IsConnected) await SendCommand(CommandType.QuarantineFile, filePath);
+            if (IsConnected) 
+            {
+                await SendCommand(CommandType.QuarantineFile, filePath).ConfigureAwait(false);
+            }
+            
             lock (_threatsLock)
             {
                 var matching = _recentThreats.Where(t => string.Equals(t.Path, filePath, StringComparison.OrdinalIgnoreCase));
@@ -269,11 +348,35 @@ namespace RansomGuard.Services
             }
         }
 
-        public async Task RestoreQuarantinedFile(string path) { if (IsConnected) await SendCommand(CommandType.RestoreFile, path); }
-        public async Task DeleteQuarantinedFile(string path) { if (IsConnected) await SendCommand(CommandType.DeleteFile, path); }
-        public async Task ClearSafeFiles() { if (IsConnected) await SendCommand(CommandType.ClearSafeFiles); }
-        public async Task WhitelistProcess(string name) => await SendCommand(CommandType.WhitelistProcess, name);
-        public async Task RemoveWhitelist(string name) => await SendCommand(CommandType.RemoveWhitelist, name);
+        public async Task RestoreQuarantinedFile(string path) 
+        { 
+            if (IsConnected) 
+                await SendCommand(CommandType.RestoreFile, path).ConfigureAwait(false); 
+        }
+        
+        public async Task DeleteQuarantinedFile(string path) 
+        { 
+            if (IsConnected) 
+                await SendCommand(CommandType.DeleteFile, path).ConfigureAwait(false); 
+        }
+        
+        public async Task ClearSafeFiles() 
+        { 
+            if (IsConnected) 
+                await SendCommand(CommandType.ClearSafeFiles).ConfigureAwait(false); 
+        }
+        
+        public async Task WhitelistProcess(string name) 
+        { 
+            if (IsConnected) 
+                await SendCommand(CommandType.WhitelistProcess, name).ConfigureAwait(false); 
+        }
+        
+        public async Task RemoveWhitelist(string name) 
+        { 
+            if (IsConnected) 
+                await SendCommand(CommandType.RemoveWhitelist, name).ConfigureAwait(false); 
+        }
 
         public void Dispose()
         {
@@ -282,12 +385,18 @@ namespace RansomGuard.Services
             
             _cts?.Cancel();
             
-            // Try to acquire semaphore to ensure no writes are in progress, 
-            // but don't block indefinitely during disposal
-            _writeSemaphore.Wait(100); 
-            
+            // Wait for any pending writes to complete, but don't block indefinitely
+            bool acquired = false;
             try
             {
+                // Use shorter timeout to prevent hanging during shutdown
+                acquired = _writeSemaphore.Wait(AppConstants.Ipc.DisposalSemaphoreTimeoutMs);
+                if (!acquired)
+                {
+                    Debug.WriteLine("[IPC Client] Warning: Semaphore timeout during disposal - forcing cleanup");
+                    // Force cleanup even if semaphore not acquired
+                }
+                
                 _writer?.Dispose();
                 _pipeClient?.Dispose();
             }
@@ -297,25 +406,27 @@ namespace RansomGuard.Services
             }
             finally
             {
+                // Only release if we successfully acquired the semaphore
+                if (acquired)
+                {
+                    try 
+                    { 
+                        _writeSemaphore.Release(); 
+                    }
+                    catch (SemaphoreFullException)
+                    {
+                        // Semaphore was already released - this is fine during disposal
+                        Debug.WriteLine("[IPC Client] Semaphore already released during disposal");
+                    }
+                    catch (ObjectDisposedException)
+                    {
+                        // Semaphore was disposed - ignore
+                    }
+                }
+                
                 _cts?.Dispose();
                 _writeSemaphore.Dispose();
             }
-        }
-        private void LogToFile(string message)
-        {
-            try
-            {
-                string logPath = @"C:\ProgramData\RansomGuard\Logs\ipc_client.log";
-                string dir = Path.GetDirectoryName(logPath)!;
-                if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
-
-                using (var fs = new FileStream(logPath, FileMode.Append, FileAccess.Write, FileShare.ReadWrite))
-                using (var sw = new StreamWriter(fs))
-                {
-                    sw.WriteLine($"{DateTime.Now}: {message}");
-                }
-            }
-            catch { }
         }
     }
 }

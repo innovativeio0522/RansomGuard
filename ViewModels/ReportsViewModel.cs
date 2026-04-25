@@ -122,8 +122,8 @@ namespace RansomGuard.ViewModels
                 }
 
                 var exportDir = Path.Combine(
-                    Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),
-                    "RansomGuard", "Exports");
+                    PathConfiguration.GetConfigDirectory(),
+                    "Exports");
                 Directory.CreateDirectory(exportDir);
 
                 var fileName = $"RansomGuard_Report_{DateTime.Now:yyyy-MM-dd_HH-mm-ss}.csv";
@@ -368,25 +368,8 @@ namespace RansomGuard.ViewModels
             }
             catch (Exception ex)
             {
-                LogToFile($"[ReportsViewModel] PopulateReportData error: {ex.Message}\n{ex.StackTrace}");
+                FileLogger.LogError("ui_error.log", "[ReportsViewModel] PopulateReportData error", ex);
             }
-        }
-
-        private void LogToFile(string message)
-        {
-            try
-            {
-                string logPath = @"C:\ProgramData\RansomGuard\Logs\ui_error.log";
-                string dir = Path.GetDirectoryName(logPath)!;
-                if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
-
-                using (var fs = new FileStream(logPath, FileMode.Append, FileAccess.Write, FileShare.ReadWrite))
-                using (var sw = new StreamWriter(fs))
-                {
-                    sw.WriteLine($"{DateTime.Now}: {message}");
-                }
-            }
-            catch { }
         }
 
         private void CalculateSecurityScore()
@@ -419,9 +402,10 @@ namespace RansomGuard.ViewModels
 
                 SecurityScore = Math.Clamp(score, 0, 100);
             }
-            catch
+            catch (Exception ex)
             {
-                SecurityScore = 85;
+                System.Diagnostics.Debug.WriteLine($"[ReportsViewModel] CalculateSecurityScore error: {ex.Message}");
+                SecurityScore = 85; // Default fallback score
             }
         }
 

@@ -2,6 +2,7 @@ using System;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using RansomGuard.Core.Helpers;
 
 namespace RansomGuard.Services
 {
@@ -15,56 +16,72 @@ namespace RansomGuard.Services
         private const string WatchdogTaskName = "WinMaintenanceWorkerTask";
 
         /// <summary>
-        /// Spawns the Watchdog process if it is not already running.
-        /// Uses schtasks to ensure the process runs in the interactive user session even if triggered by a service.
+        /// The main entry point for engaging protection. Ensures the Sentinel Service is running
+        /// and the Watchdog is active with administrative privileges.
         /// </summary>
-        public static void EnsureWatchdogRunning()
+        public static void EnsureProtectionEngaged()
         {
             try
             {
-                if (Process.GetProcessesByName(WatchdogProcessName).Any()) return;
+                // 1. Ensure Sentinel Service is running
+                EnsureServiceRunning();
 
-                string? watchdogPath = FindWatchdogPath();
-                if (watchdogPath == null) return;
-
-                // 1. Register the task (or update it) to ensure it points to the correct path
-                RegisterWatchdogTask(watchdogPath);
-
-                // 2. Run the task
-                var psi = new ProcessStartInfo("schtasks", $"/run /tn \"{WatchdogTaskName}\"")
+                // 2. Ensure Watchdog is running
+                var existingProcesses = Process.GetProcessesByName(WatchdogProcessName);
+                if (existingProcesses.Length == 0)
                 {
-                    CreateNoWindow = true,
-                    UseShellExecute = false,
-                    WindowStyle = ProcessWindowStyle.Hidden
-                };
-                Process.Start(psi);
+                    string? watchdogPath = FindWatchdogPath();
+                    if (watchdogPath != null)
+                    {
+                        try
+                        {
+                            // UseShellExecute=true is REQUIRED for MSIX — direct Process.Start
+                            // on WindowsApps paths gets "Access denied". The shell/container
+                            // host intercepts the call and launches it within the MSIX context.
+                            var psi = new ProcessStartInfo(watchdogPath)
+                            {
+                                CreateNoWindow = true,
+                                UseShellExecute = true,
+                                WindowStyle = ProcessWindowStyle.Hidden
+                            };
+                            Process.Start(psi);
+                        }
+                        catch (Exception ex)
+                        {
+                            Debug.WriteLine($"[WatchdogManager] Failed to start watchdog: {ex.Message}");
+                        }
+                    }
+                }
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"[WatchdogManager] Failed to start Watchdog via task: {ex.Message}");
+                Debug.WriteLine($"[WatchdogManager] Failed to engage protection: {ex.Message}");
             }
         }
 
-        private static void RegisterWatchdogTask(string watchdogPath)
+        private static void EnsureServiceRunning()
         {
             try
             {
-                // Create a task that runs as the current user and is allowed to run interactively (/IT).
-                // We use /SC ONCE with a date in the past so it never triggers automatically, only via /RUN.
-                string args = $"/create /tn \"{WatchdogTaskName}\" /tr \"'{watchdogPath}'\" /sc ONCE /st 00:00 /it /f /rl HIGHEST";
-                
-                var psi = new ProcessStartInfo("schtasks", args)
+                using (var sc = new System.ServiceProcess.ServiceController("WinMaintenance"))
                 {
-                    CreateNoWindow = true,
-                    UseShellExecute = false,
-                    WindowStyle = ProcessWindowStyle.Hidden
-                };
-                var p = Process.Start(psi);
-                p?.WaitForExit(3000);
+                    if (sc.Status != System.ServiceProcess.ServiceControllerStatus.Running &&
+                        sc.Status != System.ServiceProcess.ServiceControllerStatus.StartPending)
+                    {
+                        var psi = new ProcessStartInfo("cmd.exe", "/c net start WinMaintenance")
+                        {
+                            Verb = "runas",
+                            UseShellExecute = true,
+                            CreateNoWindow = true,
+                            WindowStyle = ProcessWindowStyle.Hidden
+                        };
+                        Process.Start(psi);
+                    }
+                }
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"[WatchdogManager] Failed to register Watchdog task: {ex.Message}");
+                Debug.WriteLine($"[WatchdogManager] Service start failed: {ex.Message}");
             }
         }
 
@@ -92,25 +109,56 @@ namespace RansomGuard.Services
         /// </summary>
         private static string? FindWatchdogPath()
         {
-            // Production: same folder as the UI exe
-            string appDir = AppDomain.CurrentDomain.BaseDirectory;
-            string prodPath = Path.Combine(appDir, "MaintenanceWorker.exe");
-            if (File.Exists(prodPath)) return prodPath;
+            // Get the directory of the current process (reliable in MSIX)
+            string? appDir = Path.GetDirectoryName(Process.GetCurrentProcess().MainModule?.FileName);
+            if (string.IsNullOrEmpty(appDir)) appDir = AppDomain.CurrentDomain.BaseDirectory;
 
-            // Development: Try various depths to find the solution root and then the watchdog project
-            string[] searchPaths = new[]
+            // MSIX Fix: Check if we're in a "RansomGuard" subfolder (MSIX structure)
+            // In MSIX, MaintenanceUI.exe is in "RansomGuard\" subfolder, but MaintenanceWorker.exe is in root
+            if (appDir.EndsWith("RansomGuard", StringComparison.OrdinalIgnoreCase))
             {
-                Path.Combine(appDir, @"..\..\..\RansomGuard.Watchdog\bin\Debug\net9.0\MaintenanceWorker.exe"),
-                Path.Combine(appDir, @"..\..\..\..\RansomGuard.Watchdog\bin\Debug\net9.0\MaintenanceWorker.exe"),
-                @"f:\Github Projects\RansomGuard\RansomGuard.Watchdog\bin\Debug\net9.0\MaintenanceWorker.exe"
-            };
+                string? parentDir = Path.GetDirectoryName(appDir);
+                if (!string.IsNullOrEmpty(parentDir))
+                {
+                    string msixRootPath = Path.Combine(parentDir, "MaintenanceWorker.exe");
+                    if (File.Exists(msixRootPath))
+                    {
+                        return msixRootPath;
+                    }
+                }
+            }
+
+            // Standard path: same directory as UI
+            string prodPath = Path.Combine(appDir, "MaintenanceWorker.exe");
+            if (File.Exists(prodPath))
+            {
+                return prodPath;
+            }
+
+            // Fallback: check parent directory (handle other subfolder issues)
+            string? parentDir2 = Path.GetDirectoryName(appDir);
+            if (!string.IsNullOrEmpty(parentDir2))
+            {
+                string parentProdPath = Path.Combine(parentDir2, "MaintenanceWorker.exe");
+                if (File.Exists(parentProdPath))
+                {
+                    return parentProdPath;
+                }
+            }
+
+            // Development/Debug fallbacks
+            string[] searchPaths =
+            [
+                Path.Combine(appDir, @"..\..\..\RansomGuard.Watchdog\bin\Debug\net8.0\MaintenanceWorker.exe"),
+                Path.Combine(appDir, @"..\..\..\RansomGuard.Watchdog\bin\Release\net8.0\MaintenanceWorker.exe")
+            ];
 
             foreach (var path in searchPaths)
             {
-                try {
-                    string fullPath = Path.GetFullPath(path);
-                    if (File.Exists(fullPath)) return fullPath;
-                } catch { }
+                if (File.Exists(path))
+                {
+                    return path;
+                }
             }
 
             return null;

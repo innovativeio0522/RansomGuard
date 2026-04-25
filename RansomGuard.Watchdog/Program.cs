@@ -5,6 +5,7 @@ using System.Runtime.InteropServices;
 using System.ServiceProcess;
 using System.Text.Json;
 using System.Threading;
+using RansomGuard.Core.Helpers;
 
 namespace RansomGuard.Watchdog
 {
@@ -19,8 +20,8 @@ namespace RansomGuard.Watchdog
         const int SW_HIDE = 0;
         const string ServiceName = "WinMaintenance";
         private static readonly string ConfigPath = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),
-            "RansomGuard", "config.json");
+            PathConfiguration.GetConfigDirectory(),
+            "config.json");
 
         static void Main(string[] args)
         {
@@ -28,7 +29,10 @@ namespace RansomGuard.Watchdog
             var handle = GetConsoleWindow();
             ShowWindow(handle, SW_HIDE);
 
-            Console.WriteLine("RansomGuard Watchdog Active.");
+            LogToFile("=== RansomGuard Watchdog Starting ===");
+            LogToFile($"Watchdog started at: {DateTime.Now}");
+            LogToFile($"Base directory: {AppDomain.CurrentDomain.BaseDirectory}");
+            LogToFile($"Config path: {ConfigPath}");
 
             while (true)
             {
@@ -37,7 +41,7 @@ namespace RansomGuard.Watchdog
                     // Check if user has disabled the Watchdog via Settings — exit if so.
                     if (!IsWatchdogEnabled())
                     {
-                        Console.WriteLine("Watchdog disabled by user. Exiting.");
+                        LogToFile("Watchdog disabled by user. Exiting.");
                         Environment.Exit(0);
                         return;
                     }
@@ -47,11 +51,25 @@ namespace RansomGuard.Watchdog
                 }
                 catch (Exception ex)
                 {
-                    Debug.WriteLine($"Watchdog error: {ex.Message}");
+                    LogToFile($"[Watchdog] Main loop error: {ex.Message}");
+                    LogToFile($"[Watchdog] Stack trace: {ex.StackTrace}");
                 }
 
-                Thread.Sleep(3000); // Check every 3 seconds
+                Thread.Sleep(5000); // Check every 5 seconds
             }
+        }
+
+        static void LogToFile(string message)
+        {
+            try
+            {
+                string logDir = Path.Combine(PathConfiguration.GetConfigDirectory(), "Logs");
+                if (!Directory.Exists(logDir)) Directory.CreateDirectory(logDir);
+                string logPath = Path.Combine(logDir, "watchdog.log");
+                File.AppendAllText(logPath, $"{DateTime.Now}: {message}\n");
+            }
+            catch { }
+            Debug.WriteLine(message);
         }
 
         /// <summary>
@@ -68,7 +86,11 @@ namespace RansomGuard.Watchdog
                     return prop.GetBoolean();
                 return true; // Default: enabled
             }
-            catch { return true; }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[Watchdog] IsWatchdogEnabled failed: {ex.Message}");
+                return true;
+            }
         }
 
         static void CheckUIStatus()
@@ -81,53 +103,162 @@ namespace RansomGuard.Watchdog
                     string appDir = AppDomain.CurrentDomain.BaseDirectory;
                     string appPath = Path.Combine(appDir, "MaintenanceUI.exe");
 
-                    // Development fallback path
+                    LogToFile($"[Watchdog] UI not running. Searching for MaintenanceUI.exe in: {appDir}");
+
+                    // Fallback to subfolder
                     if (!File.Exists(appPath))
                     {
-                        var devPath = Path.GetFullPath(Path.Combine(
-                            appDir, @"..\..\..\..\bin\Debug\net8.0-windows\MaintenanceUI.exe"));
-                        if (File.Exists(devPath))
-                            appPath = devPath;
+                        string subPath = Path.Combine(appDir, "RansomGuard", "MaintenanceUI.exe");
+                        LogToFile($"[Watchdog] Checking subfolder: {subPath}");
+                        if (File.Exists(subPath)) appPath = subPath;
+                    }
+
+                    // Fallback to parent folder
+                    if (!File.Exists(appPath))
+                    {
+                        string? parentDir = Path.GetDirectoryName(appDir.TrimEnd(Path.DirectorySeparatorChar));
+                        if (parentDir != null)
+                        {
+                            string parentPath = Path.Combine(parentDir, "MaintenanceUI.exe");
+                            LogToFile($"[Watchdog] Checking parent folder: {parentPath}");
+                            if (File.Exists(parentPath)) appPath = parentPath;
+                        }
+                    }
+
+                    // Development fallback paths
+                    if (!File.Exists(appPath))
+                    {
+                        string[] devPaths = new[]
+                        {
+                            Path.GetFullPath(Path.Combine(appDir, @"..\..\..\..\bin\Debug\net8.0-windows\MaintenanceUI.exe")),
+                            Path.GetFullPath(Path.Combine(appDir, @"..\..\..\bin\Debug\net8.0-windows\MaintenanceUI.exe")),
+                            Path.GetFullPath(Path.Combine(appDir, @"..\..\bin\Debug\net8.0-windows\MaintenanceUI.exe")),
+                            Path.GetFullPath(Path.Combine(appDir, @"..\..\..\..\bin\Release\net8.0-windows\MaintenanceUI.exe")),
+                            Path.GetFullPath(Path.Combine(appDir, @"..\..\..\bin\Release\net8.0-windows\MaintenanceUI.exe"))
+                        };
+
+                        foreach (var devPath in devPaths)
+                        {
+                            if (File.Exists(devPath))
+                            {
+                                appPath = devPath;
+                                LogToFile($"[Watchdog] Found UI at development path: {appPath}");
+                                break;
+                            }
+                        }
+                    }
+                    else
+                    {
+                        LogToFile($"[Watchdog] Found UI at production path: {appPath}");
                     }
 
                     if (File.Exists(appPath))
                     {
-                        ProcessStartInfo psi = new ProcessStartInfo(appPath, "--startup")
+                        LogToFile($"[Watchdog] UI not running. Found at: {appPath}");
+                        
+                        // Try launching via Execution Alias first (more robust for MSIX)
+                        // Using 'cmd /c start' can sometimes help bypass integrity level issues
+                        try 
                         {
-                            UseShellExecute = true
-                        };
-                        Process.Start(psi);
+                            LogToFile("[Watchdog] Attempting restart via Alias: RansomGuardUI.exe");
+                            ProcessStartInfo psiAlias = new ProcessStartInfo("cmd.exe", "/c start RansomGuardUI.exe --startup")
+                            {
+                                CreateNoWindow = true,
+                                UseShellExecute = true
+                            };
+                            Process.Start(psiAlias);
+                            LogToFile("[Watchdog] Alias launch command sent.");
+                            
+                            // Give it a moment to start
+                            Thread.Sleep(2000);
+                            if (Process.GetProcessesByName("MaintenanceUI").Any())
+                            {
+                                LogToFile("[Watchdog] UI successfully restarted via Alias.");
+                                return;
+                            }
+                        }
+                        catch (Exception aliasEx)
+                        {
+                            LogToFile($"[Watchdog] Alias launch failed: {aliasEx.Message}");
+                        }
+
+                        // Fallback to direct EXE with ShellExecute
+                        try
+                        {
+                            LogToFile($"[Watchdog] Attempting restart via direct EXE: {appPath}");
+                            ProcessStartInfo psi = new ProcessStartInfo(appPath, "--startup")
+                            {
+                                UseShellExecute = true,
+                                WorkingDirectory = Path.GetDirectoryName(appPath)
+                            };
+                            var process = Process.Start(psi);
+                            if (process != null)
+                            {
+                                LogToFile($"[Watchdog] UI restarted via direct EXE (PID: {process.Id})");
+                            }
+                        }
+                        catch (Exception exeEx)
+                        {
+                            LogToFile($"[Watchdog] Direct EXE launch failed: {exeEx.Message}");
+                        }
+                    }
+                    else
+                    {
+                        LogToFile($"[Watchdog] MaintenanceUI.exe not found. Searched in: {appDir}");
                     }
                 }
                 catch (Exception ex)
                 {
-                    Debug.WriteLine($"UI Watchdog error: {ex.Message}");
+                    LogToFile($"[Watchdog] UI restart error: {ex.Message}");
+                    LogToFile($"[Watchdog] Stack trace: {ex.StackTrace}");
                 }
             }
         }
 
         static void CheckServiceStatus()
         {
-            using (ServiceController sc = new ServiceController(ServiceName))
+            try
             {
-                try
+                using (ServiceController sc = new ServiceController(ServiceName))
                 {
-                    if (sc.Status == ServiceControllerStatus.Stopped || sc.Status == ServiceControllerStatus.StopPending)
+                    try
                     {
-                        Thread.Sleep(1000);
-                        sc.Refresh();
-
-                        if (sc.Status == ServiceControllerStatus.Stopped)
+                        LogToFile($"[Watchdog] Checking service '{ServiceName}' status: {sc.Status}");
+                        
+                        if (sc.Status == ServiceControllerStatus.Stopped || sc.Status == ServiceControllerStatus.StopPending)
                         {
-                            sc.Start();
-                            sc.WaitForStatus(ServiceControllerStatus.Running, TimeSpan.FromSeconds(10));
+                            LogToFile($"[Watchdog] Service is {sc.Status}. Attempting to start...");
+                            Thread.Sleep(1000);
+                            sc.Refresh();
+
+                            if (sc.Status == ServiceControllerStatus.Stopped)
+                            {
+                                LogToFile("[Watchdog] Starting service...");
+                                sc.Start();
+                                sc.WaitForStatus(ServiceControllerStatus.Running, TimeSpan.FromSeconds(10));
+                                LogToFile("[Watchdog] Service started successfully");
+                            }
                         }
                     }
+                    catch (InvalidOperationException ex)
+                    {
+                        LogToFile($"[Watchdog] Service '{ServiceName}' not accessible: {ex.Message}");
+                    }
+                    catch (System.ComponentModel.Win32Exception ex)
+                    {
+                        // Access denied - expected when running without elevation in MSIX
+                        // The service is auto-start via SCM, so it will recover on its own
+                        LogToFile($"[Watchdog] Cannot control service (no admin rights, SCM will handle): {ex.Message}");
+                    }
+                    catch (System.ServiceProcess.TimeoutException ex)
+                    {
+                        LogToFile($"[Watchdog] Service start timeout: {ex.Message}");
+                    }
                 }
-                catch (InvalidOperationException)
-                {
-                    // Service might not be installed yet
-                }
+            }
+            catch (Exception ex)
+            {
+                LogToFile($"[Watchdog] Service check error: {ex.Message}");
             }
         }
     }

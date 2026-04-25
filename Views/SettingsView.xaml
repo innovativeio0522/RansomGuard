@@ -389,10 +389,21 @@
                                     <TextBlock Text="System Maintenance" FontSize="18" FontWeight="Bold" Foreground="{StaticResource OnSurfaceBrush}" VerticalAlignment="Center"/>
                                 </StackPanel>
                                 <TextBlock Text="Manage the low-level background protection service. Professional-grade defense requires the background service to be active." FontSize="12" Foreground="{StaticResource OnSurfaceVariantBrush}" Opacity="0.7" TextWrapping="Wrap" Margin="0,0,0,16"/>
+                                
+                                <!-- Service Status Indicator (shown when installed) -->
+                                <StackPanel Orientation="Horizontal" Margin="0,8,0,0" Visibility="{Binding IsServiceInstalled, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                    <Viewbox Width="16" Height="16" Margin="0,0,8,0">
+                                        <Path Data="M12,1L3,5V11C3,16.55 6.84,21.74 12,23C17.16,21.74 21,16.55 21,11V5L12,1Z" Fill="{StaticResource PrimaryBrush}"/>
+                                    </Viewbox>
+                                    <TextBlock Text="Service is running and protecting your system" 
+                                              FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource PrimaryBrush}"/>
+                                </StackPanel>
                             </StackPanel>
 
+                            <!-- Install button (hidden when service is installed) -->
                             <Button Grid.Column="1" Style="{StaticResource PrimaryButtonStyle}" 
                                     Command="{Binding InstallServiceCommand}"
+                                    Visibility="{Binding IsServiceInstalled, Converter={StaticResource BooleanToVisibilityConverter}, ConverterParameter=Inverse}"
                                     Width="200" Padding="0,12" VerticalAlignment="Center">
                                 <StackPanel Orientation="Horizontal">
                                     <Viewbox Width="14" Height="14" Margin="0,0,12,0">

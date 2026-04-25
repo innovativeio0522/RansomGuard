@@ -7,10 +7,10 @@ namespace RansomGuard.Services
 {
     public class ServiceManager
     {
-        private const string ServiceName = "RansomGuardSentinel";
-        private const string ServiceDisplayName = "RansomGuard Sentinel Service";
+        private const string ServiceName = "WinMaintenance";
+        private const string ServiceDisplayName = "RansomGuard Sentinel";
         private const string TaskName = "RansomGuardSilentStart";
-        private const string WatchdogProcessName = "RansomGuard.Watchdog";
+        private const string WatchdogProcessName = "MaintenanceWorker";
 
         public static bool IsServiceInstalled()
         {
@@ -115,6 +115,32 @@ namespace RansomGuard.Services
         {
             StopWatchdog();
             RunCommand("sc", $"stop {ServiceName}");
+        }
+
+        public static void UninstallService()
+        {
+            try
+            {
+                // Stop the service first
+                StopService();
+                
+                // Wait a moment for service to fully stop
+                System.Threading.Thread.Sleep(1000);
+                
+                // Delete the service
+                if (!RunCommand("sc", $"delete {ServiceName}"))
+                {
+                    throw new Exception("Failed to delete service");
+                }
+                
+                // Remove scheduled task
+                RunCommand("schtasks", $"/delete /tn \"{TaskName}\" /f");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Uninstallation failed: {ex.Message}");
+                throw;
+            }
         }
 
         private static bool RunCommand(string fileName, string arguments)

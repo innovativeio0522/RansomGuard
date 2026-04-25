@@ -5,14 +5,58 @@ namespace RansomGuard.Core.Helpers
 {
     /// <summary>
     /// Provides centralized path configuration for RansomGuard application directories.
-    /// All paths use the CommonApplicationData folder for proper Windows conventions.
+    /// Automatically detects MSIX packaging and uses appropriate storage locations.
     /// </summary>
     public static class PathConfiguration
     {
-        private static readonly string BaseDirectory = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),
-            "RansomGuard"
-        );
+        /// <summary>
+        /// Detects if the application is running as an MSIX package.
+        /// </summary>
+        private static bool IsRunningAsMsix()
+        {
+            // MSIX apps have a specific environment variable set
+            return !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("MSIX_PACKAGE_FAMILY_NAME"));
+        }
+
+        /// <summary>
+        /// Gets the base directory for application data.
+        /// Uses LocalApplicationData for MSIX packages, CommonApplicationData for traditional installs.
+        /// </summary>
+        private static readonly string BaseDirectory = GetBaseDirectory();
+
+        private static string GetBaseDirectory()
+        {
+            var msixPackageName = Environment.GetEnvironmentVariable("MSIX_PACKAGE_FAMILY_NAME");
+            var isMsix = !string.IsNullOrEmpty(msixPackageName);
+            
+            if (isMsix)
+            {
+                // MSIX apps should use LocalApplicationData which is writable
+                var localAppData = Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                    "RansomGuard"
+                );
+                
+                // Log for debugging
+                Console.WriteLine($"[PathConfiguration] Running as MSIX package: {msixPackageName}");
+                Console.WriteLine($"[PathConfiguration] Using LocalApplicationData: {localAppData}");
+                System.Diagnostics.Debug.WriteLine($"[PathConfiguration] Running as MSIX, using LocalApplicationData: {localAppData}");
+                return localAppData;
+            }
+            else
+            {
+                // Traditional install uses ProgramData
+                var programData = Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),
+                    "RansomGuard"
+                );
+                
+                Console.WriteLine($"[PathConfiguration] Running as traditional app");
+                Console.WriteLine($"[PathConfiguration] Using ProgramData: {programData}");
+                System.Diagnostics.Debug.WriteLine($"[PathConfiguration] Running as traditional app, using ProgramData: {programData}");
+                return programData;
+            }
+        }
         
         /// <summary>
         /// Gets the path to the quarantine directory where isolated suspicious files are stored.
@@ -33,6 +77,11 @@ namespace RansomGuard.Core.Helpers
         /// Gets the path to the activity log database.
         /// </summary>
         public static string ActivityLogDatabasePath => Path.Combine(BaseDirectory, "activity_log.db");
+        
+        /// <summary>
+        /// Gets the configuration directory path.
+        /// </summary>
+        public static string GetConfigDirectory() => BaseDirectory;
         
         /// <summary>
         /// Ensures all required application directories exist, creating them if necessary.
