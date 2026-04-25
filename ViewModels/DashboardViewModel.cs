@@ -3,6 +3,7 @@ using CommunityToolkit.Mvvm.Input;
 using RansomGuard.Core.Models;
 using RansomGuard.Core.Interfaces;
 using RansomGuard.Core.Helpers;
+using RansomGuard.Core.Configuration;
 using RansomGuard.Services;
 using RansomGuard.Core.Services;
 using RansomGuard.Core.IPC;
@@ -21,12 +22,13 @@ namespace RansomGuard.ViewModels
     public partial class DashboardViewModel : ViewModelBase, IDisposable
     {
         private const int MaxDashboardActivities = 10;
+        private const int MaxBufferSize = 1000; // Maximum buffer size to prevent unbounded growth
         private int _baselineRiskScore = 8;
         private const int MinutesThresholdForRecent = 60;
         
         private readonly ISystemMonitorService _monitorService;
-        private readonly DispatcherTimer _telemetryTimer;
-        private readonly DispatcherTimer _activityBufferTimer;
+        private DispatcherTimer? _telemetryTimer;
+        private DispatcherTimer? _activityBufferTimer;
         private readonly ConcurrentQueue<FileActivity> _activityBuffer = new();
         private bool _disposed;
 
@@ -130,7 +132,7 @@ namespace RansomGuard.ViewModels
             // Setup telemetry polling (every 2 seconds)
             _telemetryTimer = new DispatcherTimer
             {
-                Interval = TimeSpan.FromSeconds(2)
+                Interval = TimeSpan.FromMilliseconds(AppConstants.Timers.DashboardTelemetryMs)
             };
             _telemetryTimer.Tick += (s, e) => UpdateTelemetry();
             _telemetryTimer.Start();
@@ -138,7 +140,7 @@ namespace RansomGuard.ViewModels
             // Setup activity buffer timer (every 500ms) for UI throttling
             _activityBufferTimer = new DispatcherTimer
             {
-                Interval = TimeSpan.FromMilliseconds(500)
+                Interval = TimeSpan.FromMilliseconds(AppConstants.Timers.ActivityBufferMs)
             };
             _activityBufferTimer.Tick += (s, e) => ProcessActivityBuffer();
             _activityBufferTimer.Start();
@@ -240,28 +242,11 @@ namespace RansomGuard.ViewModels
             }
             catch (Exception ex)
             {
-                LogToFile($"[DashboardViewModel] LoadData error: {ex.Message}\n{ex.StackTrace}");
+                FileLogger.LogError("ui_error.log", "[DashboardViewModel] LoadData error", ex);
                 // Initialize with empty data on error
                 FilesMonitoredCount = "0";
                 ThreatsBlockedCount = 0;
             }
-        }
-
-        private void LogToFile(string message)
-        {
-            try
-            {
-                string logPath = @"C:\ProgramData\RansomGuard\Logs\ui_error.log";
-                string dir = Path.GetDirectoryName(logPath)!;
-                if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
-
-                using (var fs = new FileStream(logPath, FileMode.Append, FileAccess.Write, FileShare.ReadWrite))
-                using (var sw = new StreamWriter(fs))
-                {
-                    sw.WriteLine($"{DateTime.Now}: {message}");
-                }
-            }
-            catch { }
         }
 
         private void ProcessActivityBuffer()
@@ -368,14 +353,26 @@ namespace RansomGuard.ViewModels
 
         private void OnFileActivityDetected(FileActivity activity)
         {
+            if (_disposed) return; // Check if disposed
+            
+            // Enforce buffer size limit to prevent unbounded growth
+            if (_activityBuffer.Count >= MaxBufferSize)
+            {
+                // Drop oldest item
+                _activityBuffer.TryDequeue(out _);
+            }
+            
             // Throttling: just enqueue and let the timer handle the UI update
             _activityBuffer.Enqueue(activity);
         }
 
         private void OnThreatDetected(Threat threat)
         {
+            if (_disposed) return; // Check if disposed
+            
             Application.Current.Dispatcher.Invoke(() =>
             {
+                if (_disposed) return; // Check again in dispatcher
                 var existing = ActiveAlerts.FirstOrDefault(a => string.Equals(a.Path, threat.Path, StringComparison.OrdinalIgnoreCase));
 
                 if (existing != null)
@@ -415,7 +412,9 @@ namespace RansomGuard.ViewModels
         private void UpdateRiskScore()
         {
             // Graduated: baseline 5–15 (randomised at startup), each alert adds ~10, capped at 95
-            ThreatRiskScore = Math.Min(95, _baselineRiskScore + ActiveAlerts.Count * 10);
+            // Prevent integer overflow by clamping alert count to max 9 (9 * 10 = 90, + baseline max 15 = 105, capped at 95)
+            int alertContribution = Math.Min(ActiveAlerts.Count, 9) * 10;
+            ThreatRiskScore = Math.Min(95, _baselineRiskScore + alertContribution);
         }
 
         [RelayCommand]
@@ -464,9 +463,21 @@ namespace RansomGuard.ViewModels
             if (_disposed) return;
             _disposed = true;
 
-            // Stop and dispose timer
-            _telemetryTimer?.Stop();
-            _activityBufferTimer?.Stop();
+            // Stop and dispose telemetry timer
+            if (_telemetryTimer != null)
+            {
+                _telemetryTimer.Stop();
+                _telemetryTimer.Tick -= (s, e) => UpdateTelemetry();
+                _telemetryTimer = null;
+            }
+            
+            // Stop and dispose activity buffer timer
+            if (_activityBufferTimer != null)
+            {
+                _activityBufferTimer.Stop();
+                _activityBufferTimer.Tick -= (s, e) => ProcessActivityBuffer();
+                _activityBufferTimer = null;
+            }
 
             // Unsubscribe from events
             if (_monitorService != null)

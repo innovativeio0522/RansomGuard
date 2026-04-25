@@ -1,4 +1,5 @@
 using RansomGuard.Service;
+using RansomGuard.Core.Helpers;
 
 try 
 {
@@ -15,6 +16,6 @@ try
 }
 catch (Exception ex)
 {
-    string logPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "RansomGuard", "fatal_startup.log");
+    string logPath = Path.Combine(PathConfiguration.LogPath, "fatal_startup.log");
     File.AppendAllText(logPath, $"{DateTime.Now}: FATAL STARTUP ERROR: {ex.Message}\n{ex.StackTrace}\n");
 }

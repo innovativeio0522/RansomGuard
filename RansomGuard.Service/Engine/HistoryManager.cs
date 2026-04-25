@@ -14,7 +14,8 @@ namespace RansomGuard.Service.Engine
     public class HistoryManager : IDisposable
     {
         private const int MaxActivityHistory = 100;
-        private const int MaxThreatCacheAgeMinutes = 1440; // 24 hours
+        private const int MaxThreatCacheAgeMinutes = 60; // 1 hour (reduced from 24 hours)
+        private const int MaxThreatCacheSize = 1000; // Maximum entries in dedup cache
         
         private readonly List<FileActivity> _activityHistory = new();
         private readonly List<Threat> _threatHistory = new();
@@ -67,6 +68,7 @@ namespace RansomGuard.Service.Engine
         /// reported for at least <paramref name="dedupeWindowMinutes"/> minutes).
         /// Uses a sliding time window rather than a permanent block to prevent stale DB
         /// history from suppressing fresh scan detections.
+        /// Enforces maximum cache size with LRU eviction.
         /// </summary>
         public virtual bool ShouldReportThreat(string path, string threatName, int dedupeWindowMinutes = 30)
         {
@@ -78,6 +80,22 @@ namespace RansomGuard.Service.Engine
                     if ((DateTime.Now - lastReported).TotalMinutes < dedupeWindowMinutes)
                         return false; // Already reported within the window — suppress
                 }
+                
+                // Enforce size limit with LRU eviction before adding new entry
+                if (_reportedThreats.Count >= MaxThreatCacheSize)
+                {
+                    var oldest = _reportedThreats
+                        .OrderBy(kvp => kvp.Value)
+                        .Take(_reportedThreats.Count - MaxThreatCacheSize + 1)
+                        .Select(kvp => kvp.Key)
+                        .ToList();
+                    
+                    foreach (var key in oldest)
+                        _reportedThreats.Remove(key);
+                    
+                    System.Diagnostics.Debug.WriteLine($"[HistoryManager] Threat cache trimmed from {_reportedThreats.Count + oldest.Count} to {_reportedThreats.Count} entries");
+                }
+                
                 _reportedThreats[threatKey] = DateTime.Now;
                 return true;
             }
@@ -120,16 +138,40 @@ namespace RansomGuard.Service.Engine
 
         public void CleanupCache()
         {
-            lock (_threatDedupLock)
+            try
             {
-                var now = DateTime.Now;
-                var keysToRemove = _reportedThreats
-                    .Where(kvp => (now - kvp.Value).TotalMinutes > MaxThreatCacheAgeMinutes)
-                    .Select(kvp => kvp.Key)
-                    .ToList();
+                lock (_threatDedupLock)
+                {
+                    var now = DateTime.Now;
+                    
+                    // Remove old entries (older than MaxThreatCacheAgeMinutes)
+                    var keysToRemove = _reportedThreats
+                        .Where(kvp => (now - kvp.Value).TotalMinutes > MaxThreatCacheAgeMinutes)
+                        .Select(kvp => kvp.Key)
+                        .ToList();
 
-                foreach (var key in keysToRemove)
-                    _reportedThreats.Remove(key);
+                    foreach (var key in keysToRemove)
+                        _reportedThreats.Remove(key);
+                    
+                    // If still too large after cleanup, remove oldest entries (LRU eviction)
+                    if (_reportedThreats.Count > MaxThreatCacheSize)
+                    {
+                        var oldest = _reportedThreats
+                            .OrderBy(kvp => kvp.Value)
+                            .Take(_reportedThreats.Count - MaxThreatCacheSize)
+                            .Select(kvp => kvp.Key)
+                            .ToList();
+                        
+                        foreach (var key in oldest)
+                            _reportedThreats.Remove(key);
+                        
+                        System.Diagnostics.Debug.WriteLine($"[HistoryManager] Threat cache trimmed to {_reportedThreats.Count} entries");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[HistoryManager] CleanupCache error: {ex.Message}");
             }
         }
 

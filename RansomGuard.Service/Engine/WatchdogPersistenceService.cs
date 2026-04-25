@@ -59,8 +59,12 @@ namespace RansomGuard.Service.Engine
             {
                 _logger.LogInformation("Watchdog missing. Triggering scheduled task to restart in user session.");
                 
-                // We don't need the path here because the task is already registered by the UI
-                // If it's not registered, schtasks will simply return an error.
+                string? watchdogPath = FindWatchdogPath();
+                if (watchdogPath != null)
+                {
+                    RegisterWatchdogTask(watchdogPath);
+                }
+
                 var psi = new ProcessStartInfo("schtasks", $"/run /tn \"{WatchdogTaskName}\"")
                 {
                     CreateNoWindow = true,
@@ -76,6 +80,29 @@ namespace RansomGuard.Service.Engine
             }
         }
 
+        private void RegisterWatchdogTask(string watchdogPath)
+        {
+            try
+            {
+                // Create a task that runs as the current user and is allowed to run interactively (/IT).
+                // We use /SC ONCE with a date in the past so it never triggers automatically, only via /RUN.
+                string args = $"/create /tn \"{WatchdogTaskName}\" /tr \"'{watchdogPath}'\" /sc ONCE /st 00:00 /it /f /rl HIGHEST";
+                
+                var psi = new ProcessStartInfo("schtasks", args)
+                {
+                    CreateNoWindow = true,
+                    UseShellExecute = false,
+                    WindowStyle = ProcessWindowStyle.Hidden
+                };
+                var p = Process.Start(psi);
+                p?.WaitForExit(3000);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to register Watchdog task.");
+            }
+        }
+
         private string? FindWatchdogPath()
         {
             string appDir = AppDomain.CurrentDomain.BaseDirectory;
@@ -85,15 +112,13 @@ namespace RansomGuard.Service.Engine
             if (File.Exists(prodPath)) return prodPath;
 
             // 2. Development Fallbacks (Source tree)
-            string[] fallbacks = new[]
-            {
+            string[] fallbacks =
+            [
                 // From Service/publish/
                 Path.Combine(appDir, @"..\..\..\RansomGuard.Watchdog\bin\Debug\net9.0\RansomGuard.Watchdog.exe"),
                 // From Service/bin/Debug/net8.0/
-                Path.Combine(appDir, @"..\..\..\..\RansomGuard.Watchdog\bin\Debug\net9.0\RansomGuard.Watchdog.exe"),
-                // Absolute fallback for this workspace
-                @"f:\Github Projects\RansomGuard\RansomGuard.Watchdog\bin\Debug\net9.0\RansomGuard.Watchdog.exe"
-            };
+                Path.Combine(appDir, @"..\..\..\..\RansomGuard.Watchdog\bin\Debug\net9.0\RansomGuard.Watchdog.exe")
+            ];
 
             foreach (var path in fallbacks)
             {

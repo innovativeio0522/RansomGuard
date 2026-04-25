@@ -105,8 +105,12 @@ namespace RansomGuard.Service.Engine
         {
             if (_disposed) return;
             _disposed = true;
+            
             _telemetryTimer.Stop();
             _telemetryTimer.Dispose();
+            
+            // Dispose metrics provider if it implements IDisposable
+            (_metricsProvider as IDisposable)?.Dispose();
         }
     }
 

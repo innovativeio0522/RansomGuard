@@ -2,6 +2,7 @@ using System;
 using System.Drawing;
 using System.IO;
 using System.Diagnostics;
+using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Forms;
 
@@ -15,6 +16,10 @@ namespace RansomGuard.Services
     {
         private readonly NotifyIcon _notifyIcon;
         private bool _disposed;
+
+        // P/Invoke for releasing GDI handles
+        [DllImport("user32.dll", SetLastError = true)]
+        private static extern bool DestroyIcon(IntPtr hIcon);
 
         public TrayIconService()
         {
@@ -85,10 +90,22 @@ namespace RansomGuard.Services
 
                 if (File.Exists(pngPath))
                 {
-                    using var bmp    = new System.Drawing.Bitmap(pngPath);
+                    using var bmp = new System.Drawing.Bitmap(pngPath);
                     using var resized = new System.Drawing.Bitmap(bmp, new System.Drawing.Size(16, 16));
-                    var iconHandle   = resized.GetHicon();
-                    return System.Drawing.Icon.FromHandle(iconHandle);
+                    IntPtr iconHandle = resized.GetHicon();
+                    
+                    try
+                    {
+                        // Create icon from handle and clone it so we own a copy
+                        // This allows us to safely destroy the original GDI handle
+                        using Icon tempIcon = System.Drawing.Icon.FromHandle(iconHandle);
+                        return (Icon)tempIcon.Clone();
+                    }
+                    finally
+                    {
+                        // Release the GDI handle to prevent memory leak
+                        DestroyIcon(iconHandle);
+                    }
                 }
             }
             catch { /* fall through to system default */ }

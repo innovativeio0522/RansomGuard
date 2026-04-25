@@ -25,6 +25,8 @@ namespace RansomGuard.Service.Engine
     {
         private const int WindowSeconds = 10;
         private const int MaxActivityHistory = 100;
+        private const int MaxDebounceCacheSize = 5000; // Maximum entries in debounce cache
+        private const int DebounceCleanupIntervalMs = 300000; // 5 minutes
 
         private static int GetChangeThreshold() => ConfigurationService.Instance.SensitivityLevel switch
         {
@@ -59,7 +61,9 @@ namespace RansomGuard.Service.Engine
         public event Action<bool>? ConnectionStatusChanged = delegate { };
         public event Action<FileActivity>? FileActivityDetected;
         public event Action<Threat>? ThreatDetected;
+#pragma warning disable CS0067 // Event is never used - Reserved for future scan completion notifications
         public event Action<ScanSummary>? ScanCompleted;
+#pragma warning restore CS0067
         public event Action? ProcessListUpdated = delegate { };
         public event Action<TelemetryData>? TelemetryUpdated;
 
@@ -116,7 +120,8 @@ namespace RansomGuard.Service.Engine
             // Link telemetry updates
             _telemetryService.TelemetryUpdated += (data) => TelemetryUpdated?.Invoke(GetTelemetry());
             
-            _engineCleanupTimer = new System.Timers.Timer(3600000); // 1 hour
+            // Run cleanup more frequently (every 5 minutes instead of 1 hour)
+            _engineCleanupTimer = new System.Timers.Timer(DebounceCleanupIntervalMs);
             _engineCleanupTimer.Elapsed += (s, e) => {
                 _historyManager.CleanupCache();
                 CleanupDebounceCache();
@@ -131,13 +136,38 @@ namespace RansomGuard.Service.Engine
 
         private void CleanupDebounceCache()
         {
-            var now = DateTime.Now;
-            var keysToRemove = _eventDebounceCache
-                .Where(kvp => (now - kvp.Value).TotalSeconds > 10)
-                .Select(kvp => kvp.Key)
-                .ToList();
-            foreach (var key in keysToRemove)
-                _eventDebounceCache.TryRemove(key, out _);
+            try
+            {
+                var now = DateTime.Now;
+                
+                // Remove old entries (older than 10 seconds)
+                var keysToRemove = _eventDebounceCache
+                    .Where(kvp => (now - kvp.Value).TotalSeconds > 10)
+                    .Select(kvp => kvp.Key)
+                    .ToList();
+                
+                foreach (var key in keysToRemove)
+                    _eventDebounceCache.TryRemove(key, out _);
+                
+                // If still too large after cleanup, remove oldest entries
+                if (_eventDebounceCache.Count > MaxDebounceCacheSize)
+                {
+                    var oldest = _eventDebounceCache
+                        .OrderBy(kvp => kvp.Value)
+                        .Take(_eventDebounceCache.Count - MaxDebounceCacheSize)
+                        .Select(kvp => kvp.Key)
+                        .ToList();
+                    
+                    foreach (var key in oldest)
+                        _eventDebounceCache.TryRemove(key, out _);
+                    
+                    Debug.WriteLine($"[SentinelEngine] Debounce cache trimmed from {_eventDebounceCache.Count + oldest.Count} to {_eventDebounceCache.Count} entries");
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[SentinelEngine] CleanupDebounceCache error: {ex.Message}");
+            }
         }
 
         public void InitializeWatchers()
@@ -154,9 +184,10 @@ namespace RansomGuard.Service.Engine
                     string path = Path.GetFullPath(rawPath).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar).ToLowerInvariant();
                     if (!Directory.Exists(path)) continue;
 
+                    FileSystemWatcher? watcher = null;
                     try
                     {
-                        var watcher = new FileSystemWatcher(path)
+                        watcher = new FileSystemWatcher(path)
                         {
                             NotifyFilter = NotifyFilters.FileName | NotifyFilters.DirectoryName | NotifyFilters.LastWrite | NotifyFilters.Attributes,
                             IncludeSubdirectories = true,
@@ -168,9 +199,19 @@ namespace RansomGuard.Service.Engine
                         watcher.Deleted += (s, e) => OnFileChanged(e.FullPath, "DELETED");
                         watcher.Renamed += (s, e) => OnFileChanged(e.FullPath, $"RENAMED FROM {e.OldName} TO {e.Name}");
 
+                        // Enable events BEFORE adding to list - if this throws, watcher won't be in list
                         watcher.EnableRaisingEvents = true;
+                        
+                        // Only add to list after successful initialization
                         _watchers.Add(watcher);
-                    } catch { }
+                        watcher = null; // Ownership transferred - don't dispose in catch block
+                    }
+                    catch (Exception ex)
+                    {
+                        Debug.WriteLine($"[SentinelEngine] Failed to create watcher for {path}: {ex.Message}");
+                        // Dispose the watcher if it wasn't successfully added to the list
+                        watcher?.Dispose();
+                    }
                 }
             }
         }
@@ -370,18 +411,31 @@ namespace RansomGuard.Service.Engine
             string processName = "Sentinel Heuristics", int processId = 0,
             ThreatSeverity severity = ThreatSeverity.Medium, string actionTaken = "Detected")
         {
+            // Validate required parameters
+            if (string.IsNullOrWhiteSpace(path))
+            {
+                System.Diagnostics.Debug.WriteLine("[SentinelEngine] ReportThreat called with empty path");
+                return;
+            }
+            
+            if (string.IsNullOrWhiteSpace(threatName))
+            {
+                System.Diagnostics.Debug.WriteLine("[SentinelEngine] ReportThreat called with empty threat name");
+                return;
+            }
+            
             if (!_historyManager.ShouldReportThreat(path, threatName)) return;
 
             var threat = new Threat
             {
                 Name = threatName,
-                Description = description,
+                Description = description ?? string.Empty,
                 Path = path,
-                ProcessName = processName,
+                ProcessName = processName ?? "Unknown",
                 ProcessId = processId,
                 Severity = severity,
                 Timestamp = DateTime.Now,
-                ActionTaken = actionTaken
+                ActionTaken = actionTaken ?? "Detected"
             };
 
             _historyManager.AddThreat(threat);
@@ -393,7 +447,6 @@ namespace RansomGuard.Service.Engine
                 ExecuteCriticalResponse();
             }
         }
-
         public IEnumerable<Threat> GetRecentThreats() => _historyManager.GetRecentThreats();
         public IEnumerable<FileActivity> GetRecentFileActivities() => _historyManager.GetRecentActivities();
         public DateTime GetLastScanTime() => _lastScanTime;

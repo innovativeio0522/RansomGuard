@@ -3,6 +3,7 @@ using CommunityToolkit.Mvvm.Input;
 using RansomGuard.Core.Models;
 using RansomGuard.Core.Interfaces;
 using RansomGuard.Core.Services;
+using RansomGuard.Core.Configuration;
 using RansomGuard.Services;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -16,12 +17,13 @@ namespace RansomGuard.ViewModels
     public partial class FileActivityViewModel : ViewModelBase, IDisposable
     {
         private const int MaxRecentActivities = 150;
+        private const int MaxBufferSize = 1000; // Maximum buffer size to prevent unbounded growth
         
         [ObservableProperty]
         private int _monitoredPathsCount;
 
         private readonly ISystemMonitorService _monitorService;
-        private readonly DispatcherTimer _bufferTimer;
+        private DispatcherTimer? _bufferTimer;
         private readonly ConcurrentQueue<FileActivity> _activityBuffer = new();
         private bool _disposed;
 
@@ -72,7 +74,7 @@ namespace RansomGuard.ViewModels
             // Subscribe to live updates
             _monitorService.FileActivityDetected += OnFileActivityDetected;
 
-            _bufferTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(500) };
+            _bufferTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(AppConstants.Timers.ActivityBufferMs) };
             _bufferTimer.Tick += (s, e) => ProcessBuffer();
             _bufferTimer.Start();
 
@@ -102,6 +104,8 @@ namespace RansomGuard.ViewModels
 
         private async void OnConnectionStatusChanged(bool isConnected)
         {
+            if (_disposed) return; // Check if disposed
+            
             if (isConnected)
             {
                 // Snapshots (FileActivitySnapshot, ThreatDetectedSnapshot) are sent by the
@@ -109,7 +113,16 @@ namespace RansomGuard.ViewModels
                 // We must wait for them to be processed before calling Refresh(), otherwise
                 // GetRecentFileActivities() returns an empty list.
                 await Task.Delay(2000).ConfigureAwait(false);
-                System.Windows.Application.Current.Dispatcher.Invoke(() => Refresh());
+                
+                if (_disposed) return; // Check again after delay
+                
+                System.Windows.Application.Current.Dispatcher.Invoke(() => 
+                {
+                    if (!_disposed) // Check in dispatcher
+                    {
+                        Refresh();
+                    }
+                });
             }
         }
 
@@ -136,7 +149,15 @@ namespace RansomGuard.ViewModels
 
         private void OnFileActivityDetected(FileActivity activity)
         {
-            if (IsPaused) return;
+            if (IsPaused || _disposed) return; // Check if disposed
+            
+            // Enforce buffer size limit to prevent unbounded growth
+            if (_activityBuffer.Count >= MaxBufferSize)
+            {
+                // Drop oldest item
+                _activityBuffer.TryDequeue(out _);
+            }
+            
             _activityBuffer.Enqueue(activity);
         }
 
@@ -304,7 +325,13 @@ namespace RansomGuard.ViewModels
             if (_disposed) return;
             _disposed = true;
 
-            _bufferTimer?.Stop();
+            // Stop and dispose buffer timer
+            if (_bufferTimer != null)
+            {
+                _bufferTimer.Stop();
+                _bufferTimer.Tick -= (s, e) => ProcessBuffer();
+                _bufferTimer = null;
+            }
 
             if (_monitorService != null)
             {

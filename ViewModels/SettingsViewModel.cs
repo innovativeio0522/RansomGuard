@@ -9,6 +9,7 @@ using System.Diagnostics;
 using Microsoft.Win32;
 using RansomGuard.Services;
 using RansomGuard.Core.Services;
+using RansomGuard.Core.Configuration;
 
 namespace RansomGuard.ViewModels
 {
@@ -52,6 +53,9 @@ namespace RansomGuard.ViewModels
         [ObservableProperty]
         private bool _isEmergencyShutdownEnabled;
 
+        [ObservableProperty]
+        private bool _isServiceInstalled;
+
         public string SensitivityLabel => SensitivityLevel switch
         {
             1 => "LOW",
@@ -66,7 +70,7 @@ namespace RansomGuard.ViewModels
             // Initialize debounce timer (500ms delay)
             _saveDebounceTimer = new DispatcherTimer
             {
-                Interval = TimeSpan.FromMilliseconds(500)
+                Interval = TimeSpan.FromMilliseconds(AppConstants.Timers.SettingsDebounceMs)
             };
             _saveDebounceTimer.Tick += (s, e) =>
             {
@@ -83,6 +87,7 @@ namespace RansomGuard.ViewModels
             IsWatchdogEnabled = ConfigurationService.Instance.WatchdogEnabled;
             IsNetworkIsolationEnabled = ConfigurationService.Instance.NetworkIsolationEnabled;
             IsEmergencyShutdownEnabled = ConfigurationService.Instance.EmergencyShutdownEnabled;
+            IsServiceInstalled = ServiceManager.IsServiceInstalled();
 
             // Handle collection changes with debouncing
             _monitoredPaths.CollectionChanged += (s, e) => SaveConfig();
@@ -99,9 +104,9 @@ namespace RansomGuard.ViewModels
             base.OnPropertyChanged(e);
             
             // Auto-save on other property changes
+            // Note: IsWatchdogEnabled is handled specially in OnIsWatchdogEnabledChanged and doesn't need debouncing
             if (e.PropertyName == nameof(IsRealTimeProtectionEnabled) || 
                 e.PropertyName == nameof(IsAutoQuarantineEnabled) ||
-                e.PropertyName == nameof(IsWatchdogEnabled) ||
                 e.PropertyName == nameof(IsNetworkIsolationEnabled) ||
                 e.PropertyName == nameof(IsEmergencyShutdownEnabled))
             {
@@ -111,6 +116,9 @@ namespace RansomGuard.ViewModels
 
         partial void OnIsWatchdogEnabledChanged(bool value)
         {
+            // Stop any pending debounced save to prevent conflicts
+            _saveDebounceTimer?.Stop();
+            
             // Update the configuration instance immediately so the Watchdog sees the correct state on startup
             ConfigurationService.Instance.WatchdogEnabled = value;
             ConfigurationService.Instance.Save();
@@ -118,7 +126,7 @@ namespace RansomGuard.ViewModels
             if (value)
             {
                 // Spawn Watchdog if not already running
-                WatchdogManager.EnsureWatchdogRunning();
+                WatchdogManager.EnsureProtectionEngaged();
             }
             else
             {
@@ -136,11 +144,8 @@ namespace RansomGuard.ViewModels
             // we should try to discover them, regardless of what fallbacks are present.
             bool hasAtLeastOneStandardFolder = config.MonitoredPaths.Any(p => ConfigurationService.IsStandardProtectedFolder(p));
             
-            Console.WriteLine($"[ConfigurationService] hasAtLeastOneStandardFolder: {hasAtLeastOneStandardFolder}, HasAutoPopulated: {config.HasAutoPopulated}");
-            
             if (!config.HasAutoPopulated && !hasAtLeastOneStandardFolder)
             {
-                Console.WriteLine("[ConfigurationService] No standard folders found. Re-triggering discovery...");
                 config.PopulateDefaultFolders();
                 
                 // If we found something, mark as officially populated
@@ -218,7 +223,10 @@ namespace RansomGuard.ViewModels
                     UseShellExecute = true
                 });
             }
-            catch { }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[SettingsViewModel] Failed to open URL: {ex.Message}");
+            }
         }
 
         [RelayCommand]
@@ -257,13 +265,81 @@ namespace RansomGuard.ViewModels
         {
             try
             {
-                string servicePath = System.IO.Path.Combine(System.AppDomain.CurrentDomain.BaseDirectory, "RansomGuard.Service.exe");
+                // Check if service is already installed
+                if (ServiceManager.IsServiceInstalled())
+                {
+                    System.Windows.MessageBox.Show(
+                        "The RansomGuard Protection Service is already installed and running.\n\nYour system is protected!",
+                        "Service Already Running",
+                        System.Windows.MessageBoxButton.OK,
+                        System.Windows.MessageBoxImage.Information);
+                    IsServiceInstalled = true;
+                    return;
+                }
+                
+                // Look for the service executable in multiple locations
+                string baseDir = System.AppDomain.CurrentDomain.BaseDirectory;
+                string servicePath = System.IO.Path.Combine(baseDir, "WinMaintenanceSvc.exe");
+                
+                // If not found in base directory, check publish folder (used by build script)
+                if (!System.IO.File.Exists(servicePath))
+                {
+                    string publishPath = System.IO.Path.Combine(baseDir, "..", "..", "..", "RansomGuard.Service", "publish", "WinMaintenanceSvc.exe");
+                    publishPath = System.IO.Path.GetFullPath(publishPath);
+                    if (System.IO.File.Exists(publishPath))
+                    {
+                        servicePath = publishPath;
+                    }
+                    else
+                    {
+                        throw new System.IO.FileNotFoundException($"Service executable not found. Looked in:\n- {servicePath}\n- {publishPath}");
+                    }
+                }
+                
                 ServiceManager.InstallService(servicePath);
+                IsServiceInstalled = true; // Update UI
                 System.Windows.MessageBox.Show("RansomGuard Protection Service has been successfully installed and started.", "Service Installation", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Information);
             }
             catch (System.Exception ex)
             {
                 System.Windows.MessageBox.Show($"Failed to install the background service: {ex.Message}", "Service Error", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Warning);
+            }
+        }
+
+        [RelayCommand]
+        private void UninstallService()
+        {
+            try
+            {
+                // Check if service is installed
+                if (!ServiceManager.IsServiceInstalled())
+                {
+                    System.Windows.MessageBox.Show(
+                        "The RansomGuard Protection Service is not installed.",
+                        "Service Not Found",
+                        System.Windows.MessageBoxButton.OK,
+                        System.Windows.MessageBoxImage.Information);
+                    return;
+                }
+                
+                // Confirm with user
+                var result = System.Windows.MessageBox.Show(
+                    "Are you sure you want to uninstall the RansomGuard Protection Service?\n\nThis will stop all background protection until you reinstall it.",
+                    "Confirm Uninstall",
+                    System.Windows.MessageBoxButton.YesNo,
+                    System.Windows.MessageBoxImage.Warning);
+                
+                if (result != System.Windows.MessageBoxResult.Yes)
+                {
+                    return;
+                }
+                
+                ServiceManager.UninstallService();
+                System.Windows.MessageBox.Show("RansomGuard Protection Service has been successfully uninstalled.", "Service Uninstalled", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Information);
+            }
+            catch (System.Exception ex)
+            {
+                System.Windows.MessageBox.Show($"Failed to uninstall the background service: {ex.Message}", "Service Error", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Warning);
             }
         }
 

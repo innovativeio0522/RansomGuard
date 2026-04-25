@@ -2,6 +2,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using RansomGuard.Core.Models;
 using RansomGuard.Core.Interfaces;
+using RansomGuard.Core.Configuration;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Windows;
@@ -12,6 +13,7 @@ namespace RansomGuard.ViewModels
     {
         private readonly ISystemMonitorService _monitorService;
         private List<Threat> _allThreats = new();
+        private readonly object _threatsLock = new(); // Thread-safe access to _allThreats
         private bool _disposed;
 
         [ObservableProperty]
@@ -64,7 +66,7 @@ namespace RansomGuard.ViewModels
             // this view automatically reflects it.
             _refreshTimer = new System.Windows.Threading.DispatcherTimer
             {
-                Interval = TimeSpan.FromSeconds(2.5)
+                Interval = TimeSpan.FromMilliseconds(AppConstants.Timers.ThreatAlertsRefreshMs)
             };
             _refreshTimer.Tick += (s, e) => LoadThreats();
             _refreshTimer.Start();
@@ -72,14 +74,26 @@ namespace RansomGuard.ViewModels
 
         private void LoadThreats()
         {
-            _allThreats = _monitorService.GetRecentThreats().ToList();
+            if (_disposed) return; // Check if disposed
+            
+            lock (_threatsLock)
+            {
+                _allThreats = _monitorService.GetRecentThreats().ToList();
+            }
             RefreshCounts();
             ApplyFilters();
         }
 
         private void RefreshCounts()
         {
-            var activeThreats = _allThreats.Where(t => t.ActionTaken != "Quarantined" && t.ActionTaken != "Ignored");
+            if (_disposed) return; // Check if disposed
+            
+            IEnumerable<Threat> activeThreats;
+            lock (_threatsLock)
+            {
+                activeThreats = _allThreats.Where(t => t.ActionTaken != "Quarantined" && t.ActionTaken != "Ignored").ToList();
+            }
+            
             CriticalThreatsCount = activeThreats.Count(t => t.Severity == ThreatSeverity.Critical);
             HighThreatsCount = activeThreats.Count(t => t.Severity == ThreatSeverity.High);
             MediumThreatsCount = activeThreats.Count(t => t.Severity == ThreatSeverity.Medium);
@@ -88,7 +102,13 @@ namespace RansomGuard.ViewModels
 
         private void ApplyFilters()
         {
-            var filtered = _allThreats.AsEnumerable();
+            if (_disposed) return; // Check if disposed
+            
+            IEnumerable<Threat> filtered;
+            lock (_threatsLock)
+            {
+                filtered = _allThreats.AsEnumerable();
+            }
 
             // Always exclude things that have already been handled
             filtered = filtered.Where(t => t.ActionTaken != "Quarantined" && t.ActionTaken != "Ignored");
@@ -166,7 +186,8 @@ namespace RansomGuard.ViewModels
         [RelayCommand]
         private async Task QuarantineThreat(Threat threat)
         {
-            if (threat == null) return;
+            if (threat == null || _disposed) return; // Check if disposed
+            
             try { 
                 await _monitorService.QuarantineFile(threat.Path); 
                 threat.ActionTaken = "Quarantined"; // Tell the rest of the app (like Dashboard) it's handled
@@ -175,7 +196,11 @@ namespace RansomGuard.ViewModels
             {
                 System.Diagnostics.Debug.WriteLine($"QuarantineThreat error: {ex.Message}");
             }
-            _allThreats.Remove(threat);
+            
+            lock (_threatsLock)
+            {
+                _allThreats.Remove(threat);
+            }
             RefreshCounts();
             ApplyFilters();
         }
@@ -183,20 +208,31 @@ namespace RansomGuard.ViewModels
         [RelayCommand]
         private void IgnoreThreat(Threat threat)
         {
-            if (threat == null) return;
-            _allThreats.Remove(threat);
+            if (threat == null || _disposed) return; // Check if disposed
+            
+            lock (_threatsLock)
+            {
+                _allThreats.Remove(threat);
+            }
             RefreshCounts();
             ApplyFilters();
         }
 
         private void OnThreatDetected(Threat threat)
         {
+            if (_disposed) return; // Check if disposed
+            
             Application.Current.Dispatcher.Invoke(() =>
             {
-                // Deduplicate by Path (don't add if already in memory)
-                if (!_allThreats.Any(t => t.Path == threat.Path))
+                if (_disposed) return; // Check again in dispatcher
+                
+                lock (_threatsLock)
                 {
-                    _allThreats.Insert(0, threat);
+                    // Deduplicate by Path (don't add if already in memory)
+                    if (!_allThreats.Any(t => t.Path == threat.Path))
+                    {
+                        _allThreats.Insert(0, threat);
+                    }
                 }
                 // Always re-filter — an existing threat may have changed status (e.g. Quarantined from Dashboard)
                 RefreshCounts();
@@ -209,7 +245,13 @@ namespace RansomGuard.ViewModels
             if (_disposed) return;
             _disposed = true;
 
-            _refreshTimer?.Stop();
+            // Stop and dispose timer
+            if (_refreshTimer != null)
+            {
+                _refreshTimer.Stop();
+                _refreshTimer.Tick -= (s, e) => LoadThreats();
+                _refreshTimer = null!;
+            }
 
             // Unsubscribe from events
             if (_monitorService != null)

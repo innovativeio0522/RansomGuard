@@ -3,6 +3,8 @@ using RansomGuard.Service.Communication;
 using RansomGuard.Core.Interfaces;
 using RansomGuard.Service.Services;
 using RansomGuard.Core.Services;
+using RansomGuard.Core.IPC;
+using RansomGuard.Core.Helpers;
 
 namespace RansomGuard.Service;
 
@@ -15,6 +17,7 @@ public class Worker : BackgroundService
     private VssShieldService? _vssShield;
     private ActiveResponseService? _activeResponse;
     private NamedPipeServer? _pipeServer;
+    private readonly ILogger<Worker> _logger;
 
     public Worker(ILogger<Worker> logger)
     {
@@ -24,8 +27,8 @@ public class Worker : BackgroundService
     private void HandleCriticalThreat(RansomGuard.Core.Models.Threat threat)
     {
         _logger.LogCritical("!!! EXTREME THREAT DETECTED: {name} !!!", threat.Name);
-        _activeResponse.LockdownNetwork();
-        _engine.IsPanicModeActive = true;
+        _activeResponse?.LockdownNetwork();
+        if (_engine != null) _engine.IsPanicModeActive = true;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -85,10 +88,6 @@ public class Worker : BackgroundService
 
             while (!stoppingToken.IsCancellationRequested)
             {
-                // Periodically broadcast telemetry to all connected clients
-                var telemetry = _engine.GetTelemetry();
-                _pipeServer.Broadcast(MessageType.TelemetryUpdate, telemetry, dropOldest: true);
-
                 await Task.Delay(1000, stoppingToken).ConfigureAwait(false);
             }
         }
@@ -127,6 +126,7 @@ public class Worker : BackgroundService
                 _honeyPot?.Dispose();
                 (_vssShield as IDisposable)?.Dispose();
                 (_activeResponse as IDisposable)?.Dispose();
+                (_pipeServer as IDisposable)?.Dispose();
             }
             catch (Exception ex)
             {
@@ -141,7 +141,7 @@ public class Worker : BackgroundService
     {
         try
         {
-            string logPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "RansomGuard", "boot.log");
+            string logPath = Path.Combine(PathConfiguration.LogPath, "boot.log");
             string dir = Path.GetDirectoryName(logPath)!;
             if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
             File.AppendAllText(logPath, $"{DateTime.Now}: {message}\n");

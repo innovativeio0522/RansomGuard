@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text.Json;
+using RansomGuard.Core.Helpers;
 
 namespace RansomGuard.Core.Services
 {
@@ -19,6 +20,7 @@ namespace RansomGuard.Core.Services
         public static ConfigurationService Instance => _instance.Value;
 
         private static readonly object _saveLock = new object();
+        private static readonly object _watcherLock = new object();
         private static FileSystemWatcher? _configWatcher;
         private static System.Timers.Timer? _debounceTimer;
 
@@ -50,46 +52,77 @@ namespace RansomGuard.Core.Services
 
         private static void StartWatcher()
         {
-            if (_configWatcher != null) return;
-            
-            var path = ConfigFile;
-            var directory = Path.GetDirectoryName(path);
-            if (directory == null || !Directory.Exists(directory)) return;
+            lock (_watcherLock)
+            {
+                // Double-check pattern with lock
+                if (_configWatcher != null) return;
+                
+                var path = ConfigFile;
+                var directory = Path.GetDirectoryName(path);
+                if (directory == null || !Directory.Exists(directory)) return;
 
-            _configWatcher = new FileSystemWatcher(directory, Path.GetFileName(path));
-            _configWatcher.NotifyFilter = NotifyFilters.LastWrite;
-            _configWatcher.Changed += (s, e) => {
-                _debounceTimer?.Stop();
-                _debounceTimer?.Start();
-            };
+                _configWatcher = new FileSystemWatcher(directory, Path.GetFileName(path));
+                _configWatcher.NotifyFilter = NotifyFilters.LastWrite;
+                _configWatcher.Changed += (s, e) => {
+                    lock (_watcherLock)
+                    {
+                        _debounceTimer?.Stop();
+                        _debounceTimer?.Start();
+                    }
+                };
 
-            _debounceTimer = new System.Timers.Timer(250);
-            _debounceTimer.AutoReset = false;
-            _debounceTimer.Elapsed += (s, e) => {
-                ReloadInstance();
-            };
+                _debounceTimer = new System.Timers.Timer(250);
+                _debounceTimer.AutoReset = false;
+                _debounceTimer.Elapsed += (s, e) => {
+                    ReloadInstance();
+                };
 
-            _configWatcher.EnableRaisingEvents = true;
+                _configWatcher.EnableRaisingEvents = true;
+            }
+        }
+
+        /// <summary>
+        /// Stops and disposes the configuration file watcher.
+        /// </summary>
+        public static void StopWatcher()
+        {
+            lock (_watcherLock)
+            {
+                if (_configWatcher != null)
+                {
+                    _configWatcher.EnableRaisingEvents = false;
+                    _configWatcher.Dispose();
+                    _configWatcher = null;
+                }
+                
+                if (_debounceTimer != null)
+                {
+                    _debounceTimer.Stop();
+                    _debounceTimer.Dispose();
+                    _debounceTimer = null;
+                }
+            }
         }
 
         private static void ReloadInstance()
         {
-            try
+            // Acquire lock before reading to prevent race with Save()
+            lock (_saveLock)
             {
-                // Use a non-exclusive read to avoid conflicts with saving processes
-                string json;
-                using (var fs = new FileStream(ConfigFile, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
-                using (var sr = new StreamReader(fs))
+                try
                 {
-                    json = sr.ReadToEnd();
-                }
+                    // Use a non-exclusive read to avoid conflicts with external processes
+                    string json;
+                    using (var fs = new FileStream(ConfigFile, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+                    using (var sr = new StreamReader(fs))
+                    {
+                        json = sr.ReadToEnd();
+                    }
 
-                if (string.IsNullOrEmpty(json)) return;
+                    if (string.IsNullOrEmpty(json)) return;
 
-                var newConfig = JsonSerializer.Deserialize<ConfigurationService>(json);
-                if (newConfig != null)
-                {
-                    lock (_saveLock)
+                    var newConfig = JsonSerializer.Deserialize<ConfigurationService>(json);
+                    if (newConfig != null)
                     {
                         var instance = _instance.Value;
                         instance.MonitoredPaths = newConfig.MonitoredPaths ?? new List<string>();
@@ -105,16 +138,15 @@ namespace RansomGuard.Core.Services
                         instance.NotifyPathsChanged();
                     }
                 }
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"[ConfigurationService] Error during remote reload: {ex.Message}");
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[ConfigurationService] Error during remote reload: {ex.Message}");
+                }
             }
         }
 
         private static string ConfigFile => Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),
-            "RansomGuard",
+            PathConfiguration.GetConfigDirectory(),
             "config.json"
         );
         private const string LegacyConfigFile = "config_legacy.json";
@@ -217,13 +249,22 @@ namespace RansomGuard.Core.Services
             {
                 try
                 {
+                    var configPath = ConfigFile;
+                    var directory = Path.GetDirectoryName(configPath);
+                    
+                    // Ensure directory exists
+                    if (directory != null && !Directory.Exists(directory))
+                    {
+                        Directory.CreateDirectory(directory);
+                    }
+                    
                     var json = JsonSerializer.Serialize(this, new JsonSerializerOptions { WriteIndented = true });
-                    File.WriteAllText(ConfigFile, json);
+                    File.WriteAllText(configPath, json);
                 }
                 catch (Exception ex)
                 {
                     // Log error but don't crash the application
-                    System.Diagnostics.Debug.WriteLine($"Failed to save configuration: {ex.Message}");
+                    System.Diagnostics.Debug.WriteLine($"[ConfigurationService] Failed to save configuration: {ex.Message}");
                 }
             }
 
@@ -238,7 +279,6 @@ namespace RansomGuard.Core.Services
         private static ConfigurationService Load()
         {
             var configPath = ConfigFile;
-            Console.WriteLine($"[ConfigurationService] Loading config from: {configPath}");
             var directory = Path.GetDirectoryName(configPath);
             if (directory != null && !Directory.Exists(directory)) Directory.CreateDirectory(directory);
 
@@ -271,6 +311,15 @@ namespace RansomGuard.Core.Services
                         config.MonitoredPaths ??= new List<string>();
                         config.WhitelistedProcessNames ??= new List<string>();
                         config.ExcludedFolderNames ??= new List<string> { "obj", "bin", ".git", ".vs", "node_modules", "vendor", ".idea" };
+
+                        // Clean up any WindowsApps paths that were accidentally added
+                        int removed = config.MonitoredPaths.RemoveAll(p =>
+                            p.Contains("WindowsApps", StringComparison.OrdinalIgnoreCase));
+                        if (removed > 0)
+                        {
+                            System.Diagnostics.Debug.WriteLine($"[ConfigurationService] Removed {removed} WindowsApps path(s) from monitored folders.");
+                            config.Save();
+                        }
 
                         // Start watching for external changes if not in testing mode
                         if (!config.IsTestingMode)
@@ -307,7 +356,6 @@ namespace RansomGuard.Core.Services
             }
             
             // Return default configuration with standard paths
-            Console.WriteLine("[ConfigurationService] Config file not found, creating default...");
             var defaultConfig = new ConfigurationService();
             defaultConfig.PopulateDefaultFolders();
             
@@ -335,6 +383,7 @@ namespace RansomGuard.Core.Services
             SensitivityLevel = 3;
             RealTimeProtection = true;
             AutoQuarantine = true;
+            WatchdogEnabled = true;
             LastScanTime = DateTime.MinValue;
             TotalScansCount = 0;
             ExcludedFolderNames = new List<string> { "obj", "bin", ".git", ".vs", "node_modules", "vendor", ".idea" };
@@ -386,9 +435,14 @@ namespace RansomGuard.Core.Services
                     MonitoredPaths.Add(oneDrivePath);
 
                 // Fallback: If no system folders accessible, monitor the application directory
+                // (Only if we are NOT in the protected WindowsApps folder to avoid clutter)
                 if (MonitoredPaths.Count == 0)
                 {
-                    MonitoredPaths.Add(AppDomain.CurrentDomain.BaseDirectory);
+                    string baseDir = AppDomain.CurrentDomain.BaseDirectory;
+                    if (!baseDir.Contains("WindowsApps", StringComparison.OrdinalIgnoreCase))
+                    {
+                        MonitoredPaths.Add(baseDir);
+                    }
                 }
             }
             catch (Exception ex)

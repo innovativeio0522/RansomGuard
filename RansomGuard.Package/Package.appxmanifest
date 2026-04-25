@@ -2,15 +2,17 @@
 <Package
   xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10"
   xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10"
+  xmlns:uap5="http://schemas.microsoft.com/appx/manifest/uap/windows10/5"
   xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities"
+  xmlns:desktop="http://schemas.microsoft.com/appx/manifest/desktop/windows10"
   xmlns:desktop6="http://schemas.microsoft.com/appx/manifest/desktop/windows10/6"
   xmlns:desktop7="http://schemas.microsoft.com/appx/manifest/desktop/windows10/7"
-  IgnorableNamespaces="uap rescap desktop6 desktop7">
+  IgnorableNamespaces="uap uap5 rescap desktop desktop6 desktop7">
 
   <Identity
     Name="RansomGuard"
     Publisher="CN=RansomGuard"
-    Version="1.0.0.0" />
+    Version="1.0.1.4" />
 
   <Properties>
     <DisplayName>RansomGuard</DisplayName>
@@ -29,7 +31,7 @@
   <Applications>
     <Application
       Id="App"
-      Executable="MaintenanceUI.exe"
+      Executable="RansomGuard\MaintenanceUI.exe"
       EntryPoint="Windows.FullTrustApplication">
       <uap:VisualElements
         DisplayName="RansomGuard"
@@ -42,13 +44,21 @@
       </uap:VisualElements>
       <Extensions>
         <desktop7:Extension Category="windows.shortcut">
-          <desktop7:Shortcut File="[{Desktop}]\RansomGuard.lnk" Icon="Images\Square44x44Logo.png" DisplayName="RansomGuard" />
+          <desktop7:Shortcut File="[{Desktop}]\RansomGuard.lnk" Icon="RansomGuard\MaintenanceUI.exe" />
         </desktop7:Extension>
+        <uap5:Extension Category="windows.startupTask" Executable="RansomGuard\MaintenanceUI.exe" EntryPoint="Windows.FullTrustApplication">
+          <uap5:StartupTask TaskId="RansomGuardStartup" Enabled="true" DisplayName="RansomGuard Background Service" />
+        </uap5:Extension>
+        <uap5:Extension Category="windows.appExecutionAlias" Executable="RansomGuard\MaintenanceUI.exe" EntryPoint="Windows.FullTrustApplication">
+          <uap5:AppExecutionAlias>
+            <uap5:ExecutionAlias Alias="RansomGuardUI.exe" />
+          </uap5:AppExecutionAlias>
+        </uap5:Extension>
       </Extensions>
     </Application>
     <Application
       Id="Service"
-      Executable="WinMaintenanceSvc.exe"
+      Executable="Service\WinMaintenanceSvc.exe"
       EntryPoint="Windows.FullTrustApplication">
       <uap:VisualElements
         AppListEntry="none"
@@ -59,7 +69,7 @@
         Square44x44Logo="Images\Square44x44Logo.png">
       </uap:VisualElements>
       <Extensions>
-        <desktop6:Extension Category="windows.service" Executable="WinMaintenanceSvc.exe" EntryPoint="Windows.FullTrustApplication">
+        <desktop6:Extension Category="windows.service" Executable="Service\WinMaintenanceSvc.exe" EntryPoint="Windows.FullTrustApplication">
           <desktop6:Service
             Name="WinMaintenance"
             StartupType="auto"
