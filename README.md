@@ -1,7 +1,7 @@
 # 🛡️ RansomGuard Pro
 **Military-Grade Ransomware Defense for Windows**
 
-[![Code Quality](https://img.shields.io/badge/Code%20Quality-100%2F100-brightgreen?style=flat-square)](PERFECTION_ACHIEVED.md)
+[![Code Quality](https://img.shields.io/badge/Code%20Quality-100%2F100-brightgreen?style=flat-square)](docs/archive/Markdown/PERFECTION_ACHIEVED.md)
 [![Build Status](https://img.shields.io/badge/Build-Passing-success?style=flat-square)](#)
 [![Warnings](https://img.shields.io/badge/Warnings-0-success?style=flat-square)](#)
 [![Documentation](https://img.shields.io/badge/Documentation-95%25-blue?style=flat-square)](#)
@@ -9,7 +9,7 @@
 
 RansomGuard Pro is a multi-tier, proactive security engine designed to detect, block, and mitigate ransomware attacks in real-time. Unlike traditional signature-based antivirus, RansomGuard uses behavioral heuristics and proactive "Canary" traps to stop unknown threats before they can encrypt your data.
 
-> **🏆 Code Quality Achievement:** This codebase has achieved **100/100** code quality score with zero warnings, zero errors, comprehensive documentation, and full accessibility compliance. See [PERFECTION_ACHIEVED.md](PERFECTION_ACHIEVED.md) for details.
+> **🏆 Code Quality Achievement:** This codebase has achieved **100/100** code quality score with zero warnings, zero errors, comprehensive documentation, and full accessibility compliance. See [PERFECTION_ACHIEVED.md](docs/archive/Markdown/PERFECTION_ACHIEVED.md) for details.
 
 ## 🚀 Key Features
 - **Sentinel Background Service**: A dedicated background engine that runs with `SYSTEM` privileges, ensuring protection starts even before you log in.
@@ -51,10 +51,10 @@ RansomGuard Pro maintains **enterprise-grade code quality** with:
 
 ### Quality Documentation
 
-- 📄 [PERFECTION_ACHIEVED.md](PERFECTION_ACHIEVED.md) - Complete optimization journey
-- 📄 [FINAL_AUDIT_REPORT.md](FINAL_AUDIT_REPORT.md) - Comprehensive code audit
-- 📄 [CODE_REVIEW.md](CODE_REVIEW.md) - All issues fixed (28/28)
-- 📄 [ENHANCEMENTS.md](ENHANCEMENTS.md) - Future enhancement opportunities
+- 📄 [PERFECTION_ACHIEVED.md](docs/archive/Markdown/PERFECTION_ACHIEVED.md) - Complete optimization journey
+- 📄 [FINAL_AUDIT_REPORT.md](docs/archive/Markdown/FINAL_AUDIT_REPORT.md) - Comprehensive code audit
+- 📄 [CODE_REVIEW.md](docs/archive/Markdown/CODE_REVIEW.md) - All issues fixed (28/28)
+- 📄 [ENHANCEMENTS.md](docs/archive/Markdown/ENHANCEMENTS.md) - Future enhancement opportunities
 
 ## 🔧 Development
 
@@ -109,4 +109,4 @@ This project maintains strict quality standards:
 
 ---
 
-**Status:** Production Ready ✅ | **Quality:** 100/100 🏆 | **Last Updated:** April 13, 2026
+**Status:** Production Ready ✅ | **Quality:** 100/100 🏆 | **Last Updated:** April 25, 2026
