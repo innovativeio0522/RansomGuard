@@ -197,10 +197,10 @@ RansomGuard requires:
 **Solution:**
 1. Run the diagnostic script:
    ```powershell
-   .\check-selfhealing.ps1
+   .\scripts\check-selfhealing.ps1
    ```
 2. Follow the recommendations provided
-3. See `Markdown/SELF_HEALING_TROUBLESHOOTING.md` for detailed help
+3. See `docs/archive/Markdown/SELF_HEALING_TROUBLESHOOTING.md` for detailed help
 
 ### Service Won't Start
 
@@ -224,18 +224,18 @@ RansomGuard requires:
 ## 📚 Documentation
 
 ### User Guides
-- **Quick Start:** `SELF_HEALING_QUICK_START.md`
-- **Troubleshooting:** `Markdown/SELF_HEALING_TROUBLESHOOTING.md`
-- **Fix Summary:** `Markdown/SELF_HEALING_FIX_SUMMARY.md`
+- **Quick Start:** `docs/archive/Markdown/SELF_HEALING_QUICK_START.md`
+- **Troubleshooting:** `docs/archive/Markdown/SELF_HEALING_TROUBLESHOOTING.md`
+- **Fix Summary:** `docs/archive/Markdown/SELF_HEALING_FIX_SUMMARY.md`
 
 ### Technical Documentation
-- **Code Audit:** `Markdown/CODE_ISSUES_AUDIT_PHASE5.md`
-- **Project Structure:** `Markdown/PROJECT_STRUCTURE.md`
-- **Test Cases:** `Markdown/TEST_CASES_SUMMARY.md`
+- **Code Audit:** `docs/archive/Markdown/CODE_ISSUES_AUDIT_PHASE5.md`
+- **Project Structure:** `docs/archive/Markdown/PROJECT_STRUCTURE.md`
+- **Test Cases:** `docs/archive/Markdown/TEST_CASES_SUMMARY.md`
 
 ### Diagnostic Tools
-- **Self-Healing Check:** `check-selfhealing.ps1`
-- **Installation Verify:** `verify-installation.ps1`
+- **Self-Healing Check:** `scripts/check-selfhealing.ps1`
+- **Installation Verify:** `scripts/verify-installation.ps1`
 
 ---
 
@@ -257,8 +257,8 @@ If you encounter any issues:
 
 1. Run diagnostic scripts:
    ```powershell
-   .\check-selfhealing.ps1
-   .\verify-installation.ps1
+   .\scripts\check-selfhealing.ps1
+   .\scripts\verify-installation.ps1
    ```
 
 2. Check logs:
@@ -266,7 +266,7 @@ If you encounter any issues:
    %ProgramData%\RansomGuard\Logs\
    ```
 
-3. Review documentation in `Markdown/` folder
+3. Review documentation in `docs/archive/Markdown/` folder
 
 ---
 
