@@ -397,12 +397,21 @@ namespace RansomGuard.ViewModels
 
                         if (threat.Severity == ThreatSeverity.Critical)
                         {
-                            var alert = new Views.ShieldUpAlert();
+                            // Pass threat and service to the interactive alert window
+                            var config = ConfigurationService.Instance;
+                            var alert = new Views.ShieldUpAlert(
+                                threat,
+                                _monitorService,
+                                config.NetworkIsolationEnabled, 
+                                true, // IsProcessTerminated (Pending)
+                                true  // IsQuarantined (Pending)
+                            );
                             alert.Show();
                         }
                     }
-                    else if (threat.ActionTaken == "Quarantined" || threat.ActionTaken == "Terminated")
+                    else if (threat.ActionTaken == "Quarantined" || threat.ActionTaken == "Terminated" || threat.ActionTaken == "Detected")
                     {
+                        // Any handled threat (even if just detected) counts towards mitigation
                         ThreatsBlockedCount++;
                     }
                 }

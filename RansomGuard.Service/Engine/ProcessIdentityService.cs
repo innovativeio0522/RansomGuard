@@ -174,5 +174,10 @@ namespace RansomGuard.Service.Engine
         {
             return FileOwnershipResolver.GetProcessesUsingFile(path);
         }
+
+        public async System.Threading.Tasks.Task<System.Collections.Generic.List<Process>> GetProcessesUsingFileAsync(string path)
+        {
+            return await System.Threading.Tasks.Task.Run(() => GetProcessesUsingFile(path)).ConfigureAwait(false);
+        }
     }
 }

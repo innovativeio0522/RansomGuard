@@ -67,7 +67,7 @@ namespace RansomGuard.Tests.Engine
             _mockEntropy.Setup(e => e.IsSuspiciousExtension(testPath)).Returns(true);
             _mockEntropy.Setup(e => e.CalculateShannonEntropy(testPath)).Returns(7.9);
             _mockEntropy.Setup(e => e.IsMediaFile(testPath)).Returns(false);
-            _mockHistoryManager.Setup(h => h.ShouldReportThreat(testPath, It.IsAny<string>(), It.IsAny<int>())).Returns(true);
+            _mockHistoryManager.Setup(h => h.ShouldReportThreat(testPath, It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int>())).Returns(true);
 
             bool threatRaised = false;
             _engine.ThreatDetected += (t) => { if (t.Path == testPath) threatRaised = true; };
@@ -87,7 +87,7 @@ namespace RansomGuard.Tests.Engine
             // Arrange
             bool criticalThreatRaised = false;
             _engine.ThreatDetected += (t) => { if (t.Severity == ThreatSeverity.Critical) criticalThreatRaised = true; };
-            _mockHistoryManager.Setup(h => h.ShouldReportThreat(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int>())).Returns(true);
+            _mockHistoryManager.Setup(h => h.ShouldReportThreat(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int>())).Returns(true);
 
             // Act: Simulate many rapid changes
             for (int i = 0; i < 35; i++)

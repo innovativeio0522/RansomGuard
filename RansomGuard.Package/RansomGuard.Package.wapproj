@@ -44,12 +44,12 @@
   </ItemGroup>
   <ItemGroup>
     <!-- Main UI + Watchdog (Full Self-Contained Publish Output) -->
-    <Content Include="..\bin\Release\net8.0-windows\win-x64\publish\**\*.*">
+    <Content Include="..\bin\x64\$(Configuration)\net8.0-windows\win-x64\publish\**\*.*">
       <Link>%(RecursiveDir)%(FileName)%(Extension)</Link>
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
     <!-- Sentinel Service (Self-Contained) -->
-    <Content Include="..\RansomGuard.Service\bin\x64\Release\net8.0-windows\win-x64\msixpublish\**\*.*">
+    <Content Include="..\RansomGuard.Service\bin\x64\$(Configuration)\net8.0-windows\win-x64\msixpublish\**\*.*">
       <Link>Service\%(RecursiveDir)%(FileName)%(Extension)</Link>
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>

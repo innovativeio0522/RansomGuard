@@ -33,8 +33,10 @@ namespace RansomGuard.Service.Engine
         private void DeployBaits()
         {
             var targets = GetDefaultBaitLocations();
+            FileLogger.Log("sentinel_engine.log", $"[HoneyPot] Deploying baits to {targets.Count} locations...");
             foreach (var path in targets)
             {
+                FileLogger.Log("sentinel_engine.log", $"[HoneyPot] Processing location: {path}");
                 if (Directory.Exists(path))
                 {
                     var baitPath = Path.Combine(path, BaitFolderName);
@@ -66,11 +68,11 @@ namespace RansomGuard.Service.Engine
 
                         _baitWatchers.Add(watcher);
                     }
-                    catch (Exception)
+                    catch (Exception ex)
                     {
                         // Some systems employ Controlled Folder Access (Windows Defender) 
                         // which blocks hidden folder creation in Documents/Desktop. We degrade gracefully.
-                        Console.WriteLine($"[HoneyPot] Warning: OS blocked deployment at {path}");
+                        FileLogger.LogWarning("sentinel_engine.log", $"[HoneyPot] Warning: OS blocked deployment at {path}: {ex.Message}");
                     }
                 }
             }

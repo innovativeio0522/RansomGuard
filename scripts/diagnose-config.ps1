@@ -13,7 +13,7 @@ Write-Host "[1/6] Identifying configuration location..." -ForegroundColor Yellow
 $isMsix = $null -ne $env:MSIX_PACKAGE_FAMILY_NAME
 if ($isMsix) {
     Write-Host "  Running as MSIX package: $env:MSIX_PACKAGE_FAMILY_NAME" -ForegroundColor Green
-    $configPath = "$env:LocalAppData\RansomGuard\config.json"
+    $configPath = "C:\ProgramData\RGCoreEssentials\config.json"
 } else {
     Write-Host "  Running as traditional install" -ForegroundColor Green
     $configPath = "$env:ProgramData\RansomGuard\config.json"
@@ -68,7 +68,7 @@ Write-Host ""
 Write-Host "[4/6] Checking for running processes..." -ForegroundColor Yellow
 
 $processes = Get-Process | Where-Object { 
-    $_.ProcessName -like "*Maintenance*" -or 
+    $_.ProcessName -like "*RG*" -or 
     $_.ProcessName -like "*RansomGuard*" 
 }
 

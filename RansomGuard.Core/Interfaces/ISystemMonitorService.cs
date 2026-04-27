@@ -148,5 +148,10 @@ namespace RansomGuard.Core.Interfaces
         /// Removes a process name from the persistent whitelist.
         /// </summary>
         Task RemoveWhitelist(string name);
+        
+        /// <summary>
+        /// Instructs the service to perform full mitigation (Kill + Quarantine) for a specific threat.
+        /// </summary>
+        Task MitigateThreat(string threatId);
     }
 }

@@ -203,7 +203,7 @@ namespace RansomGuard.ViewModels
         private void ShowLicenseInfo()
         {
             System.Windows.MessageBox.Show(
-                "Product: RansomGuard Business Edition\n" +
+                "Product: RG Core Essentials\n" +
                 "License: Active (Node ID: TS-8849-PX)\n" +
                 "Expiration: 12-NOV-2025\n\n" +
                 "This node is registered to 'Enterprise Security Cluster 01'.",
@@ -219,7 +219,7 @@ namespace RansomGuard.ViewModels
             {
                 Process.Start(new ProcessStartInfo
                 {
-                    FileName = url ?? "https://github.com/innovativeio0522/RansomGuard",
+                    FileName = url ?? "https://github.com/innovativeio0522/RGCoreEssentials",
                     UseShellExecute = true
                 });
             }
@@ -279,20 +279,30 @@ namespace RansomGuard.ViewModels
                 
                 // Look for the service executable in multiple locations
                 string baseDir = System.AppDomain.CurrentDomain.BaseDirectory;
-                string servicePath = System.IO.Path.Combine(baseDir, "WinMaintenanceSvc.exe");
+                string servicePath = System.IO.Path.Combine(baseDir, "RGService.exe");
                 
-                // If not found in base directory, check publish folder (used by build script)
+                // If not found in base directory, check Service subfolder (MSIX package layout)
                 if (!System.IO.File.Exists(servicePath))
                 {
-                    string publishPath = System.IO.Path.Combine(baseDir, "..", "..", "..", "RansomGuard.Service", "publish", "WinMaintenanceSvc.exe");
-                    publishPath = System.IO.Path.GetFullPath(publishPath);
-                    if (System.IO.File.Exists(publishPath))
+                    string serviceSubfolderPath = System.IO.Path.Combine(baseDir, "..", "Service", "RGService.exe");
+                    serviceSubfolderPath = System.IO.Path.GetFullPath(serviceSubfolderPath);
+                    if (System.IO.File.Exists(serviceSubfolderPath))
                     {
-                        servicePath = publishPath;
+                        servicePath = serviceSubfolderPath;
                     }
                     else
                     {
-                        throw new System.IO.FileNotFoundException($"Service executable not found. Looked in:\n- {servicePath}\n- {publishPath}");
+                        // Fallback to publish folder (used by build script)
+                        string publishPath = System.IO.Path.Combine(baseDir, "..", "..", "..", "RansomGuard.Service", "publish", "RGService.exe");
+                        publishPath = System.IO.Path.GetFullPath(publishPath);
+                        if (System.IO.File.Exists(publishPath))
+                        {
+                            servicePath = publishPath;
+                        }
+                        else
+                        {
+                            throw new System.IO.FileNotFoundException($"Service executable not found. Looked in:\n- {servicePath}\n- {serviceSubfolderPath}\n- {publishPath}");
+                        }
                     }
                 }
                 

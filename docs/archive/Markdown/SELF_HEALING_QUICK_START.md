@@ -30,8 +30,8 @@
 ### After Step 2 (Verify)
 ```
 [1] Checking Required Files...
-    ✓ MaintenanceUI.exe - 1234.56 KB
-    ✓ MaintenanceWorker.exe - 234.56 KB  ← This should be present now
+    ✓ RGUI.exe - 1234.56 KB
+    ✓ RGWorker.exe - 234.56 KB  ← This should be present now
     ✓ RansomGuard.Core.dll - 456.78 KB
 
 ✓ All required files are present!
@@ -53,7 +53,7 @@
 ### Test 1: Kill UI and Watch It Restart
 ```bash
 # Kill the UI
-taskkill /IM MaintenanceUI.exe /F
+taskkill /IM RGUI.exe /F
 
 # Wait 5-10 seconds
 # UI should automatically restart!
@@ -77,7 +77,7 @@ Get-Content "$env:ProgramData\RansomGuard\Logs\watchdog.log" -Tail 10
 
 ## 🎯 What Was Fixed?
 
-**Problem:** MaintenanceWorker.exe (Watchdog) was not being built during development
+**Problem:** RGWorker.exe (Watchdog) was not being built during development
 
 **Solution:** Updated `build-and-run.bat` to automatically build and copy the Watchdog executable
 

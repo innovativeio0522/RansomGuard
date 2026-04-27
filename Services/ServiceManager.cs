@@ -7,10 +7,10 @@ namespace RansomGuard.Services
 {
     public class ServiceManager
     {
-        private const string ServiceName = "WinMaintenance";
+        private const string ServiceName = "RGService";
         private const string ServiceDisplayName = "RansomGuard Sentinel";
         private const string TaskName = "RansomGuardSilentStart";
-        private const string WatchdogProcessName = "MaintenanceWorker";
+        private const string WatchdogProcessName = "RGWorker";
 
         public static bool IsServiceInstalled()
         {

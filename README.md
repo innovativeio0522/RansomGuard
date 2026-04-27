@@ -33,7 +33,7 @@ The solution is built with a decoupled architecture for maximum stability and se
 ## 📦 Installation
 1. Build the solution using `dotnet build`.
 2. Launch `RansomGuard.exe` as Administrator.
-3. Navigate to **Settings** > **System Maintenance**.
+3. Navigate to **Settings** > **RG Service & Protection**.
 4. Click **INSTALL SERVICE** to register the background sentinel.
 
 ## 🏆 Code Quality

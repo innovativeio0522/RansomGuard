@@ -18,7 +18,7 @@ namespace RansomGuard.Watchdog
         static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
 
         const int SW_HIDE = 0;
-        const string ServiceName = "WinMaintenance";
+        const string ServiceName = "RGService";
         private static readonly string ConfigPath = Path.Combine(
             PathConfiguration.GetConfigDirectory(),
             "config.json");
@@ -95,20 +95,20 @@ namespace RansomGuard.Watchdog
 
         static void CheckUIStatus()
         {
-            var processes = Process.GetProcessesByName("MaintenanceUI");
+            var processes = Process.GetProcessesByName("RGUI");
             if (processes.Length == 0)
             {
                 try
                 {
                     string appDir = AppDomain.CurrentDomain.BaseDirectory;
-                    string appPath = Path.Combine(appDir, "MaintenanceUI.exe");
+                    string appPath = Path.Combine(appDir, "RGUI.exe");
 
-                    LogToFile($"[Watchdog] UI not running. Searching for MaintenanceUI.exe in: {appDir}");
+                    LogToFile($"[Watchdog] UI not running. Searching for RGUI.exe in: {appDir}");
 
                     // Fallback to subfolder
                     if (!File.Exists(appPath))
                     {
-                        string subPath = Path.Combine(appDir, "RansomGuard", "MaintenanceUI.exe");
+                        string subPath = Path.Combine(appDir, "RansomGuard", "RGUI.exe");
                         LogToFile($"[Watchdog] Checking subfolder: {subPath}");
                         if (File.Exists(subPath)) appPath = subPath;
                     }
@@ -119,7 +119,7 @@ namespace RansomGuard.Watchdog
                         string? parentDir = Path.GetDirectoryName(appDir.TrimEnd(Path.DirectorySeparatorChar));
                         if (parentDir != null)
                         {
-                            string parentPath = Path.Combine(parentDir, "MaintenanceUI.exe");
+                            string parentPath = Path.Combine(parentDir, "RGUI.exe");
                             LogToFile($"[Watchdog] Checking parent folder: {parentPath}");
                             if (File.Exists(parentPath)) appPath = parentPath;
                         }
@@ -130,11 +130,11 @@ namespace RansomGuard.Watchdog
                     {
                         string[] devPaths = new[]
                         {
-                            Path.GetFullPath(Path.Combine(appDir, @"..\..\..\..\bin\Debug\net8.0-windows\MaintenanceUI.exe")),
-                            Path.GetFullPath(Path.Combine(appDir, @"..\..\..\bin\Debug\net8.0-windows\MaintenanceUI.exe")),
-                            Path.GetFullPath(Path.Combine(appDir, @"..\..\bin\Debug\net8.0-windows\MaintenanceUI.exe")),
-                            Path.GetFullPath(Path.Combine(appDir, @"..\..\..\..\bin\Release\net8.0-windows\MaintenanceUI.exe")),
-                            Path.GetFullPath(Path.Combine(appDir, @"..\..\..\bin\Release\net8.0-windows\MaintenanceUI.exe"))
+                            Path.GetFullPath(Path.Combine(appDir, @"..\..\..\..\bin\Debug\net8.0-windows\RGUI.exe")),
+                            Path.GetFullPath(Path.Combine(appDir, @"..\..\..\bin\Debug\net8.0-windows\RGUI.exe")),
+                            Path.GetFullPath(Path.Combine(appDir, @"..\..\bin\Debug\net8.0-windows\RGUI.exe")),
+                            Path.GetFullPath(Path.Combine(appDir, @"..\..\..\..\bin\Release\net8.0-windows\RGUI.exe")),
+                            Path.GetFullPath(Path.Combine(appDir, @"..\..\..\bin\Release\net8.0-windows\RGUI.exe"))
                         };
 
                         foreach (var devPath in devPaths)
@@ -160,8 +160,8 @@ namespace RansomGuard.Watchdog
                         // Using 'cmd /c start' can sometimes help bypass integrity level issues
                         try 
                         {
-                            LogToFile("[Watchdog] Attempting restart via Alias: RansomGuardUI.exe");
-                            ProcessStartInfo psiAlias = new ProcessStartInfo("cmd.exe", "/c start RansomGuardUI.exe --startup")
+                            LogToFile("[Watchdog] Attempting restart via Alias: RGUI.exe");
+                            ProcessStartInfo psiAlias = new ProcessStartInfo("cmd.exe", "/c start RGUI.exe --startup")
                             {
                                 CreateNoWindow = true,
                                 UseShellExecute = true
@@ -171,7 +171,7 @@ namespace RansomGuard.Watchdog
                             
                             // Give it a moment to start
                             Thread.Sleep(2000);
-                            if (Process.GetProcessesByName("MaintenanceUI").Any())
+                            if (Process.GetProcessesByName("RGUI").Any())
                             {
                                 LogToFile("[Watchdog] UI successfully restarted via Alias.");
                                 return;
@@ -204,7 +204,7 @@ namespace RansomGuard.Watchdog
                     }
                     else
                     {
-                        LogToFile($"[Watchdog] MaintenanceUI.exe not found. Searched in: {appDir}");
+                        LogToFile($"[Watchdog] RGUI.exe not found. Searched in: {appDir}");
                     }
                 }
                 catch (Exception ex)

@@ -7,7 +7,7 @@
     <Grid>
         <Border BorderBrush="{StaticResource TertiaryBrush}" BorderThickness="4" Margin="20">
             <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
-                <TextBlock Text="ATTACK BLOCKED" FontSize="72" FontWeight="Black" 
+                <TextBlock x:Name="HeaderLabel" Text="THREAT DETECTED" FontSize="72" FontWeight="Black" 
                            Foreground="{StaticResource TertiaryBrush}" HorizontalAlignment="Center">
                     <TextBlock.Triggers>
                         <EventTrigger RoutedEvent="Loaded">
@@ -20,22 +20,34 @@
                     </TextBlock.Triggers>
                 </TextBlock>
                 
-                <TextBlock Text="PROACTIVE DEFENSE SYSTEM ENGAGED" FontSize="24" FontWeight="Bold" 
-                           Foreground="#ffb3ad" HorizontalAlignment="Center" Margin="0,20,0,40"/>
+                <TextBlock Text="URGENT: MASSIVE FILE MODIFICATION DETECTED" FontSize="24" FontWeight="Bold" 
+                           Foreground="#ffb3ad" HorizontalAlignment="Center" Margin="0,20,0,10"/>
+
+                <TextBlock Text="Was this you? Auto-mitigation starting in:" FontSize="18" 
+                           Foreground="White" HorizontalAlignment="Center" Margin="0,10,0,10"/>
                 
+                <Grid Width="400" Margin="0,0,0,30">
+                    <ProgressBar x:Name="CountdownProgress" Height="10" Maximum="5" Value="5" 
+                                 Foreground="{StaticResource TertiaryBrush}" Background="#33ff5451"/>
+                    <TextBlock x:Name="TimerText" Text="5s" HorizontalAlignment="Center" VerticalAlignment="Center" 
+                               Foreground="White" FontWeight="Bold" Margin="0,15,0,0"/>
+                </Grid>
+
                 <Border Background="#33ff5451" CornerRadius="8" Padding="24" MaxWidth="600">
-                    <StackPanel>
-                        <TextBlock Text="ACTIONS TAKEN:" FontWeight="Bold" Foreground="White" Margin="0,0,0,12"/>
-                        <TextBlock Text="• Malicious process terminated" Foreground="White" Margin="8,0,0,4"/>
-                        <TextBlock Text="• Source binary quarantined" Foreground="White" Margin="8,0,0,4"/>
-                        <TextBlock Text="• Network adapters disabled" Foreground="White" Margin="8,0,0,4"/>
-                        <TextBlock Text="• Persistence entries scrubbed" Foreground="White" Margin="8,0,0,4"/>
+                    <StackPanel x:Name="ActionsList">
+                        <TextBlock Text="PENDING ACTIONS (IF NO RESPONSE):" FontWeight="Bold" Foreground="White" Margin="0,0,0,12"/>
+                        <TextBlock x:Name="ProcessTerminatedText" Text="• Malicious process will be terminated" Foreground="White" Margin="8,0,0,4" Visibility="Collapsed"/>
+                        <TextBlock x:Name="QuarantinedText" Text="• Source binary will be quarantined" Foreground="White" Margin="8,0,0,4" Visibility="Collapsed"/>
+                        <TextBlock x:Name="NetworkDisabledText" Text="• Network adapters will be disabled" Foreground="White" Margin="8,0,0,4" Visibility="Collapsed"/>
+                        <TextBlock x:Name="AlertLoggedText" Text="• Threat event logged to database" Foreground="White" Margin="8,0,0,4"/>
                     </StackPanel>
                 </Border>
 
-                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,60,0,0">
-                    <Button Content="VIEW LOGS" Style="{StaticResource NativeButton}" Width="150" Height="40" Margin="0,0,20,0"/>
-                    <Button Content="RESTORE NETWORK" Style="{StaticResource DangerButton}" Width="200" Height="40" Click="Restore_Click"/>
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,40,0,0">
+                    <Button x:Name="YesButton" Content="YES, IT WAS ME" Style="{StaticResource NativeButton}" 
+                            Width="200" Height="50" Margin="0,0,20,0" Click="Yes_Click"/>
+                    <Button x:Name="NoButton" Content="NO, BLOCK IT!" Style="{StaticResource DangerButton}" 
+                            Width="200" Height="50" Click="No_Click"/>
                 </StackPanel>
             </StackPanel>
         </Border>

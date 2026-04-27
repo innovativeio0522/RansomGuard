@@ -97,6 +97,7 @@ playground.xcworkspace
 # Windows / WinUI
 AppPackages/
 BundleArtifacts/
+msixpublish/
 Package.StoreAssociation.xml
 _pkginfo.txt
 *.appx

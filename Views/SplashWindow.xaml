@@ -1,7 +1,7 @@
 <Window x:Class="RansomGuard.Views.SplashWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Initializing Maintenance Utility" Height="380" Width="600"
+        Title="Initializing RG Utility" Height="380" Width="600"
         WindowStyle="None" AllowsTransparency="True" Background="Transparent"
         WindowStartupLocation="CenterScreen" ShowInTaskbar="False">
     
@@ -34,7 +34,7 @@
                            Foreground="{StaticResource OnSurfaceBrush}"
                            HorizontalAlignment="Center"/>
                 
-                <TextBlock Text="RESOURCE MAINTENANCE MODULE" 
+                <TextBlock Text="RESOURCE RG MODULE" 
                            FontWeight="SemiBold" 
                            FontSize="14" 
                            Foreground="{StaticResource PrimaryBrush}"

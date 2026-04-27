@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:views="clr-namespace:RansomGuard.Views"
         xmlns:vm="clr-namespace:RansomGuard.ViewModels"
-        Title="System Resource Maintenance" 
+        Title="RansomGuard (RG)" 
         x:Name="RootWindow"
         WindowStartupLocation="Manual"
         Background="{StaticResource BackgroundBrush}"

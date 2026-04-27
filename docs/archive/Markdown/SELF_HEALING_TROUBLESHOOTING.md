@@ -9,7 +9,7 @@
 ## 📋 Problem Summary
 
 The self-healing feature (Watchdog) is not working after installation. The Watchdog is responsible for:
-- Monitoring the UI process (MaintenanceUI.exe) and restarting it if it crashes
+- Monitoring the UI process (RGUI.exe) and restarting it if it crashes
 - Monitoring the Service (WinMaintenance) and restarting it if it stops
 - Running silently in the background
 
@@ -19,7 +19,7 @@ The self-healing feature (Watchdog) is not working after installation. The Watch
 
 ### Primary Issue: Missing Watchdog Executable
 
-The most common reason self-healing doesn't work is that **MaintenanceWorker.exe** (the Watchdog executable) is not present in the installation directory.
+The most common reason self-healing doesn't work is that **RGWorker.exe** (the Watchdog executable) is not present in the installation directory.
 
 **Why this happens:**
 1. **Development builds** (`build-and-run.bat`) don't copy the Watchdog executable
@@ -31,7 +31,7 @@ The most common reason self-healing doesn't work is that **MaintenanceWorker.exe
 1. **Self-healing disabled in settings** - User may have disabled it via Settings UI
 2. **Service not installed** - Watchdog can't monitor a service that doesn't exist
 3. **Insufficient permissions** - Watchdog needs proper permissions to start processes
-4. **Path finding failures** - Watchdog can't find MaintenanceUI.exe to restart it
+4. **Path finding failures** - Watchdog can't find RGUI.exe to restart it
 
 ---
 
@@ -47,7 +47,7 @@ The `build-and-run.bat` script needs to be updated to build and copy the Watchdo
 
 **Required changes:**
 1. Build the Watchdog project
-2. Copy MaintenanceWorker.exe to the UI output directory
+2. Copy RGWorker.exe to the UI output directory
 3. Ensure Watchdog starts with the UI
 
 ### Option 2: Use MSIX Build (Recommended for Production)
@@ -84,23 +84,23 @@ dotnet build -c Debug
 ### Step 2: Copy to UI Directory
 ```bash
 # From project root
-copy RansomGuard.Watchdog\bin\Debug\net8.0\MaintenanceWorker.exe bin\Debug\net8.0-windows\
+copy RansomGuard.Watchdog\bin\Debug\net8.0\RGWorker.exe bin\Debug\net8.0-windows\
 ```
 
 ### Step 3: Verify Files Exist
 ```bash
-dir bin\Debug\net8.0-windows\MaintenanceWorker.exe
-dir bin\Debug\net8.0-windows\MaintenanceUI.exe
+dir bin\Debug\net8.0-windows\RGWorker.exe
+dir bin\Debug\net8.0-windows\RGUI.exe
 ```
 
 ### Step 4: Restart the Application
 ```bash
 # Kill existing processes
-taskkill /IM MaintenanceUI.exe /F
-taskkill /IM MaintenanceWorker.exe /F
+taskkill /IM RGUI.exe /F
+taskkill /IM RGWorker.exe /F
 
 # Start the UI (it will launch the Watchdog)
-start bin\Debug\net8.0-windows\MaintenanceUI.exe
+start bin\Debug\net8.0-windows\RGUI.exe
 ```
 
 ---
@@ -132,8 +132,8 @@ Run the diagnostic script to identify the specific issue:
 
 [5] Checking Executable Files...
     ✓ Installation found: C:\Program Files\RansomGuard
-    ✓ MaintenanceWorker.exe exists
-    ✓ WinMaintenanceSvc.exe exists
+    ✓ RGWorker.exe exists
+    ✓ RGService.exe exists
 ```
 
 ### Common Failure Patterns
@@ -145,11 +145,11 @@ Run the diagnostic script to identify the specific issue:
 
 [5] Checking Executable Files...
     ✓ Installation found: C:\...\bin\Debug\net8.0-windows
-    ✗ MaintenanceWorker.exe NOT FOUND
+    ✗ RGWorker.exe NOT FOUND
     → This is the problem! Watchdog executable is missing.
 ```
 
-**Solution:** Build and copy MaintenanceWorker.exe (see Manual Fix above)
+**Solution:** Build and copy RGWorker.exe (see Manual Fix above)
 
 #### Pattern 2: Watchdog Not Running + Disabled in Settings
 ```
@@ -172,8 +172,8 @@ Run the diagnostic script to identify the specific issue:
 **Solution:** Install the service:
 ```bash
 # Run as Administrator
-sc.exe create WinMaintenance binPath= "C:\Path\To\WinMaintenanceSvc.exe" start= auto
-sc.exe start WinMaintenance
+sc.exe create RGService binPath= "C:\Path\To\RGService.exe" start= auto
+sc.exe start RGService
 ```
 
 ---
@@ -190,7 +190,7 @@ dotnet build RansomGuard.csproj -v q
 dotnet build RansomGuard.Watchdog/RansomGuard.Watchdog.csproj -v q
 
 echo [2.5/5] Copying Watchdog to UI directory...
-copy /Y RansomGuard.Watchdog\bin\Debug\net8.0\MaintenanceWorker.exe bin\Debug\net8.0-windows\
+copy /Y RansomGuard.Watchdog\bin\Debug\net8.0\RGWorker.exe bin\Debug\net8.0-windows\
 ```
 
 This ensures the Watchdog is always available during development.

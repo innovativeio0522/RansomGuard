@@ -21,15 +21,15 @@ if '%errorlevel%' NEQ '0' (
 :: ────────────────────────────────────────────────────────────────────────────
 
 echo ========================================
-echo System Maintenance Build and Run Script
+echo RG System Build and Run Script
 echo ========================================
 echo.
 
 echo [1/5] Stopping services and cleaning up processes...
-net stop WinMaintenance 2>nul
+net stop RGService 2>nul
 net stop RansomGuardSentinel 2>nul
-taskkill /IM MaintenanceUI.exe /F 2>nul
-taskkill /IM MaintenanceWorker.exe /F 2>nul
+taskkill /IM RGUI.exe /F 2>nul
+taskkill /IM RGWorker.exe /F 2>nul
 taskkill /IM RansomGuard.exe /F 2>nul
 taskkill /IM RansomGuard.Watchdog.exe /F 2>nul
 timeout /t 2 /nobreak >nul
@@ -49,8 +49,8 @@ if %errorlevel% neq 0 (
 echo [2.5/5] Building and copying Watchdog...
 dotnet build RansomGuard.Watchdog\RansomGuard.Watchdog.csproj -c Debug -v q
 if %errorlevel% equ 0 (
-    copy /Y RansomGuard.Watchdog\bin\Debug\net8.0\MaintenanceWorker.exe bin\Debug\net8.0-windows\ >nul 2>&1
-    if exist bin\Debug\net8.0-windows\MaintenanceWorker.exe (
+    copy /Y RansomGuard.Watchdog\bin\Debug\net8.0\RGWorker.exe bin\Debug\net8.0-windows\ >nul 2>&1
+    if exist bin\Debug\net8.0-windows\RGWorker.exe (
         echo [+] Watchdog copied successfully
     ) else (
         echo [!] WARNING: Failed to copy Watchdog executable
@@ -63,23 +63,23 @@ echo [3/5] Publishing service with all dependencies...
 dotnet publish RansomGuard.Service/RansomGuard.Service.csproj -c Debug -o RansomGuard.Service/publish --self-contained true -r win-x64 -v q
 
 echo [4/5] Starting service...
-net start WinMaintenance
+net start RGService
 if %errorlevel% neq 0 (
     echo WARNING: Service failed to start. Check Event Viewer for details.
     pause
     exit /b 1
 )
 
-echo [5/5] Launching Maintenance UI...
+echo [5/5] Launching RG UI...
 timeout /t 3 /nobreak >nul
 cd /d "%~dp0"
-start "" "%~dp0bin\Debug\net8.0-windows\MaintenanceUI.exe"
+start "" "%~dp0bin\Debug\net8.0-windows\RGUI.exe"
 
 echo.
 echo ========================================
 echo STEALTH MODE ACTIVE! 
 echo ========================================
-echo Maintenance Service is running.
+echo RG Service is running.
 echo UI will appear in the system tray shortly.
 echo.
 pause

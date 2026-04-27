@@ -70,9 +70,11 @@ namespace RansomGuard.Service.Engine
         /// history from suppressing fresh scan detections.
         /// Enforces maximum cache size with LRU eviction.
         /// </summary>
-        public virtual bool ShouldReportThreat(string path, string threatName, int dedupeWindowMinutes = 30)
+        public virtual bool ShouldReportThreat(string path, string threatName, string action = "Detected", int dedupeWindowMinutes = 15)
         {
-            string threatKey = $"{path}|{threatName}";
+            // Include action in the key so that a "Quarantined" event doesn't suppress a subsequent "Detected" event
+            // for the same file, which is crucial for testing the Auto Quarantine toggle.
+            string threatKey = $"{path}|{threatName}|{action}";
             lock (_threatDedupLock)
             {
                 if (_reportedThreats.TryGetValue(threatKey, out var lastReported))
@@ -92,8 +94,6 @@ namespace RansomGuard.Service.Engine
                     
                     foreach (var key in oldest)
                         _reportedThreats.Remove(key);
-                    
-                    System.Diagnostics.Debug.WriteLine($"[HistoryManager] Threat cache trimmed from {_reportedThreats.Count + oldest.Count} to {_reportedThreats.Count} entries");
                 }
                 
                 _reportedThreats[threatKey] = DateTime.Now;
@@ -126,6 +126,28 @@ namespace RansomGuard.Service.Engine
             _ = _historyStore.UpdateThreatStatusAsync(path, status);
         }
 
+        public virtual void UpdateThreatStatusById(string id, string status)
+        {
+            Threat? threat = null;
+            lock (_historyLock)
+            {
+                threat = _threatHistory.FirstOrDefault(t => t.Id == id);
+                if (threat != null)
+                    threat.ActionTaken = status;
+            }
+            
+            if (threat != null)
+                _ = _historyStore.UpdateThreatStatusAsync(threat.Path, status);
+        }
+
+        public Threat? GetThreatById(string id)
+        {
+            lock (_historyLock)
+            {
+                return _threatHistory.FirstOrDefault(t => t.Id == id);
+            }
+        }
+
         public IEnumerable<Threat> GetRecentThreats(int count = 50)
         {
             lock (_historyLock) { return _threatHistory.Take(count).ToList(); }
@@ -134,6 +156,20 @@ namespace RansomGuard.Service.Engine
         public IEnumerable<FileActivity> GetRecentActivities(int count = 50)
         {
             lock (_historyLock) { return _activityHistory.Take(count).ToList(); }
+        }
+
+        /// <summary>
+        /// Calculates the number of files created or renamed in the last hour.
+        /// </summary>
+        public int GetFilesPerHour()
+        {
+            lock (_historyLock)
+            {
+                var oneHourAgo = DateTime.Now.AddHours(-1);
+                return _activityHistory.Count(a => 
+                    a.Timestamp >= oneHourAgo && 
+                    (a.Action == "CREATED" || a.Action.Contains("RENAMED")));
+            }
         }
 
         public void CleanupCache()

@@ -36,7 +36,7 @@ if ($configVerify.WatchdogEnabled) {
     Write-Host ""
     Write-Host "SUCCESS! Config persisted." -ForegroundColor Green
     Write-Host "Now start the watchdog manually:" -ForegroundColor Yellow
-    Write-Host "  Start-Process 'C:\ProgramData\RansomGuard\MaintenanceWorker.exe'" -ForegroundColor Gray
+    Write-Host "  Start-Process 'C:\ProgramData\RansomGuard\RGWorker.exe'" -ForegroundColor Gray
 } else {
     Write-Host ""
     Write-Host "FAILED! Config was overwritten." -ForegroundColor Red

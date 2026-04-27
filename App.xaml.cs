@@ -21,14 +21,14 @@ namespace RansomGuard
             try
             {
                 // ── Single-instance guard ────────────────────────────────────
-                const string appName = "WinMaintenance_UI_Identity_Mutex";
+                const string appName = "RGUI_Identity_Mutex";
                 _mutex = new System.Threading.Mutex(true, appName, out bool createdNew);
                 _mutexOwned = createdNew;
 
                 if (!createdNew)
                 {
-                    MessageBox.Show("RansomGuard is already running.",
-                        "RansomGuard", MessageBoxButton.OK, MessageBoxImage.Information);
+                    MessageBox.Show("RG Core Essentials is already running.",
+                        "RG Core Essentials", MessageBoxButton.OK, MessageBoxImage.Information);
                     Current.Shutdown();
                     return;
                 }
@@ -118,7 +118,7 @@ namespace RansomGuard
         {
             await System.Threading.Tasks.Task.Delay(2000);
             _tray?.ShowBalloon(
-                "Maintenance Active",
+                "RG Protection Active",
                 "System resource monitoring is running in the background.",
                 System.Windows.Forms.ToolTipIcon.Info);
         }

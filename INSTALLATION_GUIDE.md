@@ -66,9 +66,9 @@ RansomGuard.Package\AppPackages\RansomGuard.Package_1.0.1.4_Test\
 This MSIX bundle includes:
 
 ### Core Components
-- ✅ **MaintenanceUI.exe** - Main user interface
-- ✅ **MaintenanceWorker.exe** - Self-healing watchdog (NEW!)
-- ✅ **WinMaintenanceSvc.exe** - Background protection service
+- ✅ **RGUI.exe** - Main user interface
+- ✅ **RGWorker.exe** - Self-healing watchdog (NEW!)
+- ✅ **RGService.exe** - Background protection service
 - ✅ **RansomGuard.Core.dll** - Core library
 
 ### Features
@@ -102,24 +102,24 @@ After installation, verify everything is working:
 
 **Step 1: Check if application is running**
 ```powershell
-Get-Process -Name "MaintenanceUI"
+Get-Process -Name "RGUI"
 ```
 
 **Step 2: Check if self-healing is active**
 ```powershell
-Get-Process -Name "MaintenanceWorker"
+Get-Process -Name "RGWorker"
 ```
 
 **Step 3: Check if service is installed**
 ```powershell
-Get-Service -Name "WinMaintenance"
+Get-Service -Name "RGService"
 ```
 
 ### Expected Results
 ```
-✓ MaintenanceUI is running
-✓ MaintenanceWorker (Watchdog) is running
-✓ WinMaintenance service is running
+✓ RGUI is running
+✓ RGWorker (Watchdog) is running
+✓ RGService service is running
 ```
 
 ---
@@ -136,13 +136,13 @@ The self-healing feature is **automatically enabled** after installation:
 ### How to Verify
 1. Launch RansomGuard
 2. Open Task Manager
-3. Look for **MaintenanceWorker.exe** process
+3. Look for **RGWorker.exe** process
 4. If present, self-healing is active! 🎉
 
 ### Test Self-Healing (Optional)
 ```powershell
 # Kill the UI process
-taskkill /IM MaintenanceUI.exe /F
+taskkill /IM RGUI.exe /F
 
 # Wait 5-10 seconds
 # UI should automatically restart!
@@ -204,19 +204,19 @@ RansomGuard requires:
 
 ### Service Won't Start
 
-**Problem:** WinMaintenance service fails to start
+**Problem:** RGService service fails to start
 
 **Solution:**
 1. Check Event Viewer for errors:
    - Windows Logs > Application
-   - Look for "WinMaintenance" entries
+   - Look for "RGService" entries
 2. Verify service is installed:
    ```powershell
-   sc.exe query WinMaintenance
+   sc.exe query RGService
    ```
 3. Try manual start:
    ```powershell
-   net start WinMaintenance
+   net start RGService
    ```
 
 ---

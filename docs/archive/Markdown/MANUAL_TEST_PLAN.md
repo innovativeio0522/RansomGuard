@@ -27,32 +27,32 @@
 
 ## 1. Installation Tests
 
-| # | Test | Steps | Expected Result |
-|---|------|-------|-----------------|
-| 1.1 | MSIX Install via script | Right-click `Add-AppDevPackage.ps1` → Run with PowerShell | Installs without errors |
-| 1.2 | Certificate install | Double-click `.cer` → Install to Trusted Root CA | Certificate accepted, no warning |
-| 1.3 | App appears in Start Menu | Search "RansomGuard" in Windows Search | App found and launchable |
-| 1.4 | App launches | Click app from Start Menu | UI opens, no crash |
-| 1.5 | Processes running after launch | Open Task Manager | `MaintenanceUI.exe` and `MaintenanceWorker.exe` both visible |
+| # | Test | Steps | Expected Result | Status |
+|---|------|-------|-----------------|--------|
+| 1.1 | MSIX Install via script | Right-click `Add-AppDevPackage.ps1` → Run with PowerShell | Installs without errors | ✅ PASS |
+| 1.2 | Certificate install | Double-click `.cer` → Install to Trusted Root CA | Certificate accepted, no warning | ✅ PASS |
+| 1.3 | App appears in Start Menu | Search "RansomGuard" in Windows Search | App found and launchable | ✅ PASS |
+| 1.4 | App launches | Click app from Start Menu | UI opens, no crash | ✅ PASS |
+| 1.5 | Processes running after launch | Open Task Manager → Apps section | `RGUI.exe`, `RGWorker.exe` and `RGService.exe` all visible | ✅ PASS — All 3 processes running: UI + Watchdog + Service |
 
 ---
 
 ## 2. Dashboard Tests
 
-| # | Test | Steps | Expected Result |
-|---|------|-------|-----------------|
-| 2.1 | Dashboard loads | Launch app, go to Dashboard | Stats visible: Files Monitored, Threats Blocked, Active Alerts |
-| 2.2 | Threat risk ring | Observe the risk score ring | Ring animates, score between 5–15 on a clean system |
-| 2.3 | CPU / RAM telemetry | Watch CPU and RAM stats | Updates every 2 seconds with real system values |
-| 2.4 | Files per hour counter | Create or modify files in a monitored folder | Counter increments accordingly |
-| 2.5 | Heuristics status | No threats present | Shows "PASS" |
-| 2.6 | Behavioral status | No active alerts | Shows "STABLE" |
-| 2.7 | Entropy score | Observe entropy value | Shows a decimal value e.g. "2.4" |
-| 2.8 | Active paths list | Check paths shown on dashboard | Matches paths configured in Settings |
-| 2.9 | Search bar | Type a filename in the search box | Recent activities filter in real time |
-| 2.10 | View All Logs button | Click "View All Logs" | Navigates to Threat Alerts page |
-| 2.11 | NEW badge — no alerts | When no active alerts exist | Badge shows "CLEAR" |
-| 2.12 | NEW badge — with alerts | When one or more alerts exist | Badge shows "X NEW" with correct count |
+| # | Test | Steps | Expected Result | Status |
+|---|------|-------|-----------------|--------|
+| 2.1 | Dashboard loads | Launch app, go to Dashboard | Stats visible: Files Monitored, Threats Blocked, Active Alerts | ✅ PASS |
+| 2.2 | Threat risk ring | Observe the risk score ring | Ring animates, score between 5–15 on a clean system | ✅ PASS |
+| 2.3 | CPU / RAM telemetry | Watch CPU and RAM stats | Updates every 2 seconds with real system values | ✅ PASS |
+| 2.4 | Files per hour counter | Create or modify files in a monitored folder | Counter increments — visible as small green `+X / HOUR` label under the "FOLDERS PROTECTED" card on Dashboard | ✅ PASS |
+| 2.5 | Heuristics status | No threats present | Shows "PASS" | ✅ PASS |
+| 2.6 | Behavioral status | No active alerts | Shows "STABLE" | ✅ PASS |
+| 2.7 | Entropy score | Observe entropy value | Shows a decimal value e.g. "2.4" | ✅ PASS |
+| 2.8 | Active paths list | Check paths shown on dashboard | Matches paths configured in Settings | ✅ PASS |
+| 2.9 | Search bar | Type a filename in the search box | Recent activities filter in real time | ✅ PASS |
+| 2.10 | View All Logs button | Click "View All Logs" | Navigates to Threat Alerts page | ✅ PASS |
+| 2.11 | NEW badge — no alerts | When no active alerts exist | Badge shows "CLEAR" | ✅ PASS |
+| 2.12 | NEW badge — with alerts | When one or more alerts exist | Badge shows "X NEW" with correct count | ✅ PASS |
 
 ---
 
@@ -60,51 +60,51 @@
 
 ### 3a. Monitored Paths
 
-| # | Test | Steps | Expected Result |
-|---|------|-------|-----------------|
-| 3.1 | Default paths loaded | Open Settings page | Documents, Desktop, Pictures etc. pre-populated |
-| 3.2 | Add custom path | Click Add Path → select a folder | Folder appears in the monitored paths list |
-| 3.3 | Remove custom path | Click remove on a non-standard path | Path removed from list |
-| 3.4 | Cannot remove standard path | Try to remove Documents or Desktop | Remove button disabled or hidden for standard folders |
-| 3.5 | Config persists after restart | Add a custom path → close app → reopen | Custom path still present in list |
+| # | Test | Steps | Expected Result | Status |
+|---|------|-------|-----------------|--------|
+| 3.1 | Default paths loaded | Open Settings page | Documents, Desktop, Pictures etc. pre-populated | ✅ PASS |
+| 3.2 | Add custom path | Click Add Path → select a folder | Folder appears in the monitored paths list | ✅ PASS |
+| 3.3 | Remove custom path | Click remove on a non-standard path | Path removed from list | ✅ PASS |
+| 3.4 | Cannot remove standard path | Try to remove Documents or Desktop | Remove button disabled or hidden for standard folders | ✅ PASS |
+| 3.5 | Config persists after restart | Add a custom path → close app → reopen | Custom path still present in list | ✅ PASS |
 
 ### 3b. Protection Toggles
 
-| # | Test | Steps | Expected Result |
-|---|------|-------|-----------------|
-| 3.6 | Real-Time Protection OFF | Toggle Real-Time Protection to OFF | File monitoring stops — no new activity on Dashboard |
-| 3.7 | Real-Time Protection ON | Toggle Real-Time Protection back to ON | File monitoring resumes |
-| 3.8 | Auto Quarantine toggle | Toggle Auto Quarantine ON | Setting saved, auto-quarantine enabled |
-| 3.9 | Network Isolation toggle | Toggle Network Isolation ON | Setting saved |
-| 3.10 | Emergency Shutdown toggle | Toggle Emergency Shutdown ON | Setting saved (**do not trigger an actual shutdown test**) |
-| 3.11 | All toggles persist | Change any toggle → restart app | All toggles retain their saved state |
+| # | Test | Steps | Expected Result | Status |
+|---|------|-------|-----------------|--------|
+| 3.6 | Real-Time Protection OFF | Toggle Real-Time Protection to OFF | File monitoring stops — no new activity on Dashboard | ✅ PASS |
+| 3.7 | Real-Time Protection ON | Toggle Real-Time Protection back to ON | File monitoring resumes | ✅ PASS |
+| 3.8 | Auto Quarantine toggle | Toggle Auto Quarantine ON/OFF | Setting saved, auto-quarantine behavior matches toggle | ✅ PASS |
+| 3.9 | Network Isolation toggle | Toggle Network Isolation ON | Setting saved | ✅ PASS |
+| 3.10 | Emergency Shutdown toggle | Toggle Emergency Shutdown ON | Setting saved (**do not trigger an actual shutdown test**) | ⬜ PENDING |
+| 3.11 | All toggles persist | Change any toggle → restart app | All toggles retain their saved state | ✅ PASS |
 
 ### 3c. Sensitivity Level
 
-| # | Test | Steps | Expected Result |
-|---|------|-------|-----------------|
-| 3.12 | Sensitivity level 1 | Move slider to level 1 | Label shows "LOW" |
-| 3.13 | Sensitivity level 2 | Move slider to level 2 | Label shows "MEDIUM" |
-| 3.14 | Sensitivity level 3 | Move slider to level 3 | Label shows "HIGH" |
-| 3.15 | Sensitivity level 4 | Move slider to level 4 | Label shows "PARANOID" |
-| 3.16 | Sensitivity persists | Set to HIGH → restart app | Still shows HIGH after restart |
+| # | Test | Steps | Expected Result | Status |
+|---|------|-------|-----------------|--------|
+| 3.12 | Sensitivity level 1 | Move slider to level 1 | Label shows "LOW" | ✅ PASS |
+| 3.13 | Sensitivity level 2 | Move slider to level 2 | Label shows "MEDIUM" | ✅ PASS |
+| 3.14 | Sensitivity level 3 | Move slider to level 3 | Label shows "HIGH" | ✅ PASS |
+| 3.15 | Sensitivity level 4 | Move slider to level 4 | Label shows "PARANOID" | ✅ PASS |
+| 3.16 | Sensitivity persists | Set to HIGH → restart app | Still shows HIGH after restart | ✅ PASS |
 
 ### 3d. Watchdog Toggle
 
 | # | Test | Steps | Expected Result |
 |---|------|-------|-----------------|
-| 3.17 | Enable Watchdog | Toggle Watchdog ON | `MaintenanceWorker.exe` appears in Task Manager |
-| 3.18 | Disable Watchdog | Toggle Watchdog OFF | `MaintenanceWorker.exe` disappears from Task Manager |
+| 3.17 | Enable Watchdog | Toggle Watchdog ON | `RGWorker.exe` appears in Task Manager | ✅ PASS |
+| 3.18 | Disable Watchdog | Toggle Watchdog OFF | `RGWorker.exe` disappears from Task Manager | ✅ PASS |
 
 ### 3e. Service Management
 
 | # | Test | Steps | Expected Result |
 |---|------|-------|-----------------|
-| 3.19 | Service already installed | Open Settings when service is running | "Install Service" button hidden, green checkmark shown |
-| 3.20 | Install Service | Click Install Service (run app as admin) | Service installs, button hides, success message shown |
-| 3.21 | Uninstall Service | Click Uninstall Service → confirm Yes | Service removed, confirmation message shown |
-| 3.22 | Uninstall cancel | Click Uninstall → confirm No | Service remains installed, no change |
-| 3.23 | License Info popup | Click License Info button | Popup shows license details (Node ID, expiry etc.) |
+| 3.19 | Service already installed | Open Settings when service is running | "Install Service" button hidden, green checkmark shown | ✅ PASS |
+| 3.20 | Install Service | Click Install Service (run app as admin) | Service installs, button hides, success message shown | ✅ PASS |
+| 3.21 | Uninstall Service | Click Uninstall Service → confirm Yes | Service removed, confirmation message shown | ✅ PASS |
+| 3.22 | Uninstall cancel | Click Uninstall → confirm No | Service remains installed, no change | ✅ PASS |
+| 3.23 | License Info popup | Click License Info button | Popup shows license details (Node ID, expiry etc.) | ✅ PASS |
 
 ---
 
@@ -112,17 +112,17 @@
 
 | # | Test | Steps | Expected Result |
 |---|------|-------|-----------------|
-| 4.1 | Page loads | Navigate to Threat Alerts | Page shows with severity counters at top |
-| 4.2 | Severity counters — clean | No threats present | All counters (Critical, High, Medium, Low) show 0 |
-| 4.3 | Search filter | Type in the search box | List filters by filename or process name in real time |
-| 4.4 | Severity filter | Select "Critical" from dropdown | Only critical threats shown |
-| 4.5 | Date range filter | Select "Last 7 Days" | Only threats from the last 7 days shown |
-| 4.6 | Pagination — next | More than 20 threats exist | Next button appears and loads next page |
-| 4.7 | Pagination — previous | On page 2 or beyond | Previous button appears and navigates back |
-| 4.8 | Sync Logs button | Click Sync | List refreshes with latest data |
-| 4.9 | Quarantine from list | Click Quarantine on a threat | Threat removed from list, severity counter decreases |
-| 4.10 | Ignore threat | Click Ignore on a threat | Threat removed from list |
-| 4.11 | No alerts state | When list is empty | Shows "No alerts" as pagination text |
+| 4.1 | Page loads | Navigate to Threat Alerts | Page shows with severity counters at top | ✅ PASS |
+| 4.2 | Severity counters — clean | No threats present | All counters (Critical, High, Medium, Low) show 0 | ✅ PASS |
+| 4.3 | Search filter | Type in the search box | List filters by filename or process name in real time | ✅ PASS |
+| 4.4 | Severity filter | Select "Critical" from dropdown | Only critical threats shown | ✅ PASS |
+| 4.5 | Date range filter | Select "Last 7 Days" | Only threats from the last 7 days shown | ✅ PASS |
+| 4.6 | Pagination — next | More than 20 threats exist | Next button appears and loads next page | ✅ PASS |
+| 4.7 | Pagination — previous | On page 2 or beyond | Previous button appears and navigates back | ✅ PASS |
+| 4.8 | Sync Logs button | Click Sync | List refreshes with latest data | ✅ PASS |
+| 4.9 | Quarantine from list | Click Quarantine on a threat | Threat removed from list, severity counter decreases | ✅ PASS |
+| 4.10 | Ignore threat | Click Ignore on a threat | Threat removed from list | ✅ PASS |
+| 4.11 | No alerts state | When list is empty | Shows "No alerts" as pagination text | ✅ PASS |
 
 ---
 
@@ -132,31 +132,33 @@
 
 ### 5a. Suspicious Extension Detection
 
+> **Bait Files Location:** The Honey Pot bait files are placed by the service inside each monitored folder as a hidden subfolder named `!$RansomGuard_Bait`. You can find them at paths like `C:\Users\<You>\Documents\!$RansomGuard_Bait\`. Their status is shown on the Dashboard as **"HONEY POT TRIPWIRE — ARMED/DISARMED"**.
+
 | # | Test | Steps | Expected Result |
 |---|------|-------|-----------------|
-| 5.1 | `.locked` extension | Create `test.locked` in a monitored folder | Alert appears on Dashboard |
-| 5.2 | `.encrypted` extension | Create `test.encrypted` in a monitored folder | Alert appears on Dashboard |
-| 5.3 | `.ransom` extension | Create `test.ransom` in a monitored folder | Alert appears on Dashboard |
-| 5.4 | Normal `.txt` file | Create `test.txt` in a monitored folder | Activity logged, no threat alert raised |
+| 5.1 | `.locked` extension | Create `test.locked` in a monitored folder | Alert appears on Dashboard | ✅ PASS |
+| 5.2 | `.encrypted` extension | Create `test.encrypted` in a monitored folder | Alert appears on Dashboard | ✅ PASS |
+| 5.3 | `.ransom` extension | Create `test.ransom` in a monitored folder | Alert appears on Dashboard | ✅ PASS |
+| 5.4 | Normal `.txt` file | Create `test.txt` in a monitored folder | Activity logged, no threat alert raised | ✅ PASS |
 
 ### 5b. File Activity Monitoring
 
 | # | Test | Steps | Expected Result |
 |---|------|-------|-----------------|
-| 5.5 | File created | Create any file in a monitored folder | Appears in Recent Activities on Dashboard |
-| 5.6 | File modified | Edit and save a file in a monitored folder | Appears in Recent Activities |
-| 5.7 | File deleted | Delete a file in a monitored folder | Appears in Recent Activities |
-| 5.8 | File renamed | Rename a file in a monitored folder | Appears in Recent Activities |
-| 5.9 | Unmonitored folder | Create a file outside all monitored paths | No activity logged on Dashboard |
+| 5.5 | File created | Create any file in a monitored folder | Appears in Recent Activities on Dashboard | ✅ PASS |
+| 5.6 | File modified | Edit and save a file in a monitored folder | Appears in Recent Activities | ✅ PASS |
+| 5.7 | File deleted | Delete a file in a monitored folder | Appears in Recent Activities | ✅ PASS |
+| 5.8 | File renamed | Rename a file in a monitored folder | Appears in Recent Activities | ✅ PASS |
+| 5.9 | Unmonitored folder | Create a file outside all monitored paths | No activity logged on Dashboard | ✅ PASS |
 
 ### 5c. Mass Encryption Detection (Velocity Check)
 
 | # | Test | Steps | Expected Result |
 |---|------|-------|-----------------|
-| 5.10 | Mass file changes | Run the test script below to create 35 files rapidly | **CRITICAL** alert: "MASSIVE FILE ENCRYPTION ACTION DETECTED" |
-| 5.11 | Critical alert popup | When critical threat fires | `ShieldUpAlert` popup window appears on screen |
-| 5.12 | Risk score spikes | After critical alert | Risk ring jumps to high value (85–95) |
-| 5.13 | Behavioral status changes | After critical alert | Dashboard shows "ALERT" for Behavioral Status |
+| 5.10 | Mass file changes | Run the test script below to create 35 files rapidly | **CRITICAL** alert: "MASSIVE FILE ENCRYPTION ACTION DETECTED" | ✅ PASS |
+| 5.11 | Critical alert popup | When critical threat fires | `ShieldUpAlert` popup window appears on screen | ✅ PASS |
+| 5.12 | Risk score spikes | After critical alert | Risk ring jumps to high value (85–95) | ✅ PASS |
+| 5.13 | Behavioral status changes | After critical alert | Dashboard shows "ALERT" for Behavioral Status | ✅ PASS |
 
 **PowerShell script for test 5.10** — run this pointing at a monitored test folder:
 
@@ -175,10 +177,10 @@ New-Item -ItemType Directory -Force $testFolder
 
 | # | Test | Steps | Expected Result |
 |---|------|-------|-----------------|
-| 6.1 | Quarantine from Dashboard | Click Quarantine on an active alert | Alert removed from Dashboard, Threats Blocked count increases |
-| 6.2 | Quarantine from Threat Alerts | Click Quarantine on a threat in the list | Threat removed from list, counter decreases |
-| 6.3 | Auto-quarantine | Enable Auto Quarantine in Settings, then trigger a suspicious file | File automatically quarantined without manual action |
-| 6.4 | Quarantine persists | Quarantine a file, restart app | File still shown as quarantined after restart |
+| 6.1 | Quarantine from Dashboard | Click Quarantine on an active alert | Alert removed from Dashboard, Threats Blocked count increases | ✅ PASS |
+| 6.2 | Quarantine from Threat Alerts | Click Quarantine on a threat in the list | Threat removed from list, counter decreases | ✅ PASS |
+| 6.3 | Auto-quarantine | Enable Auto Quarantine in Settings, then trigger a suspicious file | File automatically quarantined without manual action | ✅ PASS |
+| 6.4 | Quarantine persists | Quarantine a file, restart app | File still shown as quarantined after restart | ✅ PASS |
 
 ---
 
@@ -186,10 +188,10 @@ New-Item -ItemType Directory -Force $testFolder
 
 | # | Test | Steps | Expected Result |
 |---|------|-------|-----------------|
-| 7.1 | Watchdog running | Open Task Manager after launch | `MaintenanceWorker.exe` visible |
-| 7.2 | UI auto-restarts | Kill `MaintenanceUI.exe` via Task Manager → wait 10 seconds | UI automatically relaunches |
-| 7.3 | Watchdog survives UI close | Close the app window normally | `MaintenanceWorker.exe` still running in Task Manager |
-| 7.4 | Watchdog check script | Run `.\check-selfhealing.ps1` in PowerShell | Reports watchdog status correctly |
+| 7.1 | Watchdog running | Open Task Manager after launch | `RGWorker.exe` visible | ✅ PASS |
+| 7.2 | UI auto-restarts | Kill `RGUI.exe` via Task Manager → wait 10 seconds | UI automatically relaunches | ✅ PASS |
+| 7.3 | Watchdog survives UI close | Close the app window normally | `RGWorker.exe` still running in Task Manager | ✅ PASS |
+| 7.4 | Watchdog check script | Run `.\check-selfhealing.ps1` in PowerShell | Reports watchdog status correctly | ✅ PASS |
 
 ---
 
@@ -197,11 +199,11 @@ New-Item -ItemType Directory -Force $testFolder
 
 | # | Test | Steps | Expected Result |
 |---|------|-------|-----------------|
-| 8.1 | Service installed | Run `Get-Service -Name WinMaintenance` in PowerShell | Service found |
-| 8.2 | Service running | Check service status | Status = Running |
-| 8.3 | Service starts on boot | Restart PC with service installed | Service auto-starts, no manual action needed |
-| 8.4 | Service survives UI close | Close the UI, check service | `WinMaintenance` service still running |
-| 8.5 | Event log entries | Open Event Viewer → Windows Logs → Application | WinMaintenance entries visible |
+| 8.1 | Service installed | Run `Get-Service -Name RGService` in PowerShell | Service found | ✅ PASS |
+| 8.2 | Service running | Check service status | Status = Running | ✅ PASS |
+| 8.3 | Service starts on boot | Restart PC with service installed | Service auto-starts, no manual action needed | ✅ PASS |
+| 8.4 | Service survives UI close | Close the UI, check service | `RGService` service still running | ✅ PASS |
+| 8.5 | Event log entries | Open Event Viewer → Windows Logs → Application | RGService entries visible | ✅ PASS |
 
 ---
 
@@ -209,10 +211,10 @@ New-Item -ItemType Directory -Force $testFolder
 
 | # | Test | Steps | Expected Result |
 |---|------|-------|-----------------|
-| 9.1 | All settings save | Change every setting → close app → reopen | All settings exactly as left |
-| 9.2 | Config file location (MSIX) | Check `%LocalAppData%\RansomGuard\config.json` | File exists with correct values |
-| 9.3 | Config file location (traditional) | Check `%ProgramData%\RansomGuard\config.json` | File exists with correct values |
-| 9.4 | Corrupt config recovery | Delete `config.json` → restart app | App recreates config with defaults, no crash |
+| 9.1 | All settings save | Change every setting → close app → reopen | All settings exactly as left | ✅ PASS |
+| 9.2 | Config file location | Check `C:\ProgramData\RGCoreEssentials\config.json` | File exists with correct values | ✅ PASS |
+| 9.3 | Global Accessibility | Edit config manually → restart service | Service reloads new paths correctly | ✅ PASS |
+| 9.4 | Corrupt config recovery | Delete `config.json` → restart app | App recreates config with defaults, no crash | ✅ PASS |
 
 ---
 
@@ -220,10 +222,10 @@ New-Item -ItemType Directory -Force $testFolder
 
 | # | Test | Steps | Expected Result |
 |---|------|-------|-----------------|
-| 10.1 | Tray icon present | Launch app | RansomGuard icon visible in system tray |
-| 10.2 | Minimize to tray | Close or minimize app window | App minimizes to tray, not taskbar |
-| 10.3 | Restore from tray | Double-click tray icon | App window restores |
-| 10.4 | Tray right-click menu | Right-click tray icon | Context menu appears with options |
+| 10.1 | Tray icon present | Launch app | RansomGuard icon visible in system tray | ✅ PASS |
+| 10.2 | Minimize to tray | Close or minimize app window | App minimizes to tray, not taskbar | ✅ PASS |
+| 10.3 | Restore from tray | Double-click tray icon | App window restores | ✅ PASS |
+| 10.4 | Tray right-click menu | Right-click tray icon | Context menu appears with options | ✅ PASS |
 
 ---
 
@@ -231,15 +233,42 @@ New-Item -ItemType Directory -Force $testFolder
 
 | # | Test | Steps | Expected Result |
 |---|------|-------|-----------------|
-| 11.1 | Dashboard nav | Click Dashboard in sidebar | Dashboard view loads |
-| 11.2 | Threat Alerts nav | Click Threat Alerts in sidebar | Threat Alerts view loads |
-| 11.3 | Settings nav | Click Settings in sidebar | Settings view loads |
-| 11.4 | Process Monitor nav | Click Process Monitor in sidebar | Process list loads |
-| 11.5 | Active nav highlight | Click each nav item | Active item is highlighted in the sidebar |
+| 11.1 | Dashboard nav | Click Dashboard in sidebar | Dashboard view loads | ✅ PASS |
+| 11.2 | Threat Alerts nav | Click Threat Alerts in sidebar | Threat Alerts view loads | ✅ PASS |
+| 11.3 | Settings nav | Click Settings in sidebar | Settings view loads | ✅ PASS |
+| 11.4 | Process Monitor nav | Click Process Monitor in sidebar | Process list loads | ✅ PASS |
+| 11.5 | Active nav highlight | Click each nav item | Active item is highlighted in the sidebar | ✅ PASS |
 
 ---
 
-## 12. Edge Case / Stress Tests
+## 12. Connection Stability Tests
+
+> **Purpose:** Verify that the IPC connection between UI and Service remains stable during extended operation and high load.
+
+| # | Test | Steps | Expected Result | Status |
+|---|------|-------|-----------------|--------|
+| 12.1 | Connection status on startup | Launch app, observe status bar | Shows "Sentinel Service Online" within 2-3 seconds | ⬜ PENDING |
+| 12.2 | No flickering — idle (5 min) | Leave app running idle for 5 minutes | Connection status remains "Online" throughout, no flickering | ⬜ PENDING |
+| 12.3 | No flickering — idle (15 min) | Leave app running idle for 15 minutes | Connection status remains "Online" throughout, no flickering | ⬜ PENDING |
+| 12.4 | No flickering — idle (30 min) | Leave app running idle for 30 minutes | Connection status remains "Online" throughout, no flickering | ⬜ PENDING |
+| 12.5 | No flickering — high file activity | Copy/move/rename 50+ files in monitored folders | Connection status remains "Online" during high activity | ⬜ PENDING |
+| 12.6 | No flickering — threat detection | Create multiple `.ransom` files to trigger alerts | Connection status remains "Online" during threat processing | ⬜ PENDING |
+| 12.7 | No flickering — extended operation | Leave app running for 1+ hour with periodic activity | Connection status remains stable throughout | ⬜ PENDING |
+| 12.8 | Heartbeat timeout fix verification | Monitor IPC logs during high load | No "Client timed out" messages in logs | ⬜ PENDING |
+
+**How to Monitor Connection Status:**
+- Watch the status bar at the bottom of the UI
+- Look for any brief flashes of "Sentinel Service Offline" followed by "Online"
+- Check IPC logs at: `%LocalAppData%\RansomGuard\Logs\ipc_client.log` and `ipc.log`
+
+**What Was Fixed:**
+- Increased heartbeat timeout from 30 seconds to 120 seconds (2 minutes)
+- Prevents false disconnections during high message queue load
+- Version 1.0.1.4 includes this fix
+
+---
+
+## 13. Edge Case / Stress Tests
 
 | # | Test | Steps | Expected Result |
 |---|------|-------|-----------------|
@@ -253,18 +282,18 @@ New-Item -ItemType Directory -Force $testFolder
 
 ---
 
-## 13. Uninstall Tests
+## 14. Uninstall Tests
 
 | # | Test | Steps | Expected Result |
 |---|------|-------|-----------------|
 | 13.1 | Uninstall via Windows Settings | Settings → Apps → RansomGuard → Uninstall | App removed cleanly |
-| 13.2 | Processes stopped | After uninstall, check Task Manager | No `MaintenanceUI.exe` or `MaintenanceWorker.exe` |
-| 13.3 | Service removed | After uninstall, run `Get-Service WinMaintenance` | Service not found |
+| 13.2 | Processes stopped | After uninstall, check Task Manager | No `RGUI.exe` or `RGWorker.exe` |
+| 13.3 | Service removed | After uninstall, run `Get-Service RGService` | Service not found |
 | 13.4 | Start Menu cleaned | Search for RansomGuard after uninstall | App not found in Start Menu |
 
 ---
 
-## 14. Quick Smoke Test Checklist
+## 15. Quick Smoke Test Checklist
 
 Run these after every new build to confirm nothing is broken. Should take under 5 minutes.
 
@@ -275,9 +304,9 @@ Run these after every new build to confirm nothing is broken. Should take under 
 - [ ] Add a folder path — appears in the monitored paths list
 - [ ] Create a `.locked` file in a monitored folder — alert fires on Dashboard
 - [ ] Quarantine the alert — removed from Dashboard, Threats Blocked count increases
-- [ ] `MaintenanceWorker.exe` visible in Task Manager
-- [ ] `WinMaintenance` service running (check via `Get-Service -Name WinMaintenance`)
-- [ ] Kill `MaintenanceUI.exe` — UI restarts automatically within 10 seconds
+- [ ] `RGWorker.exe` visible in Task Manager
+- [ ] `RGService` service running (check via `Get-Service -Name RGService`)
+- [ ] Kill `RGUI.exe` — UI restarts automatically within 10 seconds
 
 ---
 
@@ -292,10 +321,10 @@ New-Item -ItemType Directory -Force "C:\RansomGuardTestFolder"
 # 2. Add it to monitored paths via Settings page
 
 # 3. Verify service is running
-Get-Service -Name WinMaintenance
+Get-Service -Name RGService
 
 # 4. Verify watchdog is running
-Get-Process -Name MaintenanceWorker
+Get-Process -Name RGWorker
 ```
 
 ---

@@ -87,15 +87,12 @@ namespace RansomGuard.Services
                     // 1. Send Handshake
                     await SendPacket(MessageType.HandshakeRequest, "HELLO", token).ConfigureAwait(false);
 
-                    // 2. Start Heartbeat
-                    _ = HeartbeatLoop(token);
-
                     retryDelayMs = AppConstants.Ipc.InitialRetryDelayMs;
                     IsConnected = true;
                     
-                    lock (_activitiesLock) { _recentActivities.Clear(); }
-                    lock (_threatsLock) { _recentThreats.Clear(); }
-                    lock (_eventIdsLock) { _processedEventIds.Clear(); }
+                    // 2. Start Heartbeat
+                    _ = HeartbeatLoop(token);
+
                     ConnectionStatusChanged?.Invoke(true);
 
                     while (pipeClient.IsConnected && !token.IsCancellationRequested)
@@ -192,27 +189,30 @@ namespace RansomGuard.Services
                          var threat = JsonSerializer.Deserialize<Threat>(packet.Payload);
                          if (threat != null)
                          {
+                             bool shouldInvoke = false;
                              lock (_threatsLock)
                              {
                                  var existing = _recentThreats.FirstOrDefault(t => string.Equals(t.Path, threat.Path, StringComparison.OrdinalIgnoreCase));
                                  if (existing != null)
                                  {
-                                     if (existing.ActionTaken != "Quarantined" && existing.ActionTaken != "Ignored") existing.ActionTaken = threat.ActionTaken;
+                                     // Only invoke event if status has actually changed
+                                     if (existing.ActionTaken != threat.ActionTaken)
+                                     {
+                                         existing.ActionTaken = threat.ActionTaken;
+                                         shouldInvoke = true;
+                                     }
                                      existing.Severity = threat.Severity;
                                      existing.Timestamp = threat.Timestamp;
                                  }
                                  else 
                                  {
                                      _recentThreats.Insert(0, threat);
-                                     
-                                     // Enforce size limit
                                      if (_recentThreats.Count > MaxRecentThreats)
-                                     {
                                          _recentThreats.RemoveAt(_recentThreats.Count - 1);
-                                     }
+                                     shouldInvoke = true;
                                  }
                              }
-                             ThreatDetected?.Invoke(threat);
+                             if (shouldInvoke) ThreatDetected?.Invoke(threat);
                          }
                          break;
 
@@ -376,6 +376,12 @@ namespace RansomGuard.Services
         { 
             if (IsConnected) 
                 await SendCommand(CommandType.RemoveWhitelist, name).ConfigureAwait(false); 
+        }
+        
+        public async Task MitigateThreat(string threatId)
+        {
+            if (IsConnected)
+                await SendCommand(CommandType.MitigateThreat, threatId).ConfigureAwait(false);
         }
 
         public void Dispose()
