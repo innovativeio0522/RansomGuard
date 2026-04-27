@@ -10,13 +10,13 @@
   IgnorableNamespaces="uap uap5 rescap desktop desktop6 desktop7">
 
   <Identity
-    Name="RansomGuard"
+    Name="RGCoreEssentials"
     Publisher="CN=RansomGuard"
-    Version="1.0.1.4" />
+    Version="1.0.1.11" />
 
   <Properties>
-    <DisplayName>RansomGuard</DisplayName>
-    <PublisherDisplayName>RansomGuard</PublisherDisplayName>
+    <DisplayName>RG Core Essentials</DisplayName>
+    <PublisherDisplayName>RG Core</PublisherDisplayName>
     <Logo>Images\StoreLogo.png</Logo>
   </Properties>
 
@@ -31,11 +31,11 @@
   <Applications>
     <Application
       Id="App"
-      Executable="RansomGuard\MaintenanceUI.exe"
+      Executable="RansomGuard\RGUI.exe"
       EntryPoint="Windows.FullTrustApplication">
       <uap:VisualElements
-        DisplayName="RansomGuard"
-        Description="Advanced Real-Time Ransomware Protection"
+        DisplayName="RG Core Essentials"
+        Description="Advanced Real-Time Protection"
         BackgroundColor="#1e1e2e"
         Square150x150Logo="Images\Square150x150Logo.png"
         Square44x44Logo="Images\Square44x44Logo.png">
@@ -44,37 +44,39 @@
       </uap:VisualElements>
       <Extensions>
         <desktop7:Extension Category="windows.shortcut">
-          <desktop7:Shortcut File="[{Desktop}]\RansomGuard.lnk" Icon="RansomGuard\MaintenanceUI.exe" />
+          <desktop7:Shortcut File="[{Desktop}]\RG Core Essentials.lnk" Icon="RansomGuard\RGUI.exe" />
         </desktop7:Extension>
-        <uap5:Extension Category="windows.startupTask" Executable="RansomGuard\MaintenanceUI.exe" EntryPoint="Windows.FullTrustApplication">
-          <uap5:StartupTask TaskId="RansomGuardStartup" Enabled="true" DisplayName="RansomGuard Background Service" />
+        <uap5:Extension Category="windows.startupTask" Executable="RansomGuard\RGUI.exe" EntryPoint="Windows.FullTrustApplication">
+          <uap5:StartupTask TaskId="RansomGuardStartup" Enabled="true" DisplayName="RG Core Essentials" />
         </uap5:Extension>
-        <uap5:Extension Category="windows.appExecutionAlias" Executable="RansomGuard\MaintenanceUI.exe" EntryPoint="Windows.FullTrustApplication">
+        <uap5:Extension Category="windows.appExecutionAlias" Executable="RansomGuard\RGUI.exe" EntryPoint="Windows.FullTrustApplication">
           <uap5:AppExecutionAlias>
-            <uap5:ExecutionAlias Alias="RansomGuardUI.exe" />
+            <uap5:ExecutionAlias Alias="RGUI.exe" />
           </uap5:AppExecutionAlias>
         </uap5:Extension>
+        <desktop6:Extension Category="windows.service" Executable="Service\RGService.exe" EntryPoint="Windows.FullTrustApplication">
+          <desktop6:Service Name="RGService" StartupType="auto" StartAccount="localSystem" />
+        </desktop6:Extension>
       </Extensions>
     </Application>
     <Application
-      Id="Service"
-      Executable="Service\WinMaintenanceSvc.exe"
+      Id="Watchdog"
+      Executable="RGWorker.exe"
       EntryPoint="Windows.FullTrustApplication">
       <uap:VisualElements
         AppListEntry="none"
-        DisplayName="RansomGuard Sentinel"
-        Description="RansomGuard Sentinel Service"
+        DisplayName="RG Worker"
+        Description="RG Self-Healing Worker"
         BackgroundColor="transparent"
         Square150x150Logo="Images\Square150x150Logo.png"
         Square44x44Logo="Images\Square44x44Logo.png">
       </uap:VisualElements>
       <Extensions>
-        <desktop6:Extension Category="windows.service" Executable="Service\WinMaintenanceSvc.exe" EntryPoint="Windows.FullTrustApplication">
-          <desktop6:Service
-            Name="WinMaintenance"
-            StartupType="auto"
-            StartAccount="localSystem" />
-        </desktop6:Extension>
+        <uap5:Extension Category="windows.appExecutionAlias" Executable="RGWorker.exe" EntryPoint="Windows.FullTrustApplication">
+          <uap5:AppExecutionAlias>
+            <uap5:ExecutionAlias Alias="RGWorker.exe" />
+          </uap5:AppExecutionAlias>
+        </uap5:Extension>
       </Extensions>
     </Application>
   </Applications>
@@ -82,6 +84,7 @@
   <Capabilities>
     <Capability Name="internetClient" />
     <rescap:Capability Name="runFullTrust" />
+    <rescap:Capability Name="broadFileSystemAccess" />
     <rescap:Capability Name="packagedServices" />
     <rescap:Capability Name="localSystemServices" />
   </Capabilities>

@@ -38,6 +38,27 @@ public class Worker : BackgroundService
 
         try
         {
+            LogToBootFile("Initializing storage and permissions...");
+            // Ensure the ProgramData directory exists and is writable by the UI
+            string baseDir = PathConfiguration.GetConfigDirectory();
+            if (!Directory.Exists(baseDir)) Directory.CreateDirectory(baseDir);
+            
+            try
+            {
+                // Grant Everyone full control to this specific folder so UI and Service can sync
+                var di = new DirectoryInfo(baseDir);
+                var ds = di.GetAccessControl();
+                ds.AddAccessRule(new System.Security.AccessControl.FileSystemAccessRule(
+                    new System.Security.Principal.SecurityIdentifier(System.Security.Principal.WellKnownSidType.WorldSid, null),
+                    System.Security.AccessControl.FileSystemRights.FullControl,
+                    System.Security.AccessControl.InheritanceFlags.ContainerInherit | System.Security.AccessControl.InheritanceFlags.ObjectInherit,
+                    System.Security.AccessControl.PropagationFlags.None,
+                    System.Security.AccessControl.AccessControlType.Allow));
+                di.SetAccessControl(ds);
+                _logger.LogInformation("Permissions initialized for {path}", baseDir);
+            }
+            catch (Exception ex) { _logger.LogWarning("Could not set folder permissions: {msg}", ex.Message); }
+
             LogToBootFile("Initializing services...");
             // 1. Initialize decoupled services
             var historyStore = new HistoryStore();

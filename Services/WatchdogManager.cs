@@ -12,8 +12,8 @@ namespace RansomGuard.Services
     /// </summary>
     public static class WatchdogManager
     {
-        private const string WatchdogProcessName = "MaintenanceWorker";
-        private const string WatchdogTaskName = "WinMaintenanceWorkerTask";
+        private const string WatchdogProcessName = "RGWorker";
+        private const string WatchdogTaskName = "RGWorkerTask";
 
         /// <summary>
         /// The main entry point for engaging protection. Ensures the Sentinel Service is running
@@ -30,27 +30,7 @@ namespace RansomGuard.Services
                 var existingProcesses = Process.GetProcessesByName(WatchdogProcessName);
                 if (existingProcesses.Length == 0)
                 {
-                    string? watchdogPath = FindWatchdogPath();
-                    if (watchdogPath != null)
-                    {
-                        try
-                        {
-                            // UseShellExecute=true is REQUIRED for MSIX — direct Process.Start
-                            // on WindowsApps paths gets "Access denied". The shell/container
-                            // host intercepts the call and launches it within the MSIX context.
-                            var psi = new ProcessStartInfo(watchdogPath)
-                            {
-                                CreateNoWindow = true,
-                                UseShellExecute = true,
-                                WindowStyle = ProcessWindowStyle.Hidden
-                            };
-                            Process.Start(psi);
-                        }
-                        catch (Exception ex)
-                        {
-                            Debug.WriteLine($"[WatchdogManager] Failed to start watchdog: {ex.Message}");
-                        }
-                    }
+                    LaunchWatchdog();
                 }
             }
             catch (Exception ex)
@@ -59,16 +39,64 @@ namespace RansomGuard.Services
             }
         }
 
+        private static void LaunchWatchdog()
+        {
+            // Strategy 1: Launch via app execution alias (works in MSIX — alias is in PATH)
+            // The alias "RGWorker.exe" is registered in the AppxManifest and resolves
+            // to the correct MSIX executable without needing a direct WindowsApps path.
+            try
+            {
+                var psi = new ProcessStartInfo("RGWorker.exe")
+                {
+                    CreateNoWindow = true,
+                    UseShellExecute = false,
+                    WindowStyle = ProcessWindowStyle.Hidden
+                };
+                Process.Start(psi);
+                Debug.WriteLine("[WatchdogManager] Watchdog launched via app execution alias.");
+                return;
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[WatchdogManager] Alias launch failed: {ex.Message}. Trying direct path...");
+            }
+
+            // Strategy 2: Direct path fallback (works for non-MSIX / dev builds)
+            string? watchdogPath = FindWatchdogPath();
+            if (watchdogPath != null)
+            {
+                try
+                {
+                    var psi = new ProcessStartInfo(watchdogPath)
+                    {
+                        CreateNoWindow = true,
+                        UseShellExecute = true,
+                        WindowStyle = ProcessWindowStyle.Hidden
+                    };
+                    Process.Start(psi);
+                    Debug.WriteLine($"[WatchdogManager] Watchdog launched via direct path: {watchdogPath}");
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"[WatchdogManager] Direct path launch failed: {ex.Message}");
+                }
+            }
+            else
+            {
+                Debug.WriteLine("[WatchdogManager] Watchdog executable not found.");
+            }
+        }
+
         private static void EnsureServiceRunning()
         {
             try
             {
-                using (var sc = new System.ServiceProcess.ServiceController("WinMaintenance"))
+                using (var sc = new System.ServiceProcess.ServiceController("RGService"))
                 {
                     if (sc.Status != System.ServiceProcess.ServiceControllerStatus.Running &&
                         sc.Status != System.ServiceProcess.ServiceControllerStatus.StartPending)
                     {
-                        var psi = new ProcessStartInfo("cmd.exe", "/c net start WinMaintenance")
+                        var psi = new ProcessStartInfo("cmd.exe", "/c net start RGService")
                         {
                             Verb = "runas",
                             UseShellExecute = true,
@@ -114,13 +142,13 @@ namespace RansomGuard.Services
             if (string.IsNullOrEmpty(appDir)) appDir = AppDomain.CurrentDomain.BaseDirectory;
 
             // MSIX Fix: Check if we're in a "RansomGuard" subfolder (MSIX structure)
-            // In MSIX, MaintenanceUI.exe is in "RansomGuard\" subfolder, but MaintenanceWorker.exe is in root
+            // In MSIX, RGUI.exe is in "RansomGuard\" subfolder, but RGWorker.exe is in root
             if (appDir.EndsWith("RansomGuard", StringComparison.OrdinalIgnoreCase))
             {
                 string? parentDir = Path.GetDirectoryName(appDir);
                 if (!string.IsNullOrEmpty(parentDir))
                 {
-                    string msixRootPath = Path.Combine(parentDir, "MaintenanceWorker.exe");
+                    string msixRootPath = Path.Combine(parentDir, "RGWorker.exe");
                     if (File.Exists(msixRootPath))
                     {
                         return msixRootPath;
@@ -129,7 +157,7 @@ namespace RansomGuard.Services
             }
 
             // Standard path: same directory as UI
-            string prodPath = Path.Combine(appDir, "MaintenanceWorker.exe");
+            string prodPath = Path.Combine(appDir, "RGWorker.exe");
             if (File.Exists(prodPath))
             {
                 return prodPath;
@@ -139,7 +167,7 @@ namespace RansomGuard.Services
             string? parentDir2 = Path.GetDirectoryName(appDir);
             if (!string.IsNullOrEmpty(parentDir2))
             {
-                string parentProdPath = Path.Combine(parentDir2, "MaintenanceWorker.exe");
+                string parentProdPath = Path.Combine(parentDir2, "RGWorker.exe");
                 if (File.Exists(parentProdPath))
                 {
                     return parentProdPath;
@@ -149,8 +177,8 @@ namespace RansomGuard.Services
             // Development/Debug fallbacks
             string[] searchPaths =
             [
-                Path.Combine(appDir, @"..\..\..\RansomGuard.Watchdog\bin\Debug\net8.0\MaintenanceWorker.exe"),
-                Path.Combine(appDir, @"..\..\..\RansomGuard.Watchdog\bin\Release\net8.0\MaintenanceWorker.exe")
+                Path.Combine(appDir, @"..\..\..\RansomGuard.Watchdog\bin\Debug\net8.0\RGWorker.exe"),
+                Path.Combine(appDir, @"..\..\..\RansomGuard.Watchdog\bin\Release\net8.0\RGWorker.exe")
             ];
 
             foreach (var path in searchPaths)

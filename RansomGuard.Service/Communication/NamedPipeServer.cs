@@ -68,6 +68,7 @@ namespace RansomGuard.Service.Communication
                 try
                 {
                     var telemetry = _monitorService.GetTelemetry();
+                    telemetry.ActiveEndpointsCount = _clients.Count;
                     // Telemetry is lossy — we use DropOldest strategy
                     Broadcast(MessageType.TelemetryUpdate, telemetry, dropOldest: true);
                 }
@@ -151,6 +152,13 @@ namespace RansomGuard.Service.Communication
                     clientPipe = null; // Ownership transferred to task
                     
                     _ = Task.Run(async () => {
+                        try
+                        {
+                            // In .NET 8, we can get the client PID from the PipeSecurity or via impersonation
+                            // For now, let's just log that a new connection is established
+                            FileLogger.Log("ipc_connections.log", $"[NamedPipeServer] New connection established. Active clients: {_clients.Count}");
+                        }
+                        catch { }
                         try { await HandleClient(capturedPipe, token).ConfigureAwait(false); }
                         catch (Exception ex) { 
                             FileLogger.LogError("ipc.log", "[IPC Server] HandleClient error", ex);
@@ -369,6 +377,13 @@ namespace RansomGuard.Service.Communication
                             FileLogger.Log("ipc.log", $"[IPC Server] Removed whitelist: {request.Arguments}");
                         }
                         break;
+                    case CommandType.MitigateThreat:
+                        if (!string.IsNullOrEmpty(request.Arguments))
+                        {
+                            await _monitorService.MitigateThreat(request.Arguments).ConfigureAwait(false);
+                            FileLogger.Log("ipc.log", $"[IPC Server] Mitigated threat ID: {request.Arguments}");
+                        }
+                        break;
 
                     default:
                         FileLogger.LogWarning("ipc.log", $"[IPC Server] Unknown command type: {request.Command}");
@@ -394,14 +409,27 @@ namespace RansomGuard.Service.Communication
 
                 if (!ctx.MessageQueue.IsAddingCompleted)
                 {
-                    if (dropOldest && ctx.MessageQueue.Count >= AppConstants.Ipc.MessageQueueHighWaterMark)
+                    // CRITICAL: If this is a threat, or if dropOldest is requested, 
+                    // and we are over the high water mark, make room by dropping the oldest message.
+                    if ((dropOldest || type == MessageType.ThreatDetected) && 
+                        ctx.MessageQueue.Count >= AppConstants.Ipc.MessageQueueHighWaterMark)
                     {
                         // Drop oldest to avoid blocking the broadcast loop
                         ctx.MessageQueue.TryTake(out _);
                     }
+
                     if (!ctx.MessageQueue.TryAdd(json))
                     {
-                        FileLogger.LogWarning("ipc.log", $"[IPC Server] Failed to enqueue message of type {type} to client {ctx.Id}. Queue full.");
+                        // If it's a threat and we still failed to add (rare with the logic above), 
+                        // log a severe error.
+                        if (type == MessageType.ThreatDetected)
+                        {
+                            FileLogger.LogError("ipc.log", $"[IPC Server] CRITICAL FAILURE: Could not enqueue THREAT ALERT to client {ctx.Id}.");
+                        }
+                        else
+                        {
+                            FileLogger.LogWarning("ipc.log", $"[IPC Server] Failed to enqueue message of type {type} to client {ctx.Id}. Queue full.");
+                        }
                     }
                 }
             }

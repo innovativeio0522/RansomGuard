@@ -7,6 +7,15 @@ namespace RansomGuard.Core.Configuration
     public static class AppConstants
     {
         /// <summary>
+        /// General application metadata
+        /// </summary>
+        public static class General
+        {
+            public const string AppName = "RGCoreEssentials";
+            public const string CompanyName = "InnovativeIO";
+        }
+
+        /// <summary>
         /// UI refresh and polling intervals (in milliseconds unless otherwise specified)
         /// </summary>
         public static class Timers
@@ -162,10 +171,10 @@ namespace RansomGuard.Core.Configuration
             public const int ThreatCacheAgeMinutes = 60;
             
             /// <summary>
-            /// Debounce window (10 seconds)
-            /// How long to suppress duplicate file events
+            /// Debounce window (1 second)
+            /// How long to suppress duplicate file events. Reduced from 10s to improve responsiveness.
             /// </summary>
-            public const int DebounceWindowSeconds = 10;
+            public const int DebounceWindowSeconds = 1;
         }
 
         /// <summary>
@@ -198,22 +207,23 @@ namespace RansomGuard.Core.Configuration
             public const int DisposalSemaphoreTimeoutMs = 1000;
             
             /// <summary>
-            /// Client message queue size (100 messages)
+            /// Client message queue size (2000 messages)
             /// Maximum number of queued messages per client
             /// </summary>
-            public const int ClientMessageQueueSize = 100;
+            public const int ClientMessageQueueSize = 2000;
             
             /// <summary>
-            /// Message queue high water mark (90 messages)
+            /// Message queue high water mark (1800 messages)
             /// When to start dropping oldest messages
             /// </summary>
-            public const int MessageQueueHighWaterMark = 90;
+            public const int MessageQueueHighWaterMark = 1800;
             
             /// <summary>
-            /// Client heartbeat timeout (30 seconds)
+            /// Client heartbeat timeout (120 seconds / 2 minutes)
             /// How long before a client is considered disconnected
+            /// Increased to prevent false disconnections during high load
             /// </summary>
-            public const int ClientHeartbeatTimeoutSeconds = 30;
+            public const int ClientHeartbeatTimeoutSeconds = 120;
             
             /// <summary>
             /// Retry delay jitter range (±200ms)

@@ -17,8 +17,8 @@ namespace RansomGuard.Service.Engine
     public class WatchdogPersistenceService : BackgroundService
     {
         private readonly ILogger<WatchdogPersistenceService> _logger;
-        private const string WatchdogProcessName = "MaintenanceWorker";
-        private const string WatchdogTaskName = "WinMaintenanceWorkerTask";
+        private const string WatchdogProcessName = "RGWorker";
+        private const string WatchdogTaskName = "RGWorkerTask";
         private const int CheckIntervalMs = 5000; // Check every 5 seconds
 
         public WatchdogPersistenceService(ILogger<WatchdogPersistenceService> logger)
@@ -34,7 +34,9 @@ namespace RansomGuard.Service.Engine
             {
                 try
                 {
-                    if (ConfigurationService.Instance.WatchdogEnabled)
+                    // Read watchdog setting from shared config (respects UI toggle)
+                    var watchdogEnabled = ConfigurationService.Instance.WatchdogEnabled;
+                    if (watchdogEnabled)
                     {
                         EnsureWatchdogRunning();
                     }

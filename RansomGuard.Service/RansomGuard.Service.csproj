@@ -3,7 +3,7 @@
   <PropertyGroup>
     <TargetFramework>net8.0-windows</TargetFramework>
     <RuntimeIdentifiers>win-x86;win-x64</RuntimeIdentifiers>
-    <AssemblyName>WinMaintenanceSvc</AssemblyName>
+    <AssemblyName>RGService</AssemblyName>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <UserSecretsId>dotnet-RansomGuard.Service-25ecbde7-0e86-4454-9cec-cd8cd12b2507</UserSecretsId>

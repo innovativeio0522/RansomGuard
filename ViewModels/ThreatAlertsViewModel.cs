@@ -228,11 +228,13 @@ namespace RansomGuard.ViewModels
                 
                 lock (_threatsLock)
                 {
-                    // Deduplicate by Path (don't add if already in memory)
-                    if (!_allThreats.Any(t => t.Path == threat.Path))
+                    // Remove existing entry for this path (if any) to ensure the latest event is shown
+                    var existing = _allThreats.FirstOrDefault(t => string.Equals(t.Path, threat.Path, StringComparison.OrdinalIgnoreCase));
+                    if (existing != null)
                     {
-                        _allThreats.Insert(0, threat);
+                        _allThreats.Remove(existing);
                     }
+                    _allThreats.Insert(0, threat);
                 }
                 // Always re-filter — an existing threat may have changed status (e.g. Quarantined from Dashboard)
                 RefreshCounts();

@@ -24,7 +24,7 @@ namespace RansomGuard.Service.Services
             }
 
             // Enable connection pooling and set performance options
-            _connectionString = $"Data Source={dbPath};Mode=ReadWriteCreate;Cache=Shared;Pooling=True;Max Pool Size=10";
+            _connectionString = $"Data Source={dbPath};Mode=ReadWriteCreate;Cache=Shared;Pooling=True;";
             InitializeDatabase();
         }
 
@@ -148,13 +148,14 @@ namespace RansomGuard.Service.Services
                 checkCmd.CommandText = @"
                     SELECT COUNT(*) FROM Threats
                     WHERE Path = $path AND Name = $name
+                      AND Status = 'Active'
                       AND Timestamp >= $since
                 ";
                 checkCmd.Parameters.AddWithValue("$path", threat.Path);
                 checkCmd.Parameters.AddWithValue("$name", threat.Name);
-                checkCmd.Parameters.AddWithValue("$since", threat.Timestamp.AddHours(-24));
+                checkCmd.Parameters.AddWithValue("$since", threat.Timestamp.AddMinutes(-30));
                 var existing = (long)(await checkCmd.ExecuteScalarAsync().ConfigureAwait(false) ?? 0L);
-                if (existing > 0) return; // Duplicate within 24 h — skip
+                if (existing > 0) return; // Duplicate within 30 min — skip
 
                 var command = connection.CreateCommand();
                 command.CommandText = @"

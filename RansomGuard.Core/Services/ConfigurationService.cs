@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text.Json;
+using System.Threading.Tasks;
 using RansomGuard.Core.Helpers;
 
 namespace RansomGuard.Core.Services
@@ -23,6 +24,7 @@ namespace RansomGuard.Core.Services
         private static readonly object _watcherLock = new object();
         private static FileSystemWatcher? _configWatcher;
         private static System.Timers.Timer? _debounceTimer;
+        private static bool _suppressReload = false; // True while we are writing the file ourselves
 
         /// <summary>
         /// Raised when the monitored paths collection changes.
@@ -106,6 +108,9 @@ namespace RansomGuard.Core.Services
 
         private static void ReloadInstance()
         {
+            // Skip reload if we triggered the file change ourselves
+            if (_suppressReload) return;
+
             // Acquire lock before reading to prevent race with Save()
             lock (_saveLock)
             {
@@ -134,6 +139,10 @@ namespace RansomGuard.Core.Services
                         instance.ExcludedFolderNames = newConfig.ExcludedFolderNames ?? new List<string> { "obj", "bin", ".git", ".vs", "node_modules", "vendor", ".idea" };
                         instance.LastScanTime = newConfig.LastScanTime;
                         instance.HasAutoPopulated = newConfig.HasAutoPopulated;
+                        instance.NetworkIsolationEnabled = newConfig.NetworkIsolationEnabled;
+                        instance.EmergencyShutdownEnabled = newConfig.EmergencyShutdownEnabled;
+                        instance.BaseThreatScore = newConfig.BaseThreatScore;
+
                         
                         instance.NotifyPathsChanged();
                     }
@@ -258,12 +267,23 @@ namespace RansomGuard.Core.Services
                         Directory.CreateDirectory(directory);
                     }
                     
-                    var json = JsonSerializer.Serialize(this, new JsonSerializerOptions { WriteIndented = true });
-                    File.WriteAllText(configPath, json);
+                    // Suppress the FileSystemWatcher reload — we are writing the file ourselves,
+                    // so we don't want ReloadInstance() to overwrite our in-memory state.
+                    _suppressReload = true;
+                    try
+                    {
+                        var json = JsonSerializer.Serialize(this, new JsonSerializerOptions { WriteIndented = true });
+                        File.WriteAllText(configPath, json);
+                    }
+                    finally
+                    {
+                        // Keep suppressed for 500ms to cover the watcher debounce window (250ms)
+                        Task.Delay(500).ContinueWith(_ => _suppressReload = false);
+                    }
                 }
                 catch (Exception ex)
                 {
-                    // Log error but don't crash the application
+                    _suppressReload = false;
                     System.Diagnostics.Debug.WriteLine($"[ConfigurationService] Failed to save configuration: {ex.Message}");
                 }
             }
@@ -412,7 +432,7 @@ namespace RansomGuard.Core.Services
                     var path = Environment.GetFolderPath(folder);
                     if (!string.IsNullOrEmpty(path) && Directory.Exists(path))
                     {
-                        var normalized = Path.GetFullPath(path).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar).ToLowerInvariant();
+                        var normalized = Path.GetFullPath(path).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
                         if (!MonitoredPaths.Any(p => string.Equals(p, normalized, StringComparison.OrdinalIgnoreCase)))
                         {
                             MonitoredPaths.Add(normalized);
@@ -491,7 +511,14 @@ namespace RansomGuard.Core.Services
             }
             catch { }
 
-            return standardFolders.Any(f => string.Equals(f, path, StringComparison.OrdinalIgnoreCase));
+            // Normalize both sides to lowercase for comparison — saved paths may be lowercased
+            // by PopulateDefaultFolders() while GetFolderPath() returns mixed case.
+            string normalizedInput = path.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar).ToLowerInvariant();
+            return standardFolders.Any(f =>
+                string.Equals(
+                    f.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar).ToLowerInvariant(),
+                    normalizedInput,
+                    StringComparison.OrdinalIgnoreCase));
         }
     }
 }

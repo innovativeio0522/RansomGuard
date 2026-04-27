@@ -22,8 +22,8 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 Write-Host "Stopping running instances to release file locks..." -ForegroundColor Yellow
-Stop-Process -Name "MaintenanceUI" -Force -ErrorAction SilentlyContinue
-Stop-Process -Name "MaintenanceWorker" -Force -ErrorAction SilentlyContinue
+Stop-Process -Name "RGUI" -Force -ErrorAction SilentlyContinue
+Stop-Process -Name "RGWorker" -Force -ErrorAction SilentlyContinue
 
 Write-Host "Cleaning stale configuration and database..." -ForegroundColor Yellow
 $dataDir = "$env:ProgramData\RansomGuard"
