@@ -76,7 +76,8 @@ namespace RansomGuard.Core.IPC
         GetProcessList,
         WhitelistProcess,
         RemoveWhitelist,
-        MitigateThreat
+        MitigateThreat,
+        HandleMassEncryption
     }
 
     public class CommandRequest

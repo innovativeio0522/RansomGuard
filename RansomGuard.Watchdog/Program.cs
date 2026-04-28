@@ -2,6 +2,7 @@ using System;
 using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
+using System.Runtime.Versioning;
 using System.ServiceProcess;
 using System.Text.Json;
 using System.Threading;
@@ -46,7 +47,9 @@ namespace RansomGuard.Watchdog
                         return;
                     }
 
+#pragma warning disable CA1416 // Validate platform compatibility - RansomGuard is Windows-only
                     CheckServiceStatus();
+#pragma warning restore CA1416
                     CheckUIStatus();
                 }
                 catch (Exception ex)
@@ -215,10 +218,12 @@ namespace RansomGuard.Watchdog
             }
         }
 
+        [SupportedOSPlatform("windows")]
         static void CheckServiceStatus()
         {
             try
             {
+#pragma warning disable CA1416 // Validate platform compatibility - RansomGuard is Windows-only
                 using (ServiceController sc = new ServiceController(ServiceName))
                 {
                     try
@@ -248,6 +253,7 @@ namespace RansomGuard.Watchdog
                     {
                         // Access denied - expected when running without elevation in MSIX
                         // The service is auto-start via SCM, so it will recover on its own
+#pragma warning restore CA1416
                         LogToFile($"[Watchdog] Cannot control service (no admin rights, SCM will handle): {ex.Message}");
                     }
                     catch (System.ServiceProcess.TimeoutException ex)

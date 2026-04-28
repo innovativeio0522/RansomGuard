@@ -196,14 +196,33 @@ namespace RansomGuard.ViewModels
                 var threats = _monitorService.GetRecentThreats()?.ToList() ?? new List<Threat>();
                 
                 // Differentiate between "Blocked" (Remediated) and "Active" (Found but not yet handled)
-                ThreatsBlockedCount = threats.Count(t => t.ActionTaken == "Quarantined" || t.ActionTaken == "Terminated");
+                ThreatsBlockedCount = threats.Count(t => 
+                    t.ActionTaken == "Quarantined" || 
+                    t.ActionTaken == "Quarantined (Auto)" || 
+                    t.ActionTaken == "Terminated" || 
+                    t.ActionTaken == "Mitigated" || 
+                    t.ActionTaken == "Mitigated (Auto)");
 
-                // 2. Reconcile ActiveAlerts Collection (avoiding duplicates and infinite growth)
-                var freshActive = threats.Where(t => t.ActionTaken == "Detected" &&
-                                                (string.IsNullOrWhiteSpace(SearchQuery) || 
-                                                 t.Path.Contains(SearchQuery, StringComparison.OrdinalIgnoreCase) ||
-                                                 t.Name.Contains(SearchQuery, StringComparison.OrdinalIgnoreCase)))
-                                         .ToList();
+                // 2. Reconcile ActiveAlerts Collection (deduplicated by path, prioritizing resolved status)
+                var allRelevant = threats.Where(t => 
+                    string.IsNullOrWhiteSpace(SearchQuery) || 
+                    t.Path.Contains(SearchQuery, StringComparison.OrdinalIgnoreCase) ||
+                    t.Name.Contains(SearchQuery, StringComparison.OrdinalIgnoreCase))
+                    .GroupBy(t => t.Path.ToLowerInvariant())
+                    .Select(g => g.OrderByDescending(t => 
+                        t.ActionTaken == "Quarantined" || 
+                        t.ActionTaken == "Quarantined (Auto)" || 
+                        t.ActionTaken == "Mitigated" || 
+                        t.ActionTaken == "Mitigated (Auto)" ? 2 : 
+                        (t.ActionTaken == "Detected" || t.ActionTaken == "Active" ? 1 : 0))
+                        .First())
+                    .ToList();
+
+                var freshActive = allRelevant.Where(t => 
+                    t.ActionTaken == "Detected" || 
+                    t.ActionTaken == "Awaiting Confirmation" || 
+                    t.ActionTaken == "Active")
+                    .ToList();
 
                 // Marshal collection modifications to UI thread
                 Application.Current.Dispatcher.Invoke(() => {
@@ -377,8 +396,13 @@ namespace RansomGuard.ViewModels
 
                 if (existing != null)
                 {
-                    // Threat already in ActiveAlerts — check if it was just quarantined/ignored
-                    if (threat.ActionTaken == "Quarantined" || threat.ActionTaken == "Ignored" || threat.ActionTaken == "Terminated")
+                    // Threat already in ActiveAlerts — check if it was just quarantined/ignored/mitigated
+                    if (threat.ActionTaken == "Quarantined" || 
+                        threat.ActionTaken == "Quarantined (Auto)" || 
+                        threat.ActionTaken == "Ignored" || 
+                        threat.ActionTaken == "Terminated" ||
+                        threat.ActionTaken == "Mitigated" ||
+                        threat.ActionTaken == "Mitigated (Auto)")
                     {
                         ActiveAlerts.Remove(existing);
                         ActiveAlertsCount = Math.Max(0, ActiveAlertsCount - 1);
@@ -389,7 +413,7 @@ namespace RansomGuard.ViewModels
                 else
                 {
                     // New threat — add it if still active
-                    if (threat.ActionTaken == "Detected")
+                    if (threat.ActionTaken == "Detected" || threat.ActionTaken == "Awaiting Confirmation" || threat.ActionTaken == "Active")
                     {
                         ActiveAlerts.Insert(0, threat);
                         ActiveAlertsCount++;
@@ -397,21 +421,16 @@ namespace RansomGuard.ViewModels
 
                         if (threat.Severity == ThreatSeverity.Critical)
                         {
-                            // Pass threat and service to the interactive alert window
-                            var config = ConfigurationService.Instance;
-                            var alert = new Views.ShieldUpAlert(
-                                threat,
-                                _monitorService,
-                                config.NetworkIsolationEnabled, 
-                                true, // IsProcessTerminated (Pending)
-                                true  // IsQuarantined (Pending)
-                            );
-                            alert.Show();
+                            // Global critical alerts are handled by MainViewModel
                         }
                     }
-                    else if (threat.ActionTaken == "Quarantined" || threat.ActionTaken == "Terminated" || threat.ActionTaken == "Detected")
+                    else if (threat.ActionTaken == "Quarantined" || 
+                             threat.ActionTaken == "Quarantined (Auto)" || 
+                             threat.ActionTaken == "Terminated" || 
+                             threat.ActionTaken == "Mitigated" ||
+                             threat.ActionTaken == "Mitigated (Auto)")
                     {
-                        // Any handled threat (even if just detected) counts towards mitigation
+                        // Any handled threat counts towards mitigation
                         ThreatsBlockedCount++;
                     }
                 }

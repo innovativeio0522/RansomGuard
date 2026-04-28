@@ -64,7 +64,8 @@ namespace RansomGuard.Service.Engine
                     CpuUsage = total,
                     KernelCpuUsage = kernel,
                     UserCpuUsage = user,
-                    MemoryUsage = Process.GetCurrentProcess().WorkingSet64
+                    MemoryUsage = Process.GetCurrentProcess().WorkingSet64,
+                    TotalScansCount = _threatsBlockedCount // Overloading this field for now or I should add a new one.
                 };
 
                 // Fetch system RAM stats using NativeMemory helper
@@ -99,6 +100,13 @@ namespace RansomGuard.Service.Engine
             {
                 Debug.WriteLine($"[TelemetryService] Error during poll: {ex.Message}");
             }
+        }
+
+        private int _threatsBlockedCount = 0;
+
+        public void IncrementThreatsBlocked()
+        {
+            _threatsBlockedCount++;
         }
 
         public void Dispose()

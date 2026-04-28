@@ -26,6 +26,8 @@
     <PackageCertificateKeyFile>RansomGuard_TemporaryKey.pfx</PackageCertificateKeyFile>
     <PackageCertificatePassword>Password123</PackageCertificatePassword>
     <EntryPointProjectUniqueName>..\RansomGuard.csproj</EntryPointProjectUniqueName>
+    <!-- Suppress PRI resource warnings for missing neutral resources -->
+    <NoWarn>$(NoWarn);PRI263;PRI257</NoWarn>
   </PropertyGroup>
   <ItemGroup>
     <None Include="RansomGuard_TemporaryKey.pfx" />
@@ -44,11 +46,11 @@
   </ItemGroup>
   <ItemGroup>
     <!-- Main UI + Watchdog (Full Self-Contained Publish Output) -->
-    <Content Include="..\bin\x64\$(Configuration)\net8.0-windows\win-x64\publish\**\*.*">
+    <Content Include="..\bin\x64\$(Configuration)\net8.0-windows\win-x64\publish\**\*.*" Exclude="..\bin\x64\$(Configuration)\net8.0-windows\win-x64\publish\Service\**\*.*">
       <Link>%(RecursiveDir)%(FileName)%(Extension)</Link>
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
-    <!-- Sentinel Service (Self-Contained) -->
+    <!-- Sentinel Service (Self-Contained) - Use only the dedicated service build -->
     <Content Include="..\RansomGuard.Service\bin\x64\$(Configuration)\net8.0-windows\win-x64\msixpublish\**\*.*">
       <Link>Service\%(RecursiveDir)%(FileName)%(Extension)</Link>
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>

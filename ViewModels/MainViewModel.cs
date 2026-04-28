@@ -8,6 +8,7 @@ using RansomGuard.Core.Interfaces;
 using RansomGuard.Core.Models;
 using RansomGuard.Core.Helpers;
 using RansomGuard.Core.Configuration;
+using RansomGuard.Views;
 using System.Collections.ObjectModel;
 using System.Linq;
 
@@ -57,6 +58,7 @@ namespace RansomGuard.ViewModels
         private readonly Action<Threat> _threatDetectedHandler = null!;
         private bool _disposed;
         private bool _gracePeriodExpired = false;
+        private bool _isShowingMassEncryptionPrompt = false;
 
         // View instances to preserve state
         private readonly DashboardViewModel _dashboardVM = null!;
@@ -96,19 +98,29 @@ namespace RansomGuard.ViewModels
                 {
                     Application.Current.Dispatcher.Invoke(() => 
                     {
-                        var item = new NotificationItem
+                        // Check if this is a mass encryption threat requiring user confirmation
+                        if (threat.RequiresUserConfirmation && threat.Severity == ThreatSeverity.Critical)
                         {
-                            Title = "Security Threat Detected",
-                            Message = $"{threat.Name}: {threat.Path}",
-                            Time = DateTime.Now.ToString("HH:mm:ss"),
-                            Color = "#ff5252" // Tertiary / Alert Red
-                        };
-                        Notifications.Insert(0, item);
-                        if (Notifications.Count > 10) Notifications.RemoveAt(10);
-                        
-                        if (!IsNotificationFlyoutOpen)
+                            // Show critical prompt with 5-second timeout
+                            ShowMassEncryptionPrompt(threat);
+                        }
+                        else
                         {
-                            UnreadNotificationsCount++;
+                            // Normal threat notification
+                            var item = new NotificationItem
+                            {
+                                Title = "Security Threat Detected",
+                                Message = $"{threat.Name}: {threat.Path}",
+                                Time = DateTime.Now.ToString("HH:mm:ss"),
+                                Color = "#ff5252" // Tertiary / Alert Red
+                            };
+                            Notifications.Insert(0, item);
+                            if (Notifications.Count > 10) Notifications.RemoveAt(10);
+                            
+                            if (!IsNotificationFlyoutOpen)
+                            {
+                                UnreadNotificationsCount++;
+                            }
                         }
                     });
                 };
@@ -268,6 +280,64 @@ namespace RansomGuard.ViewModels
             }
             
             UpdateCurrentViewSearch();
+        }
+
+        /// <summary>
+        /// Shows a critical mass encryption prompt with 5-second timeout.
+        /// If user doesn't respond or clicks "No", automatically kills process and quarantines files.
+        /// This executes REGARDLESS of AutoQuarantine settings.
+        /// </summary>
+        private async void ShowMassEncryptionPrompt(Threat threat)
+        {
+            if (_isShowingMassEncryptionPrompt) return;
+            _isShowingMassEncryptionPrompt = true;
+
+            try
+            {
+                FileLogger.Log("ui_critical.log", $"[CRITICAL] Mass encryption prompt shown for process: {threat.ProcessName} (PID: {threat.ProcessId})");
+
+                // Show critical shield window with 5-second timeout
+                bool? dialogResult = await Application.Current.Dispatcher.InvokeAsync(() =>
+                {
+                    var shieldWindow = new ShieldAlertWindow(threat);
+                    return shieldWindow.ShowDialog();
+                });
+
+                bool shouldMitigate = dialogResult ?? true; // Default to true if closed unexpectedly
+                FileLogger.Log("ui_critical.log", $"[CRITICAL] Alert closed. shouldMitigate: {shouldMitigate}");
+
+                // Execute mitigation regardless of response (Yes, No, or timeout)
+                FileLogger.Log("ui_critical.log", $"[CRITICAL] Executing mass encryption response for {threat.AffectedFiles.Count} files");
+                
+                await _monitorService.HandleMassEncryptionResponse(
+                    threat.ProcessId,
+                    threat.ProcessName,
+                    threat.AffectedFiles);
+
+                // Show confirmation notification
+                var confirmItem = new NotificationItem
+                {
+                    Title = "Mass Encryption Mitigated",
+                    Message = $"Process terminated. {threat.AffectedFiles.Count} files quarantined.",
+                    Time = DateTime.Now.ToString("HH:mm:ss"),
+                    Color = "#ff5252"
+                };
+                Notifications.Insert(0, confirmItem);
+                if (Notifications.Count > 10) Notifications.RemoveAt(10);
+                
+                if (!IsNotificationFlyoutOpen)
+                {
+                    UnreadNotificationsCount++;
+                }
+            }
+            catch (Exception ex)
+            {
+                FileLogger.LogError("ui_critical.log", "[CRITICAL] Error in ShowMassEncryptionPrompt", ex);
+            }
+            finally
+            {
+                _isShowingMassEncryptionPrompt = false;
+            }
         }
 
         private void UpdateCurrentViewSearch()

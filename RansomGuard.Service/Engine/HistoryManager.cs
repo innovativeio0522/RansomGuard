@@ -79,8 +79,15 @@ namespace RansomGuard.Service.Engine
             {
                 if (_reportedThreats.TryGetValue(threatKey, out var lastReported))
                 {
-                    if ((DateTime.Now - lastReported).TotalMinutes < dedupeWindowMinutes)
-                        return false; // Already reported within the window — suppress
+                    // Allow "MASSIVE FILE ENCRYPTION" to bypass deduplication 
+                    // or if it's been more than the window.
+                    if (!threatName.Contains("MASSIVE FILE ENCRYPTION") && (DateTime.Now - lastReported).TotalMinutes < dedupeWindowMinutes)
+                    {
+                        // Special case: If the NEW action is more "resolved" than the last one, we SHOULD allow it
+                        // so that AddThreat can perform the status upgrade.
+                        if (action == "Detected" || action == "Active")
+                            return false; 
+                    }
                 }
                 
                 // Enforce size limit with LRU eviction before adding new entry
@@ -105,7 +112,25 @@ namespace RansomGuard.Service.Engine
         {
             lock (_historyLock)
             {
-                _threatHistory.Insert(0, threat);
+                // Check if we already have this threat in memory (within a recent window)
+                var existing = _threatHistory.FirstOrDefault(t => 
+                    string.Equals(t.Path, threat.Path, StringComparison.OrdinalIgnoreCase) && 
+                    t.Name == threat.Name &&
+                    (threat.Timestamp - t.Timestamp).TotalMinutes < 15);
+
+                if (existing != null)
+                {
+                    // Update status if the new one is more "resolved"
+                    if (threat.ActionTaken != "Detected" && threat.ActionTaken != "Active" && existing.ActionTaken != threat.ActionTaken)
+                    {
+                        existing.ActionTaken = threat.ActionTaken;
+                        existing.Timestamp = threat.Timestamp;
+                    }
+                }
+                else
+                {
+                    _threatHistory.Insert(0, threat);
+                }
             }
             _ = _historyStore.SaveThreatAsync(threat);
         }

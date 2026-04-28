@@ -143,19 +143,31 @@ namespace RansomGuard.Service.Services
                 using var connection = new SqliteConnection(_connectionString);
                 await connection.OpenAsync().ConfigureAwait(false);
 
-                // Avoid duplicate rows: skip insert if the same path+name was logged within 24 hours.
+                // Check for existing recent threat for this path
                 var checkCmd = connection.CreateCommand();
-                checkCmd.CommandText = @"
-                    SELECT COUNT(*) FROM Threats
-                    WHERE Path = $path AND Name = $name
-                      AND Status = 'Active'
-                      AND Timestamp >= $since
-                ";
+                checkCmd.CommandText = "SELECT Id, Status FROM Threats WHERE Path = $path AND Name = $name AND Timestamp >= $since LIMIT 1";
                 checkCmd.Parameters.AddWithValue("$path", threat.Path);
                 checkCmd.Parameters.AddWithValue("$name", threat.Name);
-                checkCmd.Parameters.AddWithValue("$since", threat.Timestamp.AddMinutes(-30));
-                var existing = (long)(await checkCmd.ExecuteScalarAsync().ConfigureAwait(false) ?? 0L);
-                if (existing > 0) return; // Duplicate within 30 min — skip
+                checkCmd.Parameters.AddWithValue("$since", threat.Timestamp.AddMinutes(-15));
+                
+                using var reader = await checkCmd.ExecuteReaderAsync().ConfigureAwait(false);
+                if (await reader.ReadAsync().ConfigureAwait(false))
+                {
+                    long id = reader.GetInt64(0);
+                    string currentStatus = reader.GetString(1);
+                    
+                    // If the new status is more "advanced" than the current one, update it
+                    if (threat.ActionTaken != "Detected" && threat.ActionTaken != "Active" && currentStatus != threat.ActionTaken)
+                    {
+                        var updateCmd = connection.CreateCommand();
+                        updateCmd.CommandText = "UPDATE Threats SET Status = $status, Timestamp = $timestamp WHERE Id = $id";
+                        updateCmd.Parameters.AddWithValue("$status", threat.ActionTaken);
+                        updateCmd.Parameters.AddWithValue("$timestamp", threat.Timestamp);
+                        updateCmd.Parameters.AddWithValue("$id", id);
+                        await updateCmd.ExecuteNonQueryAsync().ConfigureAwait(false);
+                    }
+                    return; // Handled existing entry (either updated or skipped as redundant)
+                }
 
                 var command = connection.CreateCommand();
                 command.CommandText = @"
@@ -168,8 +180,8 @@ namespace RansomGuard.Service.Services
                 command.Parameters.AddWithValue("$path", threat.Path);
                 command.Parameters.AddWithValue("$processName", threat.ProcessName);
                 command.Parameters.AddWithValue("$processId", threat.ProcessId);
-                command.Parameters.AddWithValue("$severity", threat.Severity);
-                command.Parameters.AddWithValue("$status", "Active");
+                command.Parameters.AddWithValue("$severity", threat.Severity.ToString());
+                command.Parameters.AddWithValue("$status", threat.ActionTaken ?? "Detected");
 
                 await command.ExecuteNonQueryAsync().ConfigureAwait(false);
             }
@@ -189,7 +201,7 @@ namespace RansomGuard.Service.Services
                 await connection.OpenAsync().ConfigureAwait(false);
 
                 var command = connection.CreateCommand();
-                command.CommandText = "SELECT * FROM Threats WHERE Status = 'Active' ORDER BY Timestamp DESC";
+                command.CommandText = "SELECT * FROM Threats WHERE Status IN ('Active', 'Detected', 'Awaiting Confirmation', 'Mitigated', 'Mitigated (Auto)', 'Quarantined', 'Quarantined (Auto)', 'Terminated') ORDER BY Timestamp DESC LIMIT 100";
 
                 using var reader = await command.ExecuteReaderAsync().ConfigureAwait(false);
                 while (await reader.ReadAsync().ConfigureAwait(false))
@@ -205,7 +217,7 @@ namespace RansomGuard.Service.Services
                     // Map DB Status → ActionTaken so the dashboard filter (ActionTaken == "Detected")
                     // correctly includes unresolved threats.
                     string dbStatus = reader.GetString(8);
-                    string actionTaken = dbStatus == "Active" ? "Detected" : dbStatus;
+                    string actionTaken = dbStatus; // Just use the DB status directly
 
                     results.Add(new Threat
                     {
@@ -238,7 +250,7 @@ namespace RansomGuard.Service.Services
                 command.CommandText = @"
                     UPDATE Threats 
                     SET Status = $status 
-                    WHERE Path = $path AND Status = 'Active'
+                    WHERE Path = $path AND (Status = 'Active' OR Status = 'Awaiting Confirmation')
                 ";
                 command.Parameters.AddWithValue("$status", status);
                 command.Parameters.AddWithValue("$path", path);

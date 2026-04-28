@@ -91,7 +91,12 @@ namespace RansomGuard.ViewModels
             IEnumerable<Threat> activeThreats;
             lock (_threatsLock)
             {
-                activeThreats = _allThreats.Where(t => t.ActionTaken != "Quarantined" && t.ActionTaken != "Ignored").ToList();
+                activeThreats = _allThreats.Where(t => 
+                    t.ActionTaken != "Quarantined" && 
+                    t.ActionTaken != "Quarantined (Auto)" && 
+                    t.ActionTaken != "Ignored" && 
+                    t.ActionTaken != "Mitigated" && 
+                    t.ActionTaken != "Mitigated (Auto)").ToList();
             }
             
             CriticalThreatsCount = activeThreats.Count(t => t.Severity == ThreatSeverity.Critical);
@@ -111,7 +116,12 @@ namespace RansomGuard.ViewModels
             }
 
             // Always exclude things that have already been handled
-            filtered = filtered.Where(t => t.ActionTaken != "Quarantined" && t.ActionTaken != "Ignored");
+            filtered = filtered.Where(t => 
+                t.ActionTaken != "Quarantined" && 
+                t.ActionTaken != "Quarantined (Auto)" && 
+                t.ActionTaken != "Ignored" && 
+                t.ActionTaken != "Mitigated" && 
+                t.ActionTaken != "Mitigated (Auto)");
 
             // Search query filter
             if (!string.IsNullOrWhiteSpace(SearchQuery))

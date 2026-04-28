@@ -91,12 +91,12 @@ namespace RansomGuard.Services
         {
             try
             {
-                using (var sc = new System.ServiceProcess.ServiceController("RGService"))
+                using (var sc = new System.ServiceProcess.ServiceController("RGServicePackaged"))
                 {
                     if (sc.Status != System.ServiceProcess.ServiceControllerStatus.Running &&
                         sc.Status != System.ServiceProcess.ServiceControllerStatus.StartPending)
                     {
-                        var psi = new ProcessStartInfo("cmd.exe", "/c net start RGService")
+                        var psi = new ProcessStartInfo("cmd.exe", "/c net start RGServicePackaged")
                         {
                             Verb = "runas",
                             UseShellExecute = true,

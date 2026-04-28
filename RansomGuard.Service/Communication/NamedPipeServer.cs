@@ -384,6 +384,28 @@ namespace RansomGuard.Service.Communication
                             FileLogger.Log("ipc.log", $"[IPC Server] Mitigated threat ID: {request.Arguments}");
                         }
                         break;
+                    
+                    case CommandType.HandleMassEncryption:
+                        if (!string.IsNullOrEmpty(request.Arguments))
+                        {
+                            try
+                            {
+                                var payload = System.Text.Json.JsonSerializer.Deserialize<MassEncryptionPayload>(request.Arguments);
+                                if (payload != null)
+                                {
+                                    await _monitorService.HandleMassEncryptionResponse(
+                                        payload.ProcessId, 
+                                        payload.ProcessName, 
+                                        payload.FilesToQuarantine).ConfigureAwait(false);
+                                    FileLogger.Log("ipc.log", $"[IPC Server] Handled mass encryption response for process: {payload.ProcessName} (PID: {payload.ProcessId})");
+                                }
+                            }
+                            catch (Exception ex)
+                            {
+                                FileLogger.LogError("ipc.log", "[IPC Server] Failed to deserialize mass encryption payload", ex);
+                            }
+                        }
+                        break;
 
                     default:
                         FileLogger.LogWarning("ipc.log", $"[IPC Server] Unknown command type: {request.Command}");
@@ -394,6 +416,13 @@ namespace RansomGuard.Service.Communication
             {
                 FileLogger.LogError("ipc.log", $"[IPC Server] Error executing command {request.Command}", ex);
             }
+        }
+
+        private class MassEncryptionPayload
+        {
+            public int ProcessId { get; set; }
+            public string ProcessName { get; set; } = string.Empty;
+            public List<string> FilesToQuarantine { get; set; } = new();
         }
 
         private void ReliableBroadcast<T>(MessageType type, T data) => Broadcast(type, data, dropOldest: false);
