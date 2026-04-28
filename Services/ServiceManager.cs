@@ -7,7 +7,7 @@ namespace RansomGuard.Services
 {
     public class ServiceManager
     {
-        private const string ServiceName = "RGService";
+        private const string ServiceName = "RGServicePackaged";
         private const string ServiceDisplayName = "RansomGuard Sentinel";
         private const string TaskName = "RansomGuardSilentStart";
         private const string WatchdogProcessName = "RGWorker";

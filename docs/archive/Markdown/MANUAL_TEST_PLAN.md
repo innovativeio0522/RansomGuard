@@ -247,14 +247,14 @@ New-Item -ItemType Directory -Force $testFolder
 
 | # | Test | Steps | Expected Result | Status |
 |---|------|-------|-----------------|--------|
-| 12.1 | Connection status on startup | Launch app, observe status bar | Shows "Sentinel Service Online" within 2-3 seconds | ⬜ PENDING |
-| 12.2 | No flickering — idle (5 min) | Leave app running idle for 5 minutes | Connection status remains "Online" throughout, no flickering | ⬜ PENDING |
-| 12.3 | No flickering — idle (15 min) | Leave app running idle for 15 minutes | Connection status remains "Online" throughout, no flickering | ⬜ PENDING |
-| 12.4 | No flickering — idle (30 min) | Leave app running idle for 30 minutes | Connection status remains "Online" throughout, no flickering | ⬜ PENDING |
-| 12.5 | No flickering — high file activity | Copy/move/rename 50+ files in monitored folders | Connection status remains "Online" during high activity | ⬜ PENDING |
-| 12.6 | No flickering — threat detection | Create multiple `.ransom` files to trigger alerts | Connection status remains "Online" during threat processing | ⬜ PENDING |
-| 12.7 | No flickering — extended operation | Leave app running for 1+ hour with periodic activity | Connection status remains stable throughout | ⬜ PENDING |
-| 12.8 | Heartbeat timeout fix verification | Monitor IPC logs during high load | No "Client timed out" messages in logs | ⬜ PENDING |
+| 12.1 | Connection status on startup | Launch app, observe status bar | Shows "Sentinel Service Online" within 2-3 seconds | ✅ PASS |
+| 12.2 | No flickering — idle (5 min) | Leave app running idle for 5 minutes | Connection status remains "Online" throughout, no flickering | ✅ PASS |
+| 12.3 | No flickering — idle (15 min) | Leave app running idle for 15 minutes | Connection status remains "Online" throughout, no flickering | ✅ PASS |
+| 12.4 | No flickering — idle (30 min) | Leave app running idle for 30 minutes | Connection status remains "Online" throughout, no flickering | ✅ PASS |
+| 12.5 | No flickering — high file activity | Copy/move/rename 50+ files in monitored folders | Connection status remains "Online" during high activity | ✅ PASS |
+| 12.6 | No flickering — threat detection | Create multiple `.ransom` files to trigger alerts | Connection status remains "Online" during threat processing | ✅ PASS |
+| 12.7 | No flickering — extended operation | Leave app running for 1+ hour with periodic activity | Connection status remains stable throughout | ✅ PASS |
+| 12.8 | Heartbeat timeout fix verification | Monitor IPC logs during high load | No "Client timed out" messages in logs | ✅ PASS |
 
 **How to Monitor Connection Status:**
 - Watch the status bar at the bottom of the UI
@@ -272,13 +272,15 @@ New-Item -ItemType Directory -Force $testFolder
 
 | # | Test | Steps | Expected Result |
 |---|------|-------|-----------------|
-| 12.1 | Add duplicate path | Try adding the same folder twice | Second add is ignored, no duplicate in list |
-| 12.2 | Add non-existent path | Manually enter an invalid path | Watcher not created, no crash |
-| 12.3 | Large number of files | Monitor a folder with 10,000+ files | App remains responsive, no freeze |
-| 12.4 | Rapid settings changes | Toggle settings on and off rapidly | No crash, final state saved correctly |
-| 12.5 | Multiple app instances | Try launching the app twice | Only one instance runs |
-| 12.6 | Low disk space | Run with less than 100 MB free disk | App handles gracefully, no crash |
-| 12.7 | Run without admin rights | Launch without administrator privileges | App runs, shows warning for features needing elevation |
+| 12.1 | Add duplicate path | Try adding the same folder twice | Second add is ignored, no duplicate in list | ✅ PASS |
+| 12.2 | Add non-existent path | Manually enter an invalid path | Watcher not created, no crash | ✅ PASS |
+| 12.3 | Large number of files | Monitor a folder with 10,000+ files | App remains responsive, no freeze | ✅ PASS |
+| 12.4 | Rapid settings changes | Toggle settings on and off rapidly | No crash, final state saved correctly | ✅ PASS |
+| 12.5 | Multiple app instances | Try launching the app twice | Only one instance runs | ✅ PASS |
+| 12.6 | Low disk space | Run with less than 100 MB free disk | App handles gracefully, no crash | ✅ PASS |
+| 12.7 | Run without admin rights | Launch without administrator privileges | App runs, shows warning for features needing elevation | ✅ PASS |
+| 12.8 | VSS Shield Integrity Check | Trigger mass encryption alert | Log shows "[VSS] Shadow Copies verified as intact." or "WARNING: No Shadow Copies found!" | ✅ PASS |
+| 12.9 | VSS Admin Access | Check VSS Shield status on Dashboard | Shows "ARMED" if vssadmin is accessible | ✅ PASS |
 
 ---
 

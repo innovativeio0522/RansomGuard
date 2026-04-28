@@ -29,8 +29,12 @@ namespace RansomGuard.Service.Engine
         /// </summary>
         TelemetryData GetLatestTelemetry();
 
-        // Metrics for individual lookups
         double CurrentCpuUsage { get; }
         long CurrentMemoryUsage { get; }
+
+        /// <summary>
+        /// Increments the count of threats that have been successfully blocked/mitigated.
+        /// </summary>
+        void IncrementThreatsBlocked();
     }
 }

@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Runtime.InteropServices;
+using System.Runtime.Versioning;
 
 namespace RansomGuard.Core.Helpers
 {
@@ -80,15 +81,18 @@ namespace RansomGuard.Core.Helpers
         /// Returns the root of all user profiles on this machine (typically C:\Users).
         /// Uses registry to get the correct path — safe to call from Session 0 (LocalSystem).
         /// </summary>
+        [SupportedOSPlatform("windows")]
         public static string GetUsersRootPath()
         {
             try
             {
                 // Read from registry — works correctly in Session 0, unlike environment variables
                 // HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\ProfileList\ProfilesDirectory
+#pragma warning disable CA1416 // Validate platform compatibility - RansomGuard is Windows-only
                 using var key = Microsoft.Win32.Registry.LocalMachine.OpenSubKey(
                     @"SOFTWARE\Microsoft\Windows NT\CurrentVersion\ProfileList");
                 var profilesDir = key?.GetValue("ProfilesDirectory") as string;
+#pragma warning restore CA1416
                 if (!string.IsNullOrEmpty(profilesDir))
                 {
                     profilesDir = Environment.ExpandEnvironmentVariables(profilesDir);
@@ -116,6 +120,7 @@ namespace RansomGuard.Core.Helpers
         /// These are always watched regardless of what is in config.json.
         /// Includes: Documents, Desktop, Pictures, Music, Videos, Downloads, OneDrive.
         /// </summary>
+        [SupportedOSPlatform("windows")]
         public static IEnumerable<string> GetAllUsersStandardFolders()
         {
             var folders = new HashSet<string>(StringComparer.OrdinalIgnoreCase);

@@ -38,7 +38,7 @@ dotnet publish RansomGuard.Watchdog\RansomGuard.Watchdog.csproj -c $Configuratio
 
 # 2. Publish Main UI Project
 Write-Host "Publishing RansomGuard UI..." -ForegroundColor Cyan
-$uiPublishDir = "bin\$Configuration\net8.0-windows\win-$Platform\publish\"
+$uiPublishDir = "bin\$Platform\$Configuration\net8.0-windows\win-$Platform\publish\"
 dotnet publish RansomGuard.csproj -c $Configuration -r win-$Platform --self-contained true -o $uiPublishDir
 
 # Sync Watchdog into UI folder

@@ -1,4 +1,3 @@
-using System;
 using System.Windows;
 using RansomGuard.Services;
 using RansomGuard.Core.Services;

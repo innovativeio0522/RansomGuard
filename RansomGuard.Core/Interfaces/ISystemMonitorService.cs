@@ -153,5 +153,15 @@ namespace RansomGuard.Core.Interfaces
         /// Instructs the service to perform full mitigation (Kill + Quarantine) for a specific threat.
         /// </summary>
         Task MitigateThreat(string threatId);
+        
+        /// <summary>
+        /// Handles mass encryption response: kills the malicious process and quarantines affected files.
+        /// Called when user confirms or timeout occurs (5 seconds) for mass encryption threats.
+        /// </summary>
+        /// <param name="processId">The process ID to terminate</param>
+        /// <param name="processName">The process name for logging</param>
+        /// <param name="filesToQuarantine">List of file paths to quarantine</param>
+        /// <returns>A task representing the asynchronous operation</returns>
+        Task HandleMassEncryptionResponse(int processId, string processName, List<string> filesToQuarantine);
     }
 }

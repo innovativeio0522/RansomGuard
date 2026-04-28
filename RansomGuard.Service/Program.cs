@@ -6,7 +6,7 @@ try
     var builder = Host.CreateApplicationBuilder(args);
     builder.Services.AddWindowsService(options =>
     {
-        options.ServiceName = "RGService";
+        options.ServiceName = "RGServicePackaged";
     });
     builder.Services.AddHostedService<Worker>();
     builder.Services.AddHostedService<RansomGuard.Service.Engine.WatchdogPersistenceService>();

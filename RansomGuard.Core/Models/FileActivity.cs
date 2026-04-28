@@ -15,6 +15,7 @@ namespace RansomGuard.Core.Models
         public bool IsSuspicious { get; set; } = false;
         
         public string ProcessName { get; set; } = "System";
+        public int ProcessId { get; set; } = 0;
         public string ResponsibleProcess => ProcessName; // Alias for UI
     }
 }

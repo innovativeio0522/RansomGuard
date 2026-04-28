@@ -195,14 +195,25 @@ namespace RansomGuard.Services
                                  var existing = _recentThreats.FirstOrDefault(t => string.Equals(t.Path, threat.Path, StringComparison.OrdinalIgnoreCase));
                                  if (existing != null)
                                  {
-                                     // Only invoke event if status has actually changed
-                                     if (existing.ActionTaken != threat.ActionTaken)
+                                     // Only invoke event if status has actually changed OR if affected files count updated
+                                     if (existing.ActionTaken != threat.ActionTaken || 
+                                         (existing.AffectedFiles?.Count ?? 0) != (threat.AffectedFiles?.Count ?? 0))
                                      {
                                          existing.ActionTaken = threat.ActionTaken;
+                                         
+                                         // Update the list content rather than replacing the reference
+                                         if (existing.AffectedFiles == null) existing.AffectedFiles = new List<string>();
+                                         if (threat.AffectedFiles != null)
+                                         {
+                                             existing.AffectedFiles.Clear();
+                                             existing.AffectedFiles.AddRange(threat.AffectedFiles);
+                                         }
+                                         
                                          shouldInvoke = true;
                                      }
                                      existing.Severity = threat.Severity;
                                      existing.Timestamp = threat.Timestamp;
+                                     existing.Description = threat.Description;
                                  }
                                  else 
                                  {
@@ -382,6 +393,20 @@ namespace RansomGuard.Services
         {
             if (IsConnected)
                 await SendCommand(CommandType.MitigateThreat, threatId).ConfigureAwait(false);
+        }
+
+        public async Task HandleMassEncryptionResponse(int processId, string processName, List<string> filesToQuarantine)
+        {
+            if (IsConnected)
+            {
+                var payload = new
+                {
+                    ProcessId = processId,
+                    ProcessName = processName,
+                    FilesToQuarantine = filesToQuarantine
+                };
+                await SendCommand(CommandType.HandleMassEncryption, JsonSerializer.Serialize(payload)).ConfigureAwait(false);
+            }
         }
 
         public void Dispose()

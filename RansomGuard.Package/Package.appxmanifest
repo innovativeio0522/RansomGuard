@@ -12,7 +12,7 @@
   <Identity
     Name="RGCoreEssentials"
     Publisher="CN=RansomGuard"
-    Version="1.0.1.11" />
+    Version="1.0.1.17" />
 
   <Properties>
     <DisplayName>RG Core Essentials</DisplayName>
@@ -55,7 +55,7 @@
           </uap5:AppExecutionAlias>
         </uap5:Extension>
         <desktop6:Extension Category="windows.service" Executable="Service\RGService.exe" EntryPoint="Windows.FullTrustApplication">
-          <desktop6:Service Name="RGService" StartupType="auto" StartAccount="localSystem" />
+          <desktop6:Service Name="RGServicePackaged" StartupType="auto" StartAccount="localSystem" />
         </desktop6:Extension>
       </Extensions>
     </Application>
