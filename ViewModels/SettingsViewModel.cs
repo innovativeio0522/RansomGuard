@@ -56,6 +56,12 @@ namespace RansomGuard.ViewModels
         [ObservableProperty]
         private bool _isServiceInstalled;
 
+        [ObservableProperty]
+        private bool _isLanCircuitBreakerEnabled;
+
+        [ObservableProperty]
+        private string _lanSharedSecret = string.Empty;
+
         public string SensitivityLabel => SensitivityLevel switch
         {
             1 => "LOW",
@@ -87,6 +93,8 @@ namespace RansomGuard.ViewModels
             IsWatchdogEnabled = ConfigurationService.Instance.WatchdogEnabled;
             IsNetworkIsolationEnabled = ConfigurationService.Instance.NetworkIsolationEnabled;
             IsEmergencyShutdownEnabled = ConfigurationService.Instance.EmergencyShutdownEnabled;
+            IsLanCircuitBreakerEnabled = ConfigurationService.Instance.LanCircuitBreakerEnabled;
+            LanSharedSecret = ConfigurationService.Instance.LanSharedSecret;
             IsServiceInstalled = ServiceManager.IsServiceInstalled();
 
             // Handle collection changes with debouncing
@@ -98,6 +106,9 @@ namespace RansomGuard.ViewModels
             OnPropertyChanged(nameof(SensitivityLabel));
             SaveConfig();
         }
+
+        partial void OnIsLanCircuitBreakerEnabledChanged(bool value) => SaveConfig();
+        partial void OnLanSharedSecretChanged(string value) => SaveConfig();
 
         protected override void OnPropertyChanged(PropertyChangedEventArgs e)
         {
@@ -193,6 +204,8 @@ namespace RansomGuard.ViewModels
             ConfigurationService.Instance.WatchdogEnabled = IsWatchdogEnabled;
             ConfigurationService.Instance.NetworkIsolationEnabled = IsNetworkIsolationEnabled;
             ConfigurationService.Instance.EmergencyShutdownEnabled = IsEmergencyShutdownEnabled;
+            ConfigurationService.Instance.LanCircuitBreakerEnabled = IsLanCircuitBreakerEnabled;
+            ConfigurationService.Instance.LanSharedSecret = LanSharedSecret;
             ConfigurationService.Instance.Save();
             
             // Notify other services (like SentinelEngine) that paths have changed

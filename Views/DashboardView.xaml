@@ -109,6 +109,8 @@
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="16"/>
                     <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="16"/>
+                    <ColumnDefinition Width="*"/>
                 </Grid.ColumnDefinitions>
 
                 <!-- Honey Pot Trap -->
@@ -170,6 +172,40 @@
                             <TextBlock Text="EMERGENCY LOCKDOWN" Style="{StaticResource TextLabel}" FontSize="9"/>
                             <TextBlock Text="{Binding IsPanicModeEngaged, Converter={StaticResource BooleanToStatusConverter}, ConverterParameter='ENGAGED;STANDBY'}" 
                                       FontSize="12" FontWeight="Bold" Foreground="{Binding IsPanicModeEngaged, Converter={StaticResource BooleanToBrushConverter}, ConverterParameter=TertiaryBrush}"/>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+
+                <!-- LAN Shield -->
+                <Border Grid.Column="6" Background="{StaticResource SurfaceContainerLowBrush}" CornerRadius="8" Padding="10,8">
+                    <StackPanel Orientation="Horizontal">
+                        <Ellipse Width="10" Height="10" Margin="0,0,8,0"
+                                 Fill="{Binding CircuitBreakerStatus, Converter={StaticResource StringToBrushConverter}, ConverterParameter='ARMED:#4edea3;TRIPPED:#ff5252;DISABLED:#808080'}">
+                            <Ellipse.Style>
+                                <Style TargetType="Ellipse">
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding CircuitBreakerStatus}" Value="TRIPPED">
+                                            <DataTrigger.EnterActions>
+                                                <BeginStoryboard>
+                                                    <Storyboard RepeatBehavior="Forever">
+                                                        <DoubleAnimation Storyboard.TargetProperty="Opacity" From="1" To="0.3" Duration="0:0:0.5" AutoReverse="True"/>
+                                                    </Storyboard>
+                                                </BeginStoryboard>
+                                            </DataTrigger.EnterActions>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Ellipse.Style>
+                        </Ellipse>
+                        <StackPanel>
+                            <TextBlock Text="LAN CIRCUIT BREAKER" Style="{StaticResource TextLabel}" FontSize="9"/>
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="{Binding CircuitBreakerStatus}" FontSize="12" FontWeight="Bold" 
+                                           Foreground="{Binding CircuitBreakerStatus, Converter={StaticResource StringToBrushConverter}, ConverterParameter='ARMED:#4edea3;TRIPPED:#ff5252;DISABLED:#808080'}"/>
+                                <TextBlock Text=" | " FontSize="12" Foreground="{StaticResource OnSurfaceVariantBrush}" Opacity="0.5"/>
+                                <TextBlock Text="{Binding ActivePeerCount}" FontSize="12" FontWeight="Bold" Foreground="{StaticResource PrimaryBrush}"/>
+                                <TextBlock Text=" PEERS" FontSize="12" Foreground="{StaticResource OnSurfaceVariantBrush}" Opacity="0.5" Margin="4,0,0,0"/>
+                            </StackPanel>
                         </StackPanel>
                     </StackPanel>
                 </Border>

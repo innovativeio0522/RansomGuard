@@ -281,6 +281,48 @@
                             </Grid>
                         </StackPanel>
                     </Border>
+ 
+                    <!-- Distributed Network Defense Section -->
+                    <Border Background="{StaticResource SurfaceContainerLowBrush}" Padding="32" Margin="0,0,0,32" CornerRadius="12">
+                        <StackPanel>
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,32">
+                                <Viewbox Width="24" Height="24" Margin="0,0,12,0">
+                                    <Path Data="M12,11L12,13H10V11H12M18,11L18,13H16V11H18M12,5L12,7H10V5H12M18,5L18,7H16V5H18M6,11L6,13H4V11H6M6,5L6,7H4V5H6M12,17L12,19H10V17H12M18,17L18,19H16V17H18M6,17L6,19H4V17H6" 
+                                          Fill="{StaticResource PrimaryBrush}"/>
+                                </Viewbox>
+                                <TextBlock Text="Distributed Network Defense" FontSize="20" FontWeight="ExtraBold" Foreground="{StaticResource OnSurfaceBrush}" VerticalAlignment="Center"/>
+                            </StackPanel>
+
+                            <!-- LAN Circuit Breaker Toggle -->
+                            <Grid Margin="0,0,0,24">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0">
+                                    <TextBlock Text="LAN Circuit Breaker" FontSize="14" FontWeight="Bold" Foreground="{StaticResource OnSurfaceBrush}"/>
+                                    <TextBlock Text="Enable peer-to-peer threat signaling. If any node in your LAN detects mass encryption, this node will immediately trigger emergency protocols." FontSize="12" Foreground="{StaticResource OnSurfaceVariantBrush}" Opacity="0.7" Margin="0,4,0,0" TextWrapping="Wrap"/>
+                                </StackPanel>
+                                <ToggleButton Grid.Column="1" 
+                                              Width="44" 
+                                              Height="22" 
+                                              IsChecked="{Binding IsLanCircuitBreakerEnabled}" 
+                                              Style="{StaticResource ToggleSwitchStyle}" 
+                                              VerticalAlignment="Center" 
+                                              Margin="24,0,0,0"/>
+                            </Grid>
+
+                            <!-- LAN Shared Secret -->
+                            <StackPanel Visibility="{Binding IsLanCircuitBreakerEnabled, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                <TextBlock Text="Shared Authentication Secret" FontSize="14" FontWeight="Bold" Foreground="{StaticResource OnSurfaceBrush}"/>
+                                <TextBlock Text="Used for HMAC signing of alerts. All nodes must use the same secret to trust each other. Leave empty for open trust (not recommended)." FontSize="12" Foreground="{StaticResource OnSurfaceVariantBrush}" Opacity="0.7" Margin="0,4,0,12" TextWrapping="Wrap"/>
+                                <TextBox Text="{Binding LanSharedSecret, UpdateSourceTrigger=PropertyChanged}" 
+                                         Padding="12" 
+                                         FontSize="13" 
+                                         FontFamily="Consolas"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
 
                     <!-- Exclusions Section -->
                     <Border Background="{StaticResource SurfaceContainerLowBrush}" Padding="32" CornerRadius="12">

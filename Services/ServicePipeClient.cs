@@ -36,6 +36,7 @@ namespace RansomGuard.Services
 
         public event Action? ProcessListUpdated;
         public event Action<TelemetryData>? TelemetryUpdated;
+        public event Action<LanPeerListUpdate>? LanPeerListUpdated;
 
         public bool IsConnected { get; private set; }
         public bool IsHandshaked { get; private set; }
@@ -52,7 +53,7 @@ namespace RansomGuard.Services
         private readonly HashSet<string> _processedEventIds = new();
         private readonly object _eventIdsLock = new();
 
-        public ServicePipeClient(string pipeName = "SentinelGuardPipe")
+        public ServicePipeClient(string pipeName = "SentinelGuardPipeV2")
         {
             _pipeName = pipeName;
             Start();
@@ -236,8 +237,14 @@ namespace RansomGuard.Services
                         var procs = JsonSerializer.Deserialize<List<ProcessInfo>>(packet.Payload);
                         if (procs != null) { lock (_processLock) { _lastProcesses = procs; } ProcessListUpdated?.Invoke(); }
                         break;
+                    case MessageType.LanPeerUpdate:
+                        var lanUpdate = JsonSerializer.Deserialize<LanPeerListUpdate>(packet.Payload);
+                        if (lanUpdate != null) LanPeerListUpdated?.Invoke(lanUpdate);
+                        break;
                     case MessageType.HandshakeResponse:
                         IsHandshaked = true;
+                        IsConnected = true; // Ensure this is set
+                        ConnectionStatusChanged?.Invoke(true);
                         Console.WriteLine("[IPC Client] Handshake confirmed by service.");
                         break;
                     case MessageType.Acknowledge:

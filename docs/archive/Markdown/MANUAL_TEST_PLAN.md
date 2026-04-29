@@ -281,6 +281,22 @@ New-Item -ItemType Directory -Force $testFolder
 | 12.7 | Run without admin rights | Launch without administrator privileges | App runs, shows warning for features needing elevation | ✅ PASS |
 | 12.8 | VSS Shield Integrity Check | Trigger mass encryption alert | Log shows "[VSS] Shadow Copies verified as intact." or "WARNING: No Shadow Copies found!" | ✅ PASS |
 | 12.9 | VSS Admin Access | Check VSS Shield status on Dashboard | Shows "ARMED" if vssadmin is accessible | ✅ PASS |
+ 
+---
+ 
+## 13. LAN Circuit Breaker Tests
+ 
+| # | Test | Steps | Expected Result | Result |
+|---|------|-------|-----------------|--------|
+| 13.1 | Peer Discovery | Run RansomGuard on two machines on the same LAN. | Both machines show "1 PEERS" on the Dashboard. | |
+| 13.2 | Circuit Break Trigger | Trigger mass encryption on Node A. | Node B Dashboard status changes to "TRIPPED" and triggers local lockdown. | |
+| 13.3 | HMAC Authentication | Set a shared secret on Node A but not Node B. Node A triggers alert. | Node B ignores the alert (HMAC mismatch/missing). | |
+| 13.4 | Shared Secret Success | Set the same shared secret on Node A and Node B. Node A triggers alert. | Node B accepts and triggers lockdown. | |
+| 13.5 | Peer Timeout | Close RansomGuard on Node B. | Node A Dashboard updates to "0 PEERS" after ~15-20 seconds. | |
+| 13.6 | UI Configuration | Toggle LAN Circuit Breaker in Settings. | Dashboard card shows "DISABLED" or "ARMED" correctly. | |
+ 
+---
+
 
 ---
 

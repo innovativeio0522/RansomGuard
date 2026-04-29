@@ -41,7 +41,7 @@ namespace RansomGuard.Service.Communication
 
         private readonly ConcurrentDictionary<Guid, ClientContext> _clients = new();
 
-        public NamedPipeServer(ISystemMonitorService monitorService, ITelemetryService telemetryService, string pipeName = "SentinelGuardPipe")
+        public NamedPipeServer(ISystemMonitorService monitorService, ITelemetryService telemetryService, string pipeName = "SentinelGuardPipeV2")
         {
             _monitorService = monitorService;
             _telemetryService = telemetryService;
@@ -129,15 +129,25 @@ namespace RansomGuard.Service.Communication
                 NamedPipeServerStream? clientPipe = null;
                 try
                 {
+                    FileLogger.Log("ipc.log", $"[IPC Server] Creating pipe: {_pipeName}");
+                    
+                    // Create pipe with security that allows all users to connect
+                    // When service runs as LocalSystem, we need to explicitly allow user accounts
                     var pipeSecurity = new PipeSecurity();
                     
-                    // Restrict access to authenticated users and system to prevent unauthorized access/spoofing
-                    pipeSecurity.AddAccessRule(new PipeAccessRule(new SecurityIdentifier(WellKnownSidType.BuiltinAdministratorsSid, null), PipeAccessRights.FullControl, AccessControlType.Allow));
-                    pipeSecurity.AddAccessRule(new PipeAccessRule(new SecurityIdentifier(WellKnownSidType.AuthenticatedUserSid, null), PipeAccessRights.ReadWrite, AccessControlType.Allow));
-                    pipeSecurity.AddAccessRule(new PipeAccessRule(new SecurityIdentifier(WellKnownSidType.LocalSystemSid, null), PipeAccessRights.FullControl, AccessControlType.Allow));
-
-                    FileLogger.Log("ipc.log", $"[IPC Server] Creating pipe: {_pipeName}");
-                    pipeServer = NamedPipeServerStreamAcl.Create(_pipeName, PipeDirection.InOut, NamedPipeServerStream.MaxAllowedServerInstances, PipeTransmissionMode.Byte, PipeOptions.Asynchronous, 0, 0, pipeSecurity);
+                    // Allow Everyone to read/write
+                    var everyoneSid = new SecurityIdentifier(WellKnownSidType.WorldSid, null);
+                    var everyoneRule = new PipeAccessRule(everyoneSid, PipeAccessRights.ReadWrite, AccessControlType.Allow);
+                    pipeSecurity.AddAccessRule(everyoneRule);
+                    
+                    // Allow LocalSystem full control
+                    var localSystemSid = new SecurityIdentifier(WellKnownSidType.LocalSystemSid, null);
+                    var systemRule = new PipeAccessRule(localSystemSid, PipeAccessRights.FullControl, AccessControlType.Allow);
+                    pipeSecurity.AddAccessRule(systemRule);
+                    
+                    pipeServer = NamedPipeServerStreamAcl.Create(_pipeName, PipeDirection.InOut, 10, PipeTransmissionMode.Byte, PipeOptions.Asynchronous, 4096, 4096, pipeSecurity);
+                    
+                    FileLogger.Log("ipc.log", "[IPC Server] Pipe created with Everyone access");
 
                     FileLogger.Log("ipc.log", "[IPC Server] Waiting for connection...");
                     await pipeServer.WaitForConnectionAsync(token).ConfigureAwait(false);

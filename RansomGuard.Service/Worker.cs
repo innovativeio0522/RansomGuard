@@ -16,6 +16,7 @@ public class Worker : BackgroundService
     private HoneyPotService? _honeyPot;
     private VssShieldService? _vssShield;
     private ActiveResponseService? _activeResponse;
+    private LanCircuitBreaker? _lanCircuitBreaker;
     private NamedPipeServer? _pipeServer;
     private readonly ILogger<Worker> _logger;
 
@@ -71,13 +72,30 @@ public class Worker : BackgroundService
             var processClassifier = new ProcessIdentityService(authenticodeVerifier);
             var quarantine = new QuarantineService(historyStore);
 
-            // 3. Initialize core engine with injected services
+            // 3a. Initialize LAN Circuit Breaker
+            _lanCircuitBreaker = new LanCircuitBreaker();
+
+            // 3b. Initialize core engine with injected services
             _engine = new SentinelEngine(
                 _telemetryService, 
                 _historyManager, 
                 entropyAnalyzer, 
                 processClassifier, 
-                quarantine);
+                quarantine,
+                _lanCircuitBreaker);
+
+            // Wire LAN Circuit Breaker events
+            _lanCircuitBreaker.CircuitBreakReceived += (threatInfo) =>
+            {
+                _logger.LogCritical("[LAN] CIRCUIT BREAK received from peer: {info}", threatInfo);
+                FileLogger.Log("sentinel_engine.log", $"[LAN] Executing local critical response due to remote circuit break: {threatInfo}");
+                _engine.ExecuteCriticalResponse();
+            };
+
+            _lanCircuitBreaker.PeerListChanged += (update) =>
+            {
+                _pipeServer?.Broadcast(MessageType.LanPeerUpdate, update, true);
+            };
 
             _activeResponse = new ActiveResponseService();
             _honeyPot = new HoneyPotService(_engine);
@@ -99,6 +117,7 @@ public class Worker : BackgroundService
             _telemetryService.Start();
             _honeyPot.Start();
             _vssShield.Start();
+            _lanCircuitBreaker.Start();
             _pipeServer.Start();
 
             _engine.IsHoneyPotActive = true;
@@ -130,6 +149,7 @@ public class Worker : BackgroundService
             {
                 _telemetryService?.Stop();
                 _vssShield?.Stop();
+                _lanCircuitBreaker?.Stop();
                 _pipeServer?.Stop();
                 _honeyPot?.Stop();
             }
@@ -144,6 +164,7 @@ public class Worker : BackgroundService
                 _engine?.Dispose();
                 _telemetryService?.Dispose();
                 _historyManager?.Dispose();
+                _lanCircuitBreaker?.Dispose();
                 _honeyPot?.Dispose();
                 (_vssShield as IDisposable)?.Dispose();
                 (_activeResponse as IDisposable)?.Dispose();

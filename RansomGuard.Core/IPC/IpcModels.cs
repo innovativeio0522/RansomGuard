@@ -17,7 +17,9 @@ namespace RansomGuard.Core.IPC
         HandshakeRequest,
         HandshakeResponse,
         Heartbeat,
-        Acknowledge
+        Acknowledge,
+        LanPeerUpdate,
+        LanCircuitBreakAlert
     }
 
     public class IpcPacket

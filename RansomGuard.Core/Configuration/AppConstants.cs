@@ -219,11 +219,12 @@ namespace RansomGuard.Core.Configuration
             public const int MessageQueueHighWaterMark = 1800;
             
             /// <summary>
-            /// Client heartbeat timeout (120 seconds / 2 minutes)
+            /// Client heartbeat timeout (600 seconds / 10 minutes)
             /// How long before a client is considered disconnected
-            /// Increased to prevent false disconnections during high load
+            /// Set to 60x the heartbeat interval (10s) to provide very generous buffer
+            /// This prevents any flickering disconnections - connections should be stable indefinitely
             /// </summary>
-            public const int ClientHeartbeatTimeoutSeconds = 120;
+            public const int ClientHeartbeatTimeoutSeconds = 600;
             
             /// <summary>
             /// Retry delay jitter range (±200ms)
