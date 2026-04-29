@@ -39,6 +39,11 @@ namespace RansomGuard.Core.Interfaces
         event Action<TelemetryData> TelemetryUpdated;
 
         /// <summary>
+        /// Raised when the LAN peer list has been updated.
+        /// </summary>
+        event Action<LanPeerListUpdate> LanPeerListUpdated;
+
+        /// <summary>
         /// Gets a value indicating whether the service is connected to the background monitoring engine.
         /// </summary>
         bool IsConnected { get; }

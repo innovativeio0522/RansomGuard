@@ -142,6 +142,9 @@ namespace RansomGuard.Core.Services
                         instance.NetworkIsolationEnabled = newConfig.NetworkIsolationEnabled;
                         instance.EmergencyShutdownEnabled = newConfig.EmergencyShutdownEnabled;
                         instance.BaseThreatScore = newConfig.BaseThreatScore;
+                        instance.LanCircuitBreakerEnabled = newConfig.LanCircuitBreakerEnabled;
+                        instance.LanSharedSecret = newConfig.LanSharedSecret;
+                        instance.LanBroadcastPort = newConfig.LanBroadcastPort;
 
                         
                         instance.NotifyPathsChanged();
@@ -245,6 +248,23 @@ namespace RansomGuard.Core.Services
         /// the PC when a critical threat is detected.
         /// </summary>
         public bool EmergencyShutdownEnabled { get; set; } = false;
+
+        /// <summary>
+        /// Gets or sets whether the LAN Circuit Breaker is enabled.
+        /// When enabled, this node broadcasts beacons and responds to circuit break signals from peers.
+        /// </summary>
+        public bool LanCircuitBreakerEnabled { get; set; } = false;
+
+        /// <summary>
+        /// Shared secret for HMAC authentication of LAN broadcast messages.
+        /// If empty, all LAN peers are trusted (open mode).
+        /// </summary>
+        public string LanSharedSecret { get; set; } = string.Empty;
+
+        /// <summary>
+        /// UDP port for LAN Circuit Breaker communication.
+        /// </summary>
+        public int LanBroadcastPort { get; set; } = 47700;
 
 
         /// <summary>

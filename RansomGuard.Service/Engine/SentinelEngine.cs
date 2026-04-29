@@ -70,6 +70,7 @@ namespace RansomGuard.Service.Engine
 #pragma warning restore CS0067
         public event Action? ProcessListUpdated = delegate { };
         public event Action<TelemetryData>? TelemetryUpdated;
+        public event Action<LanPeerListUpdate>? LanPeerListUpdated;
 
         private readonly ITelemetryService _telemetryService;
         private readonly IQuarantineService _quarantine;
@@ -85,6 +86,7 @@ namespace RansomGuard.Service.Engine
         private readonly ConcurrentDictionary<string, byte> _activeAnalyses = new();
         private readonly CancellationTokenSource _cts = new();
         private Task? _processorTask;
+        private LanCircuitBreaker? _lanCircuitBreaker;
 
         private record FileEvent(string Path, string Action);
         private readonly Queue<(DateTime Timestamp, string ProcessName, int ProcessId, string FilePath)> _recentChanges = new();
@@ -104,13 +106,15 @@ namespace RansomGuard.Service.Engine
             HistoryManager? history = null,
             IEntropyAnalyzer? entropyAnalyzer = null,
             IProcessIdentityClassifier? processClassifier = null,
-            IQuarantineService? quarantine = null)
+            IQuarantineService? quarantine = null,
+            LanCircuitBreaker? lanCircuitBreaker = null)
         {
             _telemetryService = telemetry ?? new TelemetryService();
             _historyManager = history ?? new HistoryManager(new HistoryStore());
             _entropyAnalyzer = entropyAnalyzer ?? new EntropyAnalysisService();
             _processClassifier = processClassifier ?? new ProcessIdentityService();
             _quarantine = quarantine ?? new QuarantineService(new HistoryStore());
+            _lanCircuitBreaker = lanCircuitBreaker;
 
             // Initialize background processing pipeline
             _eventChannel = Channel.CreateUnbounded<FileEvent>(new UnboundedChannelOptions
@@ -127,6 +131,11 @@ namespace RansomGuard.Service.Engine
             // Link telemetry updates
             _telemetryService.TelemetryUpdated += (data) => TelemetryUpdated?.Invoke(GetTelemetry());
             
+            // Wire LAN events
+            if (_lanCircuitBreaker != null)
+            {
+                _lanCircuitBreaker.PeerListChanged += (update) => LanPeerListUpdated?.Invoke(update);
+            }            
             // Run cleanup more frequently (every 5 minutes instead of 1 hour)
             _engineCleanupTimer = new System.Timers.Timer(DebounceCleanupIntervalMs);
             _engineCleanupTimer.Elapsed += (s, e) => {
@@ -696,7 +705,7 @@ namespace RansomGuard.Service.Engine
             }
         }
 
-        private void ExecuteCriticalResponse()
+        internal void ExecuteCriticalResponse()
         {
             var config = ConfigurationService.Instance;
             FileLogger.Log("sentinel_engine.log", $"[CRITICAL] ExecuteCriticalResponse triggered. NetworkIsolation={config.NetworkIsolationEnabled}, Shutdown={config.EmergencyShutdownEnabled}");
@@ -842,6 +851,7 @@ namespace RansomGuard.Service.Engine
             data.LastScanTime = _lastScanTime;
             data.TotalScansCount = ConfigurationService.Instance.TotalScansCount;
             data.FilesPerHour = _historyManager.GetFilesPerHour();
+            data.ActiveEndpointsCount = _lanCircuitBreaker?.PeerCount ?? 0;
             
             return data;
         }
@@ -1075,8 +1085,11 @@ namespace RansomGuard.Service.Engine
 
             // 4. Trigger Critical Response (Network/Shutdown if configured)
             ExecuteCriticalResponse();
+
+            // 5. LAN Circuit Breaker — Alert all peers on the network
+            _lanCircuitBreaker?.TriggerCircuitBreak($"Mass encryption by {processName} (PID:{processId}). {successCount} files quarantined.");
             
-            // 5. VSS Shield Check
+            // 6. VSS Shield Check
             _ = Task.Run(async () => await CheckVssIntegrityAsync());
         }
 
@@ -1087,6 +1100,7 @@ namespace RansomGuard.Service.Engine
             _engineCleanupTimer?.Dispose();
             _telemetryService.Dispose();
             _historyManager.Dispose();
+            _lanCircuitBreaker?.Dispose();
             lock (_watchers) { foreach (var w in _watchers) w.Dispose(); _watchers.Clear(); }
         }
     }

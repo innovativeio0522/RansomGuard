@@ -97,6 +97,15 @@ namespace RansomGuard.ViewModels
 
         [ObservableProperty]
         private string _heuristicsStatus = "PASS";
+        
+        [ObservableProperty]
+        private ObservableCollection<LanPeer> _lanPeers = new();
+
+        [ObservableProperty]
+        private string _circuitBreakerStatus = "ARMED";
+
+        [ObservableProperty]
+        private string _activePeerCount = "0";
 
         [ObservableProperty]
         private string _behavioralStatus = "STABLE";
@@ -153,6 +162,29 @@ namespace RansomGuard.ViewModels
             };
 
             InitializeBaselineScore();
+
+            _monitorService.LanPeerListUpdated += OnLanPeerListUpdated;
+        }
+
+        private void OnLanPeerListUpdated(LanPeerListUpdate update)
+        {
+            Application.Current.Dispatcher.Invoke(() =>
+            {
+                LanPeers.Clear();
+                foreach (var peer in update.Peers)
+                {
+                    LanPeers.Add(peer);
+                }
+                
+                ActivePeerCount = update.Peers.Count.ToString();
+                CircuitBreakerStatus = update.IsCircuitBroken ? "TRIPPED" : "ARMED";
+                
+                if (update.IsCircuitBroken && !IsPanicModeEngaged)
+                {
+                    IsPanicModeEngaged = true;
+                    // Trigger some UI alert maybe?
+                }
+            });
         }
 
         private void InitializeBaselineScore()

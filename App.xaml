@@ -20,6 +20,7 @@
             <converters:SeverityToBrushConverter x:Key="SeverityToBrushConverter"/>
             <converters:BooleanToStatusConverter x:Key="BooleanToStatusConverter"/>
             <converters:StatusToBrushConverter x:Key="StatusToBrushConverter"/>
+            <converters:StringToBrushConverter x:Key="StringToBrushConverter"/>
             <converters:InverseBooleanConverter x:Key="InverseBooleanConverter"/>
             <converters:BoolToStringConverter x:Key="BoolToStringConverter"/>
             <converters:LoadToBrushConverter x:Key="LoadToBrushConverter"/>
