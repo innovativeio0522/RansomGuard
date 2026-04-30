@@ -107,7 +107,36 @@ namespace RansomGuard.ViewModels
             SaveConfig();
         }
 
-        partial void OnIsLanCircuitBreakerEnabledChanged(bool value) => SaveConfig();
+        partial void OnIsLanCircuitBreakerEnabledChanged(bool value)
+        {
+            if (value)
+            {
+                // When enabling LAN Circuit Breaker, ensure firewall rules are configured
+                System.Threading.Tasks.Task.Run(() =>
+                {
+                    bool firewallConfigured = RansomGuard.Core.Helpers.FirewallManager.EnsureLanFirewallRules();
+                    
+                    if (!firewallConfigured)
+                    {
+                        // Show warning to user that firewall rules couldn't be created
+                        System.Windows.Application.Current.Dispatcher.Invoke(() =>
+                        {
+                            System.Windows.MessageBox.Show(
+                                "LAN Discovery has been enabled, but firewall rules could not be configured automatically.\n\n" +
+                                "For LAN peer discovery to work, you may need to:\n" +
+                                "1. Run the application as Administrator, or\n" +
+                                "2. Manually allow UDP port 47700 in Windows Firewall\n\n" +
+                                "The service will attempt to configure the firewall when it starts.",
+                                "Firewall Configuration",
+                                System.Windows.MessageBoxButton.OK,
+                                System.Windows.MessageBoxImage.Warning);
+                        });
+                    }
+                });
+            }
+            
+            SaveConfig();
+        }
         partial void OnLanSharedSecretChanged(string value) => SaveConfig();
 
         protected override void OnPropertyChanged(PropertyChangedEventArgs e)
