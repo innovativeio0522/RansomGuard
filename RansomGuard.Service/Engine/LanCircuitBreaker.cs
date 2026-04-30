@@ -74,6 +74,19 @@ namespace RansomGuard.Service.Engine
 
             try
             {
+                // Automatically configure firewall rules
+                FileLogger.Log("sentinel_engine.log", "[LAN] Configuring firewall rules...");
+                bool firewallConfigured = Helpers.FirewallManager.EnsureLanFirewallRules();
+                
+                if (!firewallConfigured)
+                {
+                    FileLogger.LogError("sentinel_engine.log", "[LAN] WARNING: Firewall rules could not be configured automatically. LAN discovery may not work properly. Administrator privileges may be required.");
+                }
+                else
+                {
+                    FileLogger.Log("sentinel_engine.log", "[LAN] Firewall rules configured successfully.");
+                }
+
                 _udpClient = new UdpClient();
                 _udpClient.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
                 _udpClient.Client.Bind(new IPEndPoint(IPAddress.Any, port));
