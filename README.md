@@ -58,16 +58,26 @@ RansomGuard Pro maintains **enterprise-grade code quality** with:
 
 ## 🔧 Development
 
+CLI builds are configured through `Directory.Build.props` to keep generated output out of project folders. When you build from the command line outside Visual Studio, binaries go to `.artifacts/bin/` and intermediate files go to `.artifacts/obj/`.
+
 ### Build
 ```bash
 dotnet build --configuration Debug
 ```
+
+Typical CLI output locations:
+
+- `./.artifacts/bin/RansomGuard/Debug/net8.0-windows/`
+- `./.artifacts/bin/RansomGuard.Service/Debug/net8.0-windows/`
+- `./.artifacts/bin/RansomGuard.Service.Tests/Debug/net8.0-windows/`
 
 ### Clean Build
 ```bash
 dotnet clean
 dotnet build --configuration Release
 ```
+
+If you build inside Visual Studio, the IDE may still use project-local `bin/` and `obj/` folders for design-time and debugger workflows.
 
 ### Run
 ```bash

@@ -1,4 +1,12 @@
 <Project>
+  <PropertyGroup Condition="'$(MSBuildProjectExtension)' != '.wapproj' and '$(BuildingInsideVisualStudio)' != 'true'">
+    <!-- Keep normal CLI builds away from stale project-local bin/obj folders. -->
+    <RepositoryArtifactsRoot Condition="'$(RepositoryArtifactsRoot)' == ''">$(MSBuildThisFileDirectory).artifacts\</RepositoryArtifactsRoot>
+    <BaseIntermediateOutputPath Condition="'$(BaseIntermediateOutputPath)' == ''">$(RepositoryArtifactsRoot)obj\$(MSBuildProjectName)\</BaseIntermediateOutputPath>
+    <BaseOutputPath Condition="'$(BaseOutputPath)' == ''">$(RepositoryArtifactsRoot)bin\$(MSBuildProjectName)\</BaseOutputPath>
+    <DefaultItemExcludes>$(DefaultItemExcludes);obj\**;bin\**</DefaultItemExcludes>
+  </PropertyGroup>
+
   <!-- Remove conflicting implicit usings caused by net8.0-windows + LiveChartsCore/SkiaSharp transitive deps -->
   <ItemGroup>
     <Using Remove="System.Drawing" />

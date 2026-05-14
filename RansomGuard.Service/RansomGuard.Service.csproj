@@ -11,6 +11,7 @@
   
   <ItemGroup>
     <InternalsVisibleTo Include="RansomGuard.Tests" />
+    <InternalsVisibleTo Include="RansomGuard.Service.Tests" />
   </ItemGroup>
 
   <ItemGroup>

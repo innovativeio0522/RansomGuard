@@ -1,6 +1,9 @@
 $publisher = "CN=RansomGuard"
 $pfxPath = "RansomGuard.Package\RansomGuard_TemporaryKey.pfx"
-$password = ConvertTo-SecureString -String "Password123" -Force -AsPlainText
+if ([string]::IsNullOrWhiteSpace($env:RANSOMGUARD_CERT_PASSWORD)) {
+    throw "Set RANSOMGUARD_CERT_PASSWORD before creating the development signing certificate."
+}
+$password = ConvertTo-SecureString -String $env:RANSOMGUARD_CERT_PASSWORD -Force -AsPlainText
 
 Write-Host "Creating self-signed certificate..." -ForegroundColor Cyan
 

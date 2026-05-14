@@ -5,6 +5,8 @@ using RansomGuard.Service.Services;
 using RansomGuard.Core.Services;
 using RansomGuard.Core.IPC;
 using RansomGuard.Core.Helpers;
+using System.Security.AccessControl;
+using System.Security.Principal;
 
 namespace RansomGuard.Service;
 
@@ -40,22 +42,13 @@ public class Worker : BackgroundService
         try
         {
             LogToBootFile("Initializing storage and permissions...");
-            // Ensure the ProgramData directory exists and is writable by the UI
+            // Ensure the ProgramData directory exists and is writable by authenticated UI users.
             string baseDir = PathConfiguration.GetConfigDirectory();
             if (!Directory.Exists(baseDir)) Directory.CreateDirectory(baseDir);
             
             try
             {
-                // Grant Everyone full control to this specific folder so UI and Service can sync
-                var di = new DirectoryInfo(baseDir);
-                var ds = di.GetAccessControl();
-                ds.AddAccessRule(new System.Security.AccessControl.FileSystemAccessRule(
-                    new System.Security.Principal.SecurityIdentifier(System.Security.Principal.WellKnownSidType.WorldSid, null),
-                    System.Security.AccessControl.FileSystemRights.FullControl,
-                    System.Security.AccessControl.InheritanceFlags.ContainerInherit | System.Security.AccessControl.InheritanceFlags.ObjectInherit,
-                    System.Security.AccessControl.PropagationFlags.None,
-                    System.Security.AccessControl.AccessControlType.Allow));
-                di.SetAccessControl(ds);
+                ApplyProgramDataAcl(baseDir);
                 _logger.LogInformation("Permissions initialized for {path}", baseDir);
             }
             catch (Exception ex) { _logger.LogWarning("Could not set folder permissions: {msg}", ex.Message); }
@@ -189,5 +182,44 @@ public class Worker : BackgroundService
             File.AppendAllText(logPath, $"{DateTime.Now}: {message}\n");
         }
         catch { }
+    }
+
+    internal static void ApplyProgramDataAcl(string baseDir)
+    {
+        var di = new DirectoryInfo(baseDir);
+        var ds = di.GetAccessControl();
+
+        var everyoneSid = new SecurityIdentifier(WellKnownSidType.WorldSid, null);
+        var authenticatedUsersSid = new SecurityIdentifier(WellKnownSidType.AuthenticatedUserSid, null);
+        var localSystemSid = new SecurityIdentifier(WellKnownSidType.LocalSystemSid, null);
+        var administratorsSid = new SecurityIdentifier(WellKnownSidType.BuiltinAdministratorsSid, null);
+
+        ds.PurgeAccessRules(everyoneSid);
+
+        const InheritanceFlags inheritance =
+            InheritanceFlags.ContainerInherit | InheritanceFlags.ObjectInherit;
+
+        ds.SetAccessRule(new FileSystemAccessRule(
+            localSystemSid,
+            FileSystemRights.FullControl,
+            inheritance,
+            PropagationFlags.None,
+            AccessControlType.Allow));
+
+        ds.SetAccessRule(new FileSystemAccessRule(
+            administratorsSid,
+            FileSystemRights.FullControl,
+            inheritance,
+            PropagationFlags.None,
+            AccessControlType.Allow));
+
+        ds.SetAccessRule(new FileSystemAccessRule(
+            authenticatedUsersSid,
+            FileSystemRights.Modify | FileSystemRights.Synchronize,
+            inheritance,
+            PropagationFlags.None,
+            AccessControlType.Allow));
+
+        di.SetAccessControl(ds);
     }
 }
