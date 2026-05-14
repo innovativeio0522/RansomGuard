@@ -111,28 +111,13 @@ namespace RansomGuard.ViewModels
         {
             if (value)
             {
-                // When enabling LAN Circuit Breaker, ensure firewall rules are configured
-                System.Threading.Tasks.Task.Run(() =>
-                {
-                    bool firewallConfigured = RansomGuard.Core.Helpers.FirewallManager.EnsureLanFirewallRules();
-                    
-                    if (!firewallConfigured)
-                    {
-                        // Show warning to user that firewall rules couldn't be created
-                        System.Windows.Application.Current.Dispatcher.Invoke(() =>
-                        {
-                            System.Windows.MessageBox.Show(
-                                "LAN Discovery has been enabled, but firewall rules could not be configured automatically.\n\n" +
-                                "For LAN peer discovery to work, you may need to:\n" +
-                                "1. Run the application as Administrator, or\n" +
-                                "2. Manually allow UDP port 47700 in Windows Firewall\n\n" +
-                                "The service will attempt to configure the firewall when it starts.",
-                                "Firewall Configuration",
-                                System.Windows.MessageBoxButton.OK,
-                                System.Windows.MessageBoxImage.Warning);
-                        });
-                    }
-                });
+                System.Windows.MessageBox.Show(
+                    "LAN Discovery has been enabled.\n\n" +
+                    "The protection service owns Windows Firewall setup and will verify the UDP rule when it starts. " +
+                    "If the service is not installed or cannot run elevated, configure UDP port 47700 with the admin setup script.",
+                    "LAN Discovery",
+                    System.Windows.MessageBoxButton.OK,
+                    System.Windows.MessageBoxImage.Information);
             }
             
             SaveConfig();

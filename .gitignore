@@ -48,6 +48,7 @@ packages/
 project.lock.json
 project.fragment.lock.json
 artifacts/
+.artifacts/
 
 # ─── .NET / MSBuild ──────────────────────────────────────────────────────────
 *.cache
@@ -178,4 +179,5 @@ debug.txt
 *.db-wal
 qc
 query
+scratch/status-build/
 \!$RansomGuard_Bait/

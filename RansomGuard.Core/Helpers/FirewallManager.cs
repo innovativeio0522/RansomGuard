@@ -1,5 +1,7 @@
 using System;
 using System.Diagnostics;
+using System.Linq;
+using System.Text;
 
 namespace RansomGuard.Core.Helpers
 {
@@ -10,37 +12,46 @@ namespace RansomGuard.Core.Helpers
     {
         private const string LanRuleName = "RansomGuard LAN Discovery";
         private const string LanRuleNameOutbound = "RansomGuard LAN Discovery (Outbound)";
-        private const int LanPort = 47700;
+        private const int DefaultLanPort = 47700;
+        private const int NetshTimeoutMs = 10000;
 
         /// <summary>
-        /// Ensures that firewall rules for LAN discovery are configured.
-        /// Returns true if rules were created/verified, false if admin privileges are required.
+        /// Ensures that firewall rules for LAN discovery are configured by an elevated service or setup process.
+        /// The runtime service is the authoritative owner; installers/scripts may pre-provision the same rules.
         /// </summary>
-        public static bool EnsureLanFirewallRules()
+        public static bool EnsureLanFirewallRules(int port = DefaultLanPort)
         {
+            if (!OperatingSystem.IsWindows())
+            {
+                FileLogger.Log("firewall.log", "[Firewall] Skipping LAN rules on non-Windows OS.");
+                return false;
+            }
+
+            if (port is < 1 or > 65535)
+            {
+                FileLogger.LogError("firewall.log", $"[Firewall] Invalid LAN port: {port}");
+                return false;
+            }
+
             try
             {
-                // Check if rules already exist
-                if (CheckRuleExists(LanRuleName) && CheckRuleExists(LanRuleNameOutbound))
+                if (!IsAdministrator())
                 {
-                    FileLogger.Log("firewall.log", "[Firewall] LAN discovery rules already exist.");
-                    return true;
-                }
-
-                // Try to create the rules
-                bool inboundCreated = CreateInboundRule();
-                bool outboundCreated = CreateOutboundRule();
-
-                if (inboundCreated && outboundCreated)
-                {
-                    FileLogger.Log("firewall.log", "[Firewall] LAN discovery rules created successfully.");
-                    return true;
-                }
-                else
-                {
-                    FileLogger.LogError("firewall.log", "[Firewall] Failed to create rules - administrator privileges may be required.");
+                    FileLogger.LogError("firewall.log", "[Firewall] LAN rules require elevated service/setup privileges.");
                     return false;
                 }
+
+                bool inboundReady = EnsureRule(LanRuleName, port, BuildInboundRuleArguments(port));
+                bool outboundReady = EnsureRule(LanRuleNameOutbound, port, BuildOutboundRuleArguments(port));
+
+                if (inboundReady && outboundReady)
+                {
+                    FileLogger.Log("firewall.log", $"[Firewall] LAN discovery rules verified for UDP port {port}.");
+                    return true;
+                }
+
+                FileLogger.LogError("firewall.log", $"[Firewall] Failed to verify LAN discovery rules for UDP port {port}.");
+                return false;
             }
             catch (Exception ex)
             {
@@ -54,6 +65,9 @@ namespace RansomGuard.Core.Helpers
         /// </summary>
         public static bool RemoveLanFirewallRules()
         {
+            if (!OperatingSystem.IsWindows())
+                return false;
+
             try
             {
                 bool inboundRemoved = DeleteRule(LanRuleName);
@@ -81,24 +95,9 @@ namespace RansomGuard.Core.Helpers
         {
             try
             {
-                var psi = new ProcessStartInfo
-                {
-                    FileName = "netsh",
-                    Arguments = $"advfirewall firewall show rule name=\"{ruleName}\"",
-                    RedirectStandardOutput = true,
-                    RedirectStandardError = true,
-                    UseShellExecute = false,
-                    CreateNoWindow = true
-                };
-
-                using var process = Process.Start(psi);
-                if (process == null) return false;
-
-                string output = process.StandardOutput.ReadToEnd();
-                process.WaitForExit();
-
-                // If rule exists, output contains "Rule Name:"
-                return output.Contains("Rule Name:", StringComparison.OrdinalIgnoreCase);
+                var result = RunNetsh($"advfirewall firewall show rule name=\"{ruleName}\"");
+                return result.ExitCode == 0 &&
+                       result.Output.Contains("Rule Name:", StringComparison.OrdinalIgnoreCase);
             }
             catch
             {
@@ -106,92 +105,105 @@ namespace RansomGuard.Core.Helpers
             }
         }
 
-        /// <summary>
-        /// Creates the inbound firewall rule for LAN discovery.
-        /// </summary>
-        private static bool CreateInboundRule()
+        private static bool CheckRuleExistsForPort(string ruleName, int port)
         {
             try
             {
-                var psi = new ProcessStartInfo
-                {
-                    FileName = "netsh",
-                    Arguments = $"advfirewall firewall add rule name=\"{LanRuleName}\" " +
-                               $"dir=in action=allow protocol=UDP localport={LanPort} " +
-                               $"profile=private,domain " +
-                               $"description=\"Allows RansomGuard to discover and communicate with peers on the local network\"",
-                    RedirectStandardOutput = true,
-                    RedirectStandardError = true,
-                    UseShellExecute = false,
-                    CreateNoWindow = true,
-                    Verb = "runas" // Request elevation
-                };
-
-                using var process = Process.Start(psi);
-                if (process == null) return false;
-
-                string output = process.StandardOutput.ReadToEnd();
-                string error = process.StandardError.ReadToEnd();
-                process.WaitForExit();
-
-                bool success = process.ExitCode == 0 && output.Contains("Ok", StringComparison.OrdinalIgnoreCase);
-                
-                if (!success && !string.IsNullOrEmpty(error))
-                {
-                    FileLogger.LogError("firewall.log", $"[Firewall] Inbound rule creation error: {error}");
-                }
-
-                return success;
+                var result = RunNetsh($"advfirewall firewall show rule name=\"{ruleName}\"");
+                return result.ExitCode == 0 &&
+                       result.Output.Contains("Rule Name:", StringComparison.OrdinalIgnoreCase) &&
+                       RuleOutputMatchesPort(result.Output, port);
             }
-            catch (Exception ex)
+            catch
             {
-                FileLogger.LogError("firewall.log", $"[Firewall] Exception creating inbound rule: {ex.Message}");
                 return false;
             }
         }
 
-        /// <summary>
-        /// Creates the outbound firewall rule for LAN discovery.
-        /// </summary>
-        private static bool CreateOutboundRule()
+        private static bool EnsureRule(string ruleName, int port, string addRuleArguments)
         {
-            try
+            if (CheckRuleExistsForPort(ruleName, port))
             {
-                var psi = new ProcessStartInfo
+                FileLogger.Log("firewall.log", $"[Firewall] Rule already exists for UDP port {port}: {ruleName}");
+                return true;
+            }
+
+            if (CheckRuleExists(ruleName))
+            {
+                FileLogger.Log("firewall.log", $"[Firewall] Replacing stale LAN rule for UDP port {port}: {ruleName}");
+                DeleteRule(ruleName);
+            }
+
+            var result = RunNetsh(addRuleArguments);
+            bool success = result.ExitCode == 0 &&
+                           result.Output.Contains("Ok", StringComparison.OrdinalIgnoreCase);
+
+            if (!success)
+            {
+                FileLogger.LogError(
+                    "firewall.log",
+                    $"[Firewall] Rule creation failed for '{ruleName}'. ExitCode={result.ExitCode}. Error={result.Error}");
+            }
+
+            return success;
+        }
+
+        internal static string BuildInboundRuleArguments(int port) =>
+            $"advfirewall firewall add rule name=\"{LanRuleName}\" " +
+            $"dir=in action=allow protocol=UDP localport={port} " +
+            "profile=private,domain " +
+            "description=\"Allows RansomGuard to discover and communicate with peers on the local network\"";
+
+        internal static string BuildOutboundRuleArguments(int port) =>
+            $"advfirewall firewall add rule name=\"{LanRuleNameOutbound}\" " +
+            $"dir=out action=allow protocol=UDP localport={port} " +
+            "profile=private,domain " +
+            "description=\"Allows RansomGuard to broadcast discovery beacons on the local network\"";
+
+        internal static bool RuleOutputMatchesPort(string output, int port)
+        {
+            var expectedPort = port.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            return output
+                .Split(new[] { "\r\n", "\n" }, StringSplitOptions.RemoveEmptyEntries)
+                .Any(line =>
+                    line.Contains("LocalPort", StringComparison.OrdinalIgnoreCase) &&
+                    line.Contains(expectedPort, StringComparison.OrdinalIgnoreCase));
+        }
+
+        private static NetshResult RunNetsh(string arguments)
+        {
+            using var process = new Process
+            {
+                StartInfo = new ProcessStartInfo
                 {
                     FileName = "netsh",
-                    Arguments = $"advfirewall firewall add rule name=\"{LanRuleNameOutbound}\" " +
-                               $"dir=out action=allow protocol=UDP localport={LanPort} " +
-                               $"profile=private,domain " +
-                               $"description=\"Allows RansomGuard to broadcast discovery beacons on the local network\"",
+                    Arguments = arguments,
                     RedirectStandardOutput = true,
                     RedirectStandardError = true,
                     UseShellExecute = false,
-                    CreateNoWindow = true,
-                    Verb = "runas" // Request elevation
-                };
-
-                using var process = Process.Start(psi);
-                if (process == null) return false;
-
-                string output = process.StandardOutput.ReadToEnd();
-                string error = process.StandardError.ReadToEnd();
-                process.WaitForExit();
-
-                bool success = process.ExitCode == 0 && output.Contains("Ok", StringComparison.OrdinalIgnoreCase);
-                
-                if (!success && !string.IsNullOrEmpty(error))
-                {
-                    FileLogger.LogError("firewall.log", $"[Firewall] Outbound rule creation error: {error}");
+                    CreateNoWindow = true
                 }
+            };
 
-                return success;
-            }
-            catch (Exception ex)
+            var output = new StringBuilder();
+            var error = new StringBuilder();
+            process.OutputDataReceived += (_, e) => { if (e.Data != null) output.AppendLine(e.Data); };
+            process.ErrorDataReceived += (_, e) => { if (e.Data != null) error.AppendLine(e.Data); };
+
+            if (!process.Start())
+                return new NetshResult(-1, string.Empty, "Failed to start netsh.");
+
+            process.BeginOutputReadLine();
+            process.BeginErrorReadLine();
+
+            if (!process.WaitForExit(NetshTimeoutMs))
             {
-                FileLogger.LogError("firewall.log", $"[Firewall] Exception creating outbound rule: {ex.Message}");
-                return false;
+                try { process.Kill(entireProcessTree: true); } catch { }
+                return new NetshResult(-1, output.ToString(), "netsh timed out.");
             }
+
+            process.WaitForExit();
+            return new NetshResult(process.ExitCode, output.ToString(), error.ToString());
         }
 
         /// <summary>
@@ -201,21 +213,8 @@ namespace RansomGuard.Core.Helpers
         {
             try
             {
-                var psi = new ProcessStartInfo
-                {
-                    FileName = "netsh",
-                    Arguments = $"advfirewall firewall delete rule name=\"{ruleName}\"",
-                    RedirectStandardOutput = true,
-                    RedirectStandardError = true,
-                    UseShellExecute = false,
-                    CreateNoWindow = true
-                };
-
-                using var process = Process.Start(psi);
-                if (process == null) return false;
-
-                process.WaitForExit();
-                return process.ExitCode == 0;
+                var result = RunNetsh($"advfirewall firewall delete rule name=\"{ruleName}\"");
+                return result.ExitCode == 0;
             }
             catch
             {
@@ -223,11 +222,18 @@ namespace RansomGuard.Core.Helpers
             }
         }
 
+        private readonly record struct NetshResult(int ExitCode, string Output, string Error);
+
         /// <summary>
         /// Checks if the current process has administrator privileges.
         /// </summary>
         public static bool IsAdministrator()
         {
+            if (!OperatingSystem.IsWindows())
+            {
+                return false;
+            }
+
             try
             {
                 var identity = System.Security.Principal.WindowsIdentity.GetCurrent();

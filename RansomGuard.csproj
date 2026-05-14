@@ -15,7 +15,7 @@
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
     <GenerateTargetFrameworkAttribute>false</GenerateTargetFrameworkAttribute>
     <NoWarn>CA1416;WFAC010</NoWarn>
-    <DefaultItemExcludes>$(DefaultItemExcludes);RansomGuard.Core\**;RansomGuard.Service\**;RansomGuard.Tests\**;RansomGuard.Watchdog\**;scratch\**</DefaultItemExcludes>
+    <DefaultItemExcludes>$(DefaultItemExcludes);RansomGuard.Core\**;RansomGuard.Service\**;RansomGuard.Tests\**;RansomGuard.Service.Tests\**;RansomGuard.Watchdog\**;scratch\**</DefaultItemExcludes>
   </PropertyGroup>
 
   <ItemGroup>

@@ -32,8 +32,10 @@ namespace RansomGuard.Service.Engine
         private Task? _listenerTask;
         private Task? _cleanupTask;
         private bool _disposed;
+        private bool _isStarted;
         private bool _isCircuitBroken;
         private string _triggerInfo = string.Empty;
+        private readonly object _lifecycleLock = new();
 
         private const int BeaconIntervalMs = 5000;
         private const int PeerTimeoutSeconds = 15;
@@ -63,45 +65,60 @@ namespace RansomGuard.Service.Engine
         /// </summary>
         public void Start()
         {
-            var config = ConfigurationService.Instance;
-            if (!config.LanCircuitBreakerEnabled)
+            lock (_lifecycleLock)
             {
-                FileLogger.Log("sentinel_engine.log", "[LAN] Circuit Breaker is DISABLED in settings.");
-                return;
-            }
+                if (_disposed)
+                    return;
 
-            int port = config.LanBroadcastPort;
-
-            try
-            {
-                // Automatically configure firewall rules
-                FileLogger.Log("sentinel_engine.log", "[LAN] Configuring firewall rules...");
-                bool firewallConfigured = Helpers.FirewallManager.EnsureLanFirewallRules();
-                
-                if (!firewallConfigured)
+                if (_isStarted)
                 {
-                    FileLogger.LogError("sentinel_engine.log", "[LAN] WARNING: Firewall rules could not be configured automatically. LAN discovery may not work properly. Administrator privileges may be required.");
-                }
-                else
-                {
-                    FileLogger.Log("sentinel_engine.log", "[LAN] Firewall rules configured successfully.");
+                    FileLogger.Log("sentinel_engine.log", "[LAN] Circuit Breaker already started.");
+                    return;
                 }
 
-                _udpClient = new UdpClient();
-                _udpClient.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
-                _udpClient.Client.Bind(new IPEndPoint(IPAddress.Any, port));
-                _udpClient.EnableBroadcast = true;
+                var config = ConfigurationService.Instance;
+                if (!config.LanCircuitBreakerEnabled)
+                {
+                    FileLogger.Log("sentinel_engine.log", "[LAN] Circuit Breaker is DISABLED in settings.");
+                    return;
+                }
 
-                _cts = new CancellationTokenSource();
-                _beaconTask = Task.Run(() => BeaconLoopAsync(_cts.Token));
-                _listenerTask = Task.Run(() => ListenerLoopAsync(_cts.Token));
-                _cleanupTask = Task.Run(() => CleanupLoopAsync(_cts.Token));
+                int port = config.LanBroadcastPort;
+                if (port is < 1 or > 65535)
+                {
+                    FileLogger.LogError("sentinel_engine.log", $"[LAN] Invalid broadcast port configured: {port}");
+                    return;
+                }
 
-                FileLogger.Log("sentinel_engine.log", $"[LAN] Circuit Breaker STARTED on port {port}. NodeId={_nodeId}, NodeName={_nodeName}");
-            }
-            catch (Exception ex)
-            {
-                FileLogger.LogError("sentinel_engine.log", $"[LAN] Failed to start Circuit Breaker: {ex.Message}");
+                try
+                {
+                    FileLogger.Log("sentinel_engine.log", $"[LAN] Ensuring firewall rules for UDP port {port} via runtime service.");
+                    bool firewallConfigured = FirewallManager.EnsureLanFirewallRules(port);
+
+                    if (!firewallConfigured)
+                    {
+                        FileLogger.LogError("sentinel_engine.log", "[LAN] Firewall rules were not verified. LAN discovery may be blocked by Windows Firewall.");
+                    }
+
+                    _udpClient = new UdpClient(AddressFamily.InterNetwork);
+                    _udpClient.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
+                    _udpClient.Client.Bind(new IPEndPoint(IPAddress.Any, port));
+                    _udpClient.EnableBroadcast = true;
+
+                    _cts = new CancellationTokenSource();
+                    var token = _cts.Token;
+                    _beaconTask = Task.Run(() => BeaconLoopAsync(token), token);
+                    _listenerTask = Task.Run(() => ListenerLoopAsync(token), token);
+                    _cleanupTask = Task.Run(() => CleanupLoopAsync(token), token);
+                    _isStarted = true;
+
+                    FileLogger.Log("sentinel_engine.log", $"[LAN] Circuit Breaker STARTED on UDP port {port}. NodeId={_nodeId}, NodeName={_nodeName}");
+                }
+                catch (Exception ex)
+                {
+                    CleanupSocket();
+                    FileLogger.LogError("sentinel_engine.log", $"[LAN] Failed to start Circuit Breaker: {ex.Message}");
+                }
             }
         }
 
@@ -110,11 +127,14 @@ namespace RansomGuard.Service.Engine
         /// </summary>
         public void Stop()
         {
-            _cts?.Cancel();
-            _udpClient?.Close();
-            _udpClient?.Dispose();
-            _udpClient = null;
-            FileLogger.Log("sentinel_engine.log", "[LAN] Circuit Breaker STOPPED.");
+            lock (_lifecycleLock)
+            {
+                if (!_isStarted && _udpClient == null && _cts == null)
+                    return;
+
+                CleanupSocket();
+                FileLogger.Log("sentinel_engine.log", "[LAN] Circuit Breaker STOPPED.");
+            }
         }
 
         /// <summary>
@@ -181,13 +201,21 @@ namespace RansomGuard.Service.Engine
 
                     _udpClient?.Send(bytes, bytes.Length, endpoint);
                 }
+                catch (OperationCanceledException) { break; }
                 catch (ObjectDisposedException) { break; }
                 catch (Exception ex)
                 {
                     FileLogger.LogError("sentinel_engine.log", $"[LAN] Beacon send error: {ex.Message}");
                 }
 
-                await Task.Delay(BeaconIntervalMs, token).ConfigureAwait(false);
+                try
+                {
+                    await Task.Delay(BeaconIntervalMs, token).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException)
+                {
+                    break;
+                }
             }
         }
 
@@ -247,7 +275,14 @@ namespace RansomGuard.Service.Engine
         {
             while (!token.IsCancellationRequested)
             {
-                await Task.Delay(CleanupIntervalMs, token).ConfigureAwait(false);
+                try
+                {
+                    await Task.Delay(CleanupIntervalMs, token).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException)
+                {
+                    break;
+                }
 
                 bool changed = false;
                 var now = DateTime.UtcNow;
@@ -379,6 +414,22 @@ namespace RansomGuard.Service.Engine
                 TriggerInfo = _triggerInfo
             };
             PeerListChanged?.Invoke(update);
+        }
+
+        private void CleanupSocket()
+        {
+            _isStarted = false;
+
+            try { _cts?.Cancel(); } catch { }
+            try { _udpClient?.Close(); } catch { }
+            try { _udpClient?.Dispose(); } catch { }
+            try { _cts?.Dispose(); } catch { }
+
+            _udpClient = null;
+            _cts = null;
+            _beaconTask = null;
+            _listenerTask = null;
+            _cleanupTask = null;
         }
 
         private static string GetMachineId()
