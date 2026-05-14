@@ -62,7 +62,7 @@ if %errorlevel% equ 0 (
     echo Checking connection...
     timeout /t 5 /nobreak >nul
     
-    findstr /C:"Pipe created with Everyone access" "C:\ProgramData\RGCoreEssentials\Logs\ipc.log" >nul 2>&1
+    findstr /C:"Pipe created with restricted authenticated-user access" "C:\ProgramData\RGCoreEssentials\Logs\ipc.log" >nul 2>&1
     if %errorlevel% equ 0 (
         echo SUCCESS: Pipe security is active!
     ) else (

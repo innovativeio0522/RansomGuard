@@ -15,19 +15,7 @@ if %errorLevel% neq 0 (
     exit /b 1
 )
 
-echo [1/2] Uninstalling RGServicePackaged...
-sc query RGServicePackaged >nul 2>&1
-if %errorLevel% equ 0 (
-    sc stop RGServicePackaged >nul 2>&1
-    timeout /t 2 /nobreak >nul
-    sc delete RGServicePackaged
-    echo    Done!
-) else (
-    echo    Service not found
-)
-
-echo.
-echo [2/2] Uninstalling RGService...
+echo [1/1] Uninstalling RGService...
 sc query RGService >nul 2>&1
 if %errorLevel% equ 0 (
     sc stop RGService >nul 2>&1
@@ -40,13 +28,6 @@ if %errorLevel% equ 0 (
 
 echo.
 echo === Verification ===
-sc query RGServicePackaged >nul 2>&1
-if %errorLevel% equ 0 (
-    echo RGServicePackaged: Still installed
-) else (
-    echo RGServicePackaged: Uninstalled
-)
-
 sc query RGService >nul 2>&1
 if %errorLevel% equ 0 (
     echo RGService: Still installed

@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
+using Microsoft.Win32;
 
 namespace RansomGuard.Core.Helpers
 {
@@ -11,6 +12,17 @@ namespace RansomGuard.Core.Helpers
     /// </summary>
     public static class PathConfiguration
     {
+        private static readonly string[] StandardProtectedSubFolders =
+        {
+            "Documents",
+            "Desktop",
+            "Pictures",
+            "Music",
+            "Videos",
+            "Downloads",
+            "OneDrive"
+        };
+
         [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
         private static extern int GetCurrentPackageFullName(ref int packageFullNameLength, System.Text.StringBuilder? packageFullName);
 
@@ -124,41 +136,43 @@ namespace RansomGuard.Core.Helpers
         public static IEnumerable<string> GetAllUsersStandardFolders()
         {
             var folders = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            var standardSubFolders = new[]
-            {
-                "Documents",
-                "Desktop",
-                "Pictures",
-                "Music",
-                "Videos",
-                "Downloads",
-                "OneDrive"
-            };
 
             try
             {
-                // Use GetUsersRootPath() which reads from registry — safe in Session 0 (LocalSystem).
-                // Environment.GetFolderPath(UserProfile) resolves to C:\Windows\System32\config\systemprofile
-                // when running as SYSTEM, causing zero standard folders to be found.
                 string usersRoot = GetUsersRootPath();
-
                 if (!Directory.Exists(usersRoot)) return folders;
 
-                foreach (var userDir in Directory.GetDirectories(usersRoot))
-                {
-                    // Skip system pseudo-profiles
-                    var dirName = Path.GetFileName(userDir);
-                    if (string.Equals(dirName, "Public", StringComparison.OrdinalIgnoreCase) ||
-                        string.Equals(dirName, "Default", StringComparison.OrdinalIgnoreCase) ||
-                        string.Equals(dirName, "Default User", StringComparison.OrdinalIgnoreCase) ||
-                        string.Equals(dirName, "All Users", StringComparison.OrdinalIgnoreCase))
-                        continue;
+#pragma warning disable CA1416 // Validate platform compatibility - RansomGuard is Windows-only
+                using var profileListKey = Registry.LocalMachine.OpenSubKey(
+                    @"SOFTWARE\Microsoft\Windows NT\CurrentVersion\ProfileList");
+#pragma warning restore CA1416
+                if (profileListKey == null) return folders;
 
-                    foreach (var sub in standardSubFolders)
+                foreach (var profileSid in profileListKey.GetSubKeyNames())
+                {
+                    try
                     {
-                        var candidate = Path.Combine(userDir, sub);
-                        if (Directory.Exists(candidate))
-                            folders.Add(candidate);
+#pragma warning disable CA1416 // Validate platform compatibility - RansomGuard is Windows-only
+                        using var profileKey = profileListKey.OpenSubKey(profileSid);
+#pragma warning restore CA1416
+                        var profilePath = profileKey?.GetValue("ProfileImagePath") as string;
+
+                        if (!ShouldIncludeProfileDirectory(usersRoot, profileSid, profilePath))
+                            continue;
+
+                        var userDir = NormalizeDirectoryPath(Environment.ExpandEnvironmentVariables(profilePath!));
+                        foreach (var sub in StandardProtectedSubFolders)
+                        {
+                            var candidate = Path.Combine(userDir, sub);
+                            if (Directory.Exists(candidate))
+                                folders.Add(candidate);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine(
+                            $"[PathConfiguration] Skipping profile SID '{profileSid}': {ex.Message}");
+                        continue;
                     }
                 }
             }
@@ -169,6 +183,45 @@ namespace RansomGuard.Core.Helpers
 
             return folders;
         }
+
+        internal static bool IsRealUserProfileSid(string? sid)
+        {
+            if (string.IsNullOrWhiteSpace(sid))
+                return false;
+
+            // Standard local/domain users are S-1-5-21-... and Azure AD / Microsoft Entra users are S-1-12-1-...
+            return sid.StartsWith("S-1-5-21-", StringComparison.OrdinalIgnoreCase) ||
+                   sid.StartsWith("S-1-12-1-", StringComparison.OrdinalIgnoreCase);
+        }
+
+        internal static bool ShouldIncludeProfileDirectory(string usersRoot, string profileSid, string? profilePath)
+        {
+            if (!IsRealUserProfileSid(profileSid) || string.IsNullOrWhiteSpace(profilePath))
+                return false;
+
+            var normalizedUsersRoot = NormalizeDirectoryPath(usersRoot);
+            var normalizedProfilePath = NormalizeDirectoryPath(Environment.ExpandEnvironmentVariables(profilePath));
+
+            if (!Directory.Exists(normalizedUsersRoot) || !Directory.Exists(normalizedProfilePath))
+                return false;
+
+            var relativeProfilePath = Path.GetRelativePath(normalizedUsersRoot, normalizedProfilePath);
+            if (relativeProfilePath.StartsWith("..", StringComparison.OrdinalIgnoreCase) ||
+                Path.IsPathRooted(relativeProfilePath))
+                return false;
+
+            var dirName = Path.GetFileName(normalizedProfilePath);
+            if (string.IsNullOrWhiteSpace(dirName))
+                return false;
+
+            return !string.Equals(dirName, "Public", StringComparison.OrdinalIgnoreCase) &&
+                   !string.Equals(dirName, "Default", StringComparison.OrdinalIgnoreCase) &&
+                   !string.Equals(dirName, "Default User", StringComparison.OrdinalIgnoreCase) &&
+                   !string.Equals(dirName, "All Users", StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static string NormalizeDirectoryPath(string path) =>
+            Path.GetFullPath(path).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
         
         /// <summary>
         /// Ensures all required application directories exist, creating them if necessary.

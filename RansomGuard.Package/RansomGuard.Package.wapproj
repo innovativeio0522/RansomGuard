@@ -16,7 +16,7 @@
   <PropertyGroup>
     <WapProjPath Condition="'$(WapProjPath)'==''">$(MSBuildExtensionsPath)\Microsoft\DesktopBridge\</WapProjPath>
   </PropertyGroup>
-  <Import Project="$(WapProjPath)\Microsoft.DesktopBridge.props" />
+  <Import Project="$(WapProjPath)\Microsoft.DesktopBridge.props" Condition="Exists('$(WapProjPath)\Microsoft.DesktopBridge.props')" />
   <PropertyGroup>
     <ProjectGuid>{4A1B51A9-2E89-4B52-87C9-0D5A12C3F3B1}</ProjectGuid>
     <TargetPlatformVersion>10.0.22621.0</TargetPlatformVersion>
@@ -24,7 +24,7 @@
     <DefaultLanguage>en-US</DefaultLanguage>
     <AppxPackageSigningEnabled>true</AppxPackageSigningEnabled>
     <PackageCertificateKeyFile>RansomGuard_TemporaryKey.pfx</PackageCertificateKeyFile>
-    <PackageCertificatePassword>Password123</PackageCertificatePassword>
+    <PackageCertificatePassword Condition="'$(PackageCertificatePassword)' == ''">$(RansomGuardPackageCertificatePassword)</PackageCertificatePassword>
     <EntryPointProjectUniqueName>..\RansomGuard.csproj</EntryPointProjectUniqueName>
     <!-- Suppress PRI resource warnings for missing neutral resources -->
     <NoWarn>$(NoWarn);PRI263;PRI257</NoWarn>
@@ -56,5 +56,8 @@
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
   </ItemGroup>
-  <Import Project="$(WapProjPath)\Microsoft.DesktopBridge.targets" />
+  <Target Name="Build" Condition="!Exists('$(WapProjPath)\Microsoft.DesktopBridge.targets')">
+    <Error Text="Microsoft Desktop Bridge build targets were not found at '$(WapProjPath)'. Install the Visual Studio MSIX Packaging tools, or build RansomGuard.sln for source/test verification." />
+  </Target>
+  <Import Project="$(WapProjPath)\Microsoft.DesktopBridge.targets" Condition="Exists('$(WapProjPath)\Microsoft.DesktopBridge.targets')" />
 </Project>
