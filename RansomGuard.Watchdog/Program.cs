@@ -10,13 +10,14 @@ using RansomGuard.Core.Helpers;
 
 namespace RansomGuard.Watchdog
 {
-    class Program
+    partial class Program
     {
-        [DllImport("kernel32.dll")]
-        static extern IntPtr GetConsoleWindow();
+        [LibraryImport("kernel32.dll")]
+        private static partial IntPtr GetConsoleWindow();
 
-        [DllImport("user32.dll")]
-        static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
+        [LibraryImport("user32.dll")]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        private static partial bool ShowWindow(IntPtr hWnd, int nCmdShow);
 
         const int SW_HIDE = 0;
         const string ServiceName = "RGService";
@@ -133,6 +134,8 @@ namespace RansomGuard.Watchdog
                     {
                         string[] devPaths = new[]
                         {
+                            Path.GetFullPath(Path.Combine(appDir, @"..\..\..\RansomGuard\Debug\net8.0-windows\RGUI.exe")),
+                            Path.GetFullPath(Path.Combine(appDir, @"..\..\..\RansomGuard\Release\net8.0-windows\RGUI.exe")),
                             Path.GetFullPath(Path.Combine(appDir, @"..\..\..\..\bin\Debug\net8.0-windows\RGUI.exe")),
                             Path.GetFullPath(Path.Combine(appDir, @"..\..\..\bin\Debug\net8.0-windows\RGUI.exe")),
                             Path.GetFullPath(Path.Combine(appDir, @"..\..\bin\Debug\net8.0-windows\RGUI.exe")),
@@ -164,7 +167,7 @@ namespace RansomGuard.Watchdog
                         try 
                         {
                             LogToFile("[Watchdog] Attempting restart via Alias: RGUI.exe");
-                            ProcessStartInfo psiAlias = new ProcessStartInfo("cmd.exe", "/c start RGUI.exe --startup")
+                            ProcessStartInfo psiAlias = new("cmd.exe", "/c start RGUI.exe --startup")
                             {
                                 CreateNoWindow = true,
                                 UseShellExecute = true
@@ -189,7 +192,7 @@ namespace RansomGuard.Watchdog
                         try
                         {
                             LogToFile($"[Watchdog] Attempting restart via direct EXE: {appPath}");
-                            ProcessStartInfo psi = new ProcessStartInfo(appPath, "--startup")
+                            ProcessStartInfo psi = new(appPath, "--startup")
                             {
                                 UseShellExecute = true,
                                 WorkingDirectory = Path.GetDirectoryName(appPath)
@@ -224,42 +227,40 @@ namespace RansomGuard.Watchdog
             try
             {
 #pragma warning disable CA1416 // Validate platform compatibility - RansomGuard is Windows-only
-                using (ServiceController sc = new ServiceController(ServiceName))
+                using ServiceController sc = new(ServiceName);
+                try
                 {
-                    try
+                    LogToFile($"[Watchdog] Checking service '{ServiceName}' status: {sc.Status}");
+                    
+                    if (sc.Status == ServiceControllerStatus.Stopped || sc.Status == ServiceControllerStatus.StopPending)
                     {
-                        LogToFile($"[Watchdog] Checking service '{ServiceName}' status: {sc.Status}");
-                        
-                        if (sc.Status == ServiceControllerStatus.Stopped || sc.Status == ServiceControllerStatus.StopPending)
-                        {
-                            LogToFile($"[Watchdog] Service is {sc.Status}. Attempting to start...");
-                            Thread.Sleep(1000);
-                            sc.Refresh();
+                        LogToFile($"[Watchdog] Service is {sc.Status}. Attempting to start...");
+                        Thread.Sleep(1000);
+                        sc.Refresh();
 
-                            if (sc.Status == ServiceControllerStatus.Stopped)
-                            {
-                                LogToFile("[Watchdog] Starting service...");
-                                sc.Start();
-                                sc.WaitForStatus(ServiceControllerStatus.Running, TimeSpan.FromSeconds(10));
-                                LogToFile("[Watchdog] Service started successfully");
-                            }
+                        if (sc.Status == ServiceControllerStatus.Stopped)
+                        {
+                            LogToFile("[Watchdog] Starting service...");
+                            sc.Start();
+                            sc.WaitForStatus(ServiceControllerStatus.Running, TimeSpan.FromSeconds(10));
+                            LogToFile("[Watchdog] Service started successfully");
                         }
                     }
-                    catch (InvalidOperationException ex)
-                    {
-                        LogToFile($"[Watchdog] Service '{ServiceName}' not accessible: {ex.Message}");
-                    }
-                    catch (System.ComponentModel.Win32Exception ex)
-                    {
-                        // Access denied - expected when running without elevation in MSIX
-                        // The service is auto-start via SCM, so it will recover on its own
+                }
+                catch (InvalidOperationException ex)
+                {
+                    LogToFile($"[Watchdog] Service '{ServiceName}' not accessible: {ex.Message}");
+                }
+                catch (System.ComponentModel.Win32Exception ex)
+                {
+                    // Access denied - expected when running without elevation in MSIX
+                    // The service is auto-start via SCM, so it will recover on its own
 #pragma warning restore CA1416
-                        LogToFile($"[Watchdog] Cannot control service (no admin rights, SCM will handle): {ex.Message}");
-                    }
-                    catch (System.ServiceProcess.TimeoutException ex)
-                    {
-                        LogToFile($"[Watchdog] Service start timeout: {ex.Message}");
-                    }
+                    LogToFile($"[Watchdog] Cannot control service (no admin rights, SCM will handle): {ex.Message}");
+                }
+                catch (System.ServiceProcess.TimeoutException ex)
+                {
+                    LogToFile($"[Watchdog] Service start timeout: {ex.Message}");
                 }
             }
             catch (Exception ex)

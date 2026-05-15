@@ -72,11 +72,9 @@ namespace RansomGuard.Services
                 var processes = Process.GetProcessesByName(WatchdogProcessName);
                 if (processes.Length == 0)
                 {
-                    string baseDir = AppDomain.CurrentDomain.BaseDirectory;
-                    // Look for the watchdog in the same directory as the dashboard
-                    string watchdogPath = Path.Combine(baseDir, WatchdogProcessName + ".exe");
-                    
-                    if (File.Exists(watchdogPath))
+                    string? watchdogPath = FindWatchdogPath();
+
+                    if (!string.IsNullOrEmpty(watchdogPath) && File.Exists(watchdogPath))
                     {
                         Process.Start(new ProcessStartInfo
                         {
@@ -92,6 +90,23 @@ namespace RansomGuard.Services
             {
                 Debug.WriteLine($"Failed to start watchdog: {ex.Message}");
             }
+        }
+
+        private static string? FindWatchdogPath()
+        {
+            string baseDir = AppDomain.CurrentDomain.BaseDirectory;
+
+            string[] candidatePaths =
+            {
+                Path.Combine(baseDir, WatchdogProcessName + ".exe"),
+                Path.GetFullPath(Path.Combine(baseDir, @"..\RGWorker.exe")),
+                Path.GetFullPath(Path.Combine(baseDir, @"..\..\..\RansomGuard.Watchdog\Debug\net8.0\RGWorker.exe")),
+                Path.GetFullPath(Path.Combine(baseDir, @"..\..\..\RansomGuard.Watchdog\Release\net8.0\RGWorker.exe")),
+                Path.GetFullPath(Path.Combine(baseDir, @"..\..\..\RansomGuard.Watchdog\bin\Debug\net8.0\RGWorker.exe")),
+                Path.GetFullPath(Path.Combine(baseDir, @"..\..\..\RansomGuard.Watchdog\bin\Release\net8.0\RGWorker.exe"))
+            };
+
+            return candidatePaths.FirstOrDefault(File.Exists);
         }
 
         public static void StopWatchdog()

@@ -8,6 +8,7 @@ using RansomGuard.Services;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Windows.Threading;
@@ -16,8 +17,10 @@ namespace RansomGuard.ViewModels
 {
     public partial class FileActivityViewModel : ViewModelBase, IDisposable
     {
+        private const string AllVolumesLabel = "ALL VOLUMES";
         private const int MaxRecentActivities = 150;
         private const int MaxBufferSize = 1000; // Maximum buffer size to prevent unbounded growth
+        private static readonly IReadOnlyDictionary<string, string> KnownFolderNames = CreateKnownFolderNames();
         
         [ObservableProperty]
         private int _monitoredPathsCount;
@@ -35,11 +38,11 @@ namespace RansomGuard.ViewModels
         [ObservableProperty] private bool _isPaused;
         [ObservableProperty] private bool _isRealTimeProtectionEnabled = true;
         [ObservableProperty] private string _filterAction = "ALL";
-        [ObservableProperty] private string _selectedPath = "ALL VOLUMES";
+        [ObservableProperty] private PathFilterOption? _selectedPath = PathFilterOption.AllVolumes;
         [ObservableProperty] private string _riskFilter = "ALL";
         [ObservableProperty] private bool _hasRecentActivity = true;
 
-        public ObservableCollection<string> MonitoredPaths { get; } = new() { "ALL VOLUMES" };
+        public ObservableCollection<PathFilterOption> MonitoredPaths { get; } = new() { PathFilterOption.AllVolumes };
 
         // Histogram data for entropy distribution (7 buckets)
         public ObservableCollection<double> EntropyDistribution { get; } = new() { 0, 0, 0, 0, 0, 0, 0 }; 
@@ -54,11 +57,7 @@ namespace RansomGuard.ViewModels
             _monitorService = monitorService;
             
             // Initial load of monitored paths from local config if possible
-            foreach (var path in ConfigurationService.Instance.MonitoredPaths)
-            {
-                if (!MonitoredPaths.Contains(path))
-                    MonitoredPaths.Add(path);
-            }
+            UpdateMonitoredPaths(ConfigurationService.Instance.MonitoredPaths);
 
             // Initial load - try fetching data immediately
             if (_monitorService.IsConnected)
@@ -86,16 +85,9 @@ namespace RansomGuard.ViewModels
                     MonitoredPathsCount = tele.MonitoredFilesCount;
 
                     // Update monitored paths if changed (always keep ALL VOLUMES at top)
-                    if (tele.MonitoredPaths != null &&
-                        (MonitoredPaths.Count != tele.MonitoredPaths.Length + 1 ||
-                         !MonitoredPaths.Skip(1).SequenceEqual(tele.MonitoredPaths)))
+                    if (tele.MonitoredPaths != null)
                     {
-                        var current = SelectedPath; // Preserve selection before clearing
-                        MonitoredPaths.Clear();
-                        MonitoredPaths.Add("ALL VOLUMES");
-                        foreach (var path in tele.MonitoredPaths) MonitoredPaths.Add(path);
-                        // Restore selection — fallback to ALL VOLUMES if it no longer exists
-                        SelectedPath = MonitoredPaths.Contains(current) ? current : "ALL VOLUMES";
+                        UpdateMonitoredPaths(tele.MonitoredPaths);
                     }
                 });
             };
@@ -144,7 +136,7 @@ namespace RansomGuard.ViewModels
         }
 
         partial void OnSearchQueryChanged(string value) => ApplyFilter();
-        partial void OnSelectedPathChanged(string value) => ApplyFilter();
+        partial void OnSelectedPathChanged(PathFilterOption? value) => ApplyFilter();
         partial void OnRiskFilterChanged(string value) => ApplyFilter();
 
         private void OnFileActivityDetected(FileActivity activity)
@@ -248,7 +240,10 @@ namespace RansomGuard.ViewModels
                 }
 
                 // 3. Path Filter
-                bool matchPath = string.IsNullOrEmpty(SelectedPath) || SelectedPath == "ALL VOLUMES" || a.FilePath.StartsWith(SelectedPath, StringComparison.OrdinalIgnoreCase);
+                bool matchPath = SelectedPath == null ||
+                                 SelectedPath.IsAllVolumes ||
+                                 string.IsNullOrWhiteSpace(SelectedPath.Path) ||
+                                 a.FilePath.StartsWith(SelectedPath.Path, StringComparison.OrdinalIgnoreCase);
 
                 // 4. Risk Filter
                 bool matchRisk = true;
@@ -320,6 +315,126 @@ namespace RansomGuard.ViewModels
             // Implementation...
         }
 
+        private void UpdateMonitoredPaths(IEnumerable<string>? paths)
+        {
+            var currentPath = SelectedPath?.Path;
+            var options = BuildPathFilterOptions(paths);
+
+            MonitoredPaths.Clear();
+            foreach (var option in options)
+            {
+                MonitoredPaths.Add(option);
+            }
+
+            SelectedPath = MonitoredPaths.FirstOrDefault(option => PathsEqual(option.Path, currentPath))
+                ?? MonitoredPaths.FirstOrDefault()
+                ?? PathFilterOption.AllVolumes;
+        }
+
+        private static List<PathFilterOption> BuildPathFilterOptions(IEnumerable<string>? paths)
+        {
+            var options = new List<PathFilterOption> { PathFilterOption.AllVolumes };
+            var seenPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            if (paths == null)
+            {
+                return options;
+            }
+
+            foreach (var rawPath in paths)
+            {
+                var normalizedPath = NormalizePath(rawPath);
+                if (string.IsNullOrWhiteSpace(normalizedPath) || !seenPaths.Add(normalizedPath))
+                {
+                    continue;
+                }
+
+                options.Add(new PathFilterOption(CreateDisplayName(normalizedPath), normalizedPath));
+            }
+
+            return options;
+        }
+
+        private static string CreateDisplayName(string path)
+        {
+            if (KnownFolderNames.TryGetValue(path, out var knownFolderName))
+            {
+                return knownFolderName;
+            }
+
+            var trimmedPath = path.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+            var folderName = Path.GetFileName(trimmedPath);
+            if (!string.IsNullOrWhiteSpace(folderName))
+            {
+                return folderName;
+            }
+
+            return path;
+        }
+
+        private static string NormalizePath(string? path)
+        {
+            if (string.IsNullOrWhiteSpace(path))
+            {
+                return string.Empty;
+            }
+
+            var trimmed = path.Trim();
+
+            // Keep drive roots such as C:\ intact while trimming trailing separators elsewhere.
+            if (trimmed.Length <= 3 && trimmed.EndsWith(Path.DirectorySeparatorChar.ToString(), StringComparison.Ordinal))
+            {
+                return trimmed;
+            }
+
+            return trimmed.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        }
+
+        private static bool PathsEqual(string? left, string? right)
+        {
+            return string.Equals(NormalizePath(left), NormalizePath(right), StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static IReadOnlyDictionary<string, string> CreateKnownFolderNames()
+        {
+            var folders = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+            AddKnownFolder(folders, Environment.SpecialFolder.DesktopDirectory, "Desktop");
+            AddKnownFolder(folders, Environment.SpecialFolder.MyDocuments, "Documents");
+            AddKnownFolder(folders, Environment.SpecialFolder.MyMusic, "Music");
+            AddKnownFolder(folders, Environment.SpecialFolder.MyPictures, "Pictures");
+            AddKnownFolder(folders, Environment.SpecialFolder.MyVideos, "Videos");
+            AddKnownFolder(folders, Environment.SpecialFolder.UserProfile, "User Profile");
+
+            var downloadsPath = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+                "Downloads");
+            if (Directory.Exists(downloadsPath))
+            {
+                folders[NormalizePath(downloadsPath)] = "Downloads";
+            }
+
+            var oneDrivePath = Environment.GetEnvironmentVariable("OneDrive");
+            if (!string.IsNullOrWhiteSpace(oneDrivePath) && Directory.Exists(oneDrivePath))
+            {
+                folders[NormalizePath(oneDrivePath)] = "OneDrive";
+            }
+
+            return folders;
+        }
+
+        private static void AddKnownFolder(
+            IDictionary<string, string> folders,
+            Environment.SpecialFolder specialFolder,
+            string displayName)
+        {
+            var path = Environment.GetFolderPath(specialFolder);
+            if (!string.IsNullOrWhiteSpace(path) && Directory.Exists(path))
+            {
+                folders[NormalizePath(path)] = displayName;
+            }
+        }
+
         public void Dispose()
         {
             if (_disposed) return;
@@ -346,5 +461,22 @@ namespace RansomGuard.ViewModels
         public string Name { get; set; } = string.Empty;
         public int ActivityCount { get; set; }
         public double VolumeMb { get; set; }
+    }
+
+    public class PathFilterOption
+    {
+        public static PathFilterOption AllVolumes { get; } = new("ALL VOLUMES", string.Empty, "Show activity across all monitored drives and protected folders.");
+
+        public PathFilterOption(string displayName, string path, string? toolTip = null)
+        {
+            DisplayName = displayName;
+            Path = path;
+            ToolTip = toolTip ?? (string.IsNullOrWhiteSpace(path) ? displayName : path);
+        }
+
+        public string DisplayName { get; }
+        public string Path { get; }
+        public string ToolTip { get; }
+        public bool IsAllVolumes => string.IsNullOrWhiteSpace(Path);
     }
 }

@@ -275,13 +275,11 @@ namespace RansomGuard.ViewModels
                         Directory.CreateDirectory(folder);
                         path = Path.Combine(folder, $"RansomGuard_ProcessLog_{DateTime.Now:yyyyMMddHHmmss}.csv");
                         
-                        using (var writer = new StreamWriter(path, false))
+                        using var writer = new StreamWriter(path, false);
+                        writer.WriteLine("PID,Name,CPU,Memory,Trusted");
+                        foreach (var p in processSnapshot)
                         {
-                            writer.WriteLine("PID,Name,CPU,Memory,Trusted");
-                            foreach (var p in processSnapshot)
-                            {
-                                writer.WriteLine($"{p.Pid},{p.Name},{p.CpuUsage},{p.MemoryUsage},{p.IsTrusted}");
-                            }
+                            writer.WriteLine($"{p.Pid},{p.Name},{p.CpuUsage},{p.MemoryUsage},{p.IsTrusted}");
                         }
                         
                         if (File.Exists(path))

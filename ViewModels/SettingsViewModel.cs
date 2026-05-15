@@ -17,6 +17,7 @@ namespace RansomGuard.ViewModels
     {
         [ObservableProperty] private string _path;
         [ObservableProperty] private bool _isStandard;
+        public string CategoryLabel => IsStandard ? "Standard" : "Custom";
 
         public MonitoredPathItem(string path)
         {
@@ -62,6 +63,10 @@ namespace RansomGuard.ViewModels
         [ObservableProperty]
         private string _lanSharedSecret = string.Empty;
 
+        public IEnumerable<MonitoredPathItem> StandardProtectedPaths => MonitoredPaths.Where(path => path.IsStandard);
+        public IEnumerable<MonitoredPathItem> UserAddedProtectedPaths => MonitoredPaths.Where(path => !path.IsStandard);
+        public bool HasUserAddedProtectedPaths => MonitoredPaths.Any(path => !path.IsStandard);
+
         public string SensitivityLabel => SensitivityLevel switch
         {
             1 => "LOW",
@@ -98,7 +103,13 @@ namespace RansomGuard.ViewModels
             IsServiceInstalled = ServiceManager.IsServiceInstalled();
 
             // Handle collection changes with debouncing
-            _monitoredPaths.CollectionChanged += (s, e) => SaveConfig();
+            _monitoredPaths.CollectionChanged += (s, e) =>
+            {
+                OnPropertyChanged(nameof(StandardProtectedPaths));
+                OnPropertyChanged(nameof(UserAddedProtectedPaths));
+                OnPropertyChanged(nameof(HasUserAddedProtectedPaths));
+                SaveConfig();
+            };
         }
 
         partial void OnSensitivityLevelChanged(int value)

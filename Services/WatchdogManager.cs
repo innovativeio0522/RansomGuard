@@ -91,20 +91,18 @@ namespace RansomGuard.Services
         {
             try
             {
-                using (var sc = new System.ServiceProcess.ServiceController("RGService"))
+                using var sc = new System.ServiceProcess.ServiceController("RGService");
+                if (sc.Status != System.ServiceProcess.ServiceControllerStatus.Running &&
+                    sc.Status != System.ServiceProcess.ServiceControllerStatus.StartPending)
                 {
-                    if (sc.Status != System.ServiceProcess.ServiceControllerStatus.Running &&
-                        sc.Status != System.ServiceProcess.ServiceControllerStatus.StartPending)
+                    var psi = new ProcessStartInfo("cmd.exe", "/c net start RGService")
                     {
-                        var psi = new ProcessStartInfo("cmd.exe", "/c net start RGService")
-                        {
-                            Verb = "runas",
-                            UseShellExecute = true,
-                            CreateNoWindow = true,
-                            WindowStyle = ProcessWindowStyle.Hidden
-                        };
-                        Process.Start(psi);
-                    }
+                        Verb = "runas",
+                        UseShellExecute = true,
+                        CreateNoWindow = true,
+                        WindowStyle = ProcessWindowStyle.Hidden
+                    };
+                    Process.Start(psi);
                 }
             }
             catch (Exception ex)
@@ -174,9 +172,11 @@ namespace RansomGuard.Services
                 }
             }
 
-            // Development/Debug fallbacks
+            // Development fallbacks for both .artifacts and legacy project-local bin folders.
             string[] searchPaths =
             [
+                Path.GetFullPath(Path.Combine(appDir, @"..\..\..\RansomGuard.Watchdog\Debug\net8.0\RGWorker.exe")),
+                Path.GetFullPath(Path.Combine(appDir, @"..\..\..\RansomGuard.Watchdog\Release\net8.0\RGWorker.exe")),
                 Path.Combine(appDir, @"..\..\..\RansomGuard.Watchdog\bin\Debug\net8.0\RGWorker.exe"),
                 Path.Combine(appDir, @"..\..\..\RansomGuard.Watchdog\bin\Release\net8.0\RGWorker.exe")
             ];
