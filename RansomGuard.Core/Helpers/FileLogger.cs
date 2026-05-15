@@ -12,7 +12,7 @@ namespace RansomGuard.Core.Helpers
     {
         private const long MaxLogSizeBytes = 10 * 1024 * 1024; // 10 MB
         private const int MaxArchivedLogs = 5; // Keep last 5 archived logs
-        private static readonly object _logLock = new object();
+        private static readonly object _logLock = new();
 
         /// <summary>
         /// Logs a message to the specified log file with automatic rotation.
@@ -50,8 +50,8 @@ namespace RansomGuard.Core.Helpers
                         ? $"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}: {message}"
                         : message;
 
-                    using (var fs = new FileStream(logPath, FileMode.Append, FileAccess.Write, FileShare.ReadWrite))
-                    using (var sw = new StreamWriter(fs))
+                    using var fs = new FileStream(logPath, FileMode.Append, FileAccess.Write, FileShare.ReadWrite);
+                    using var sw = new StreamWriter(fs);
                     {
                         sw.WriteLine(logEntry);
                     }

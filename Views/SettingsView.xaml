@@ -351,66 +351,117 @@
                                 </Button>
                             </Grid>
 
-                            <TextBlock Text="Only files within these folders are actively monitored. All other system locations are excluded by default." FontSize="11" Foreground="{StaticResource OnSurfaceVariantBrush}" Opacity="0.5" Margin="0,-16,0,16"/>
+                            <TextBlock Text="Only files within these folders are actively monitored. All other system locations are excluded by default." FontSize="11" Foreground="{StaticResource OnSurfaceVariantBrush}" Opacity="0.5" Margin="0,-16,0,20"/>
 
-                            <!-- Protected Directory Items -->
-                            <ItemsControl ItemsSource="{Binding MonitoredPaths}">
-                                <ItemsControl.ItemTemplate>
-                                    <DataTemplate>
-                                        <Border Background="{StaticResource SurfaceContainerHighBrush}" Padding="16,12" Margin="0,0,0,8" CornerRadius="4">
-                                            <Grid>
-                                                <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="Auto"/>
-                                                    <ColumnDefinition Width="*"/>
-                                                    <ColumnDefinition Width="Auto"/>
-                                                </Grid.ColumnDefinitions>
-                                                
-                                                <Viewbox Grid.Column="0" Width="16" Height="16" Margin="0,0,16,0" Opacity="0.5">
-                                                    <Path Data="M10,4H4C2.89,4 2,4.89 2,6V18A2,2 0 0,0 4,20H20A2,2 0 0,0 22,18V8C22,6.89 21.1,6 20,6H12L10,4Z" Fill="{StaticResource OnSurfaceBrush}"/>
-                                                </Viewbox>
-                                                
-                                                <TextBlock Grid.Column="1" Text="{Binding Path}" FontSize="12" Foreground="{StaticResource OnSurfaceBrush}" VerticalAlignment="Center" FontFamily="Consolas"/>
-                                                
-                                                <Grid Grid.Column="2" VerticalAlignment="Center" Margin="16,0,0,0">
-                                                    <Border Background="{StaticResource SurfaceContainerHighestBrush}" Padding="8,4" CornerRadius="4" HorizontalAlignment="Right">
-                                                        <Border.Style>
-                                                            <Style TargetType="Border">
-                                                                <Setter Property="Visibility" Value="Collapsed"/>
-                                                                <Style.Triggers>
-                                                                    <DataTrigger Binding="{Binding IsStandard}" Value="True">
-                                                                        <Setter Property="Visibility" Value="Visible"/>
-                                                                    </DataTrigger>
-                                                                </Style.Triggers>
-                                                            </Style>
-                                                        </Border.Style>
-                                                        <TextBlock Text="STANDARD" FontSize="9" FontWeight="Black" Foreground="{StaticResource SecondaryBrush}" Opacity="0.8"/>
-                                                    </Border>
+                            <Border Background="{StaticResource SurfaceContainerHighestBrush}" Padding="16" CornerRadius="8" Margin="0,0,0,20">
+                                <StackPanel>
+                                    <TextBlock Text="Standard protected folders" FontSize="12" FontWeight="Bold" Foreground="{StaticResource OnSurfaceBrush}"/>
+                                    <TextBlock Text="Documents, Desktop, Downloads, Pictures, Music, Videos, OneDrive, and other standard user folders form the baseline protection set. They stay protected so core personal data cannot be accidentally excluded from monitoring." FontSize="11" Foreground="{StaticResource OnSurfaceVariantBrush}" Opacity="0.75" Margin="0,6,0,0" TextWrapping="Wrap"/>
+                                    <TextBlock Text="These folders cannot be removed. Add any extra project or work folders below as custom protected folders." FontSize="11" Foreground="{StaticResource SecondaryBrush}" Margin="0,10,0,0" TextWrapping="Wrap"/>
+                                </StackPanel>
+                            </Border>
 
-                                                    <Button Command="{Binding DataContext.RemovePathCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}" 
-                                                            CommandParameter="{Binding}"
-                                                            ToolTip="Remove this folder from protection"
-                                                            HorizontalAlignment="Right"
-                                                            VerticalAlignment="Center">
-                                                        <Button.Style>
-                                                            <Style TargetType="Button" BasedOn="{StaticResource IconButton}">
-                                                                <Setter Property="Visibility" Value="Visible"/>
-                                                                <Style.Triggers>
-                                                                    <DataTrigger Binding="{Binding IsStandard}" Value="True">
-                                                                        <Setter Property="Visibility" Value="Collapsed"/>
-                                                                    </DataTrigger>
-                                                                </Style.Triggers>
-                                                            </Style>
-                                                        </Button.Style>
-                                                        <Viewbox Width="14" Height="14" Opacity="0.4">
-                                                            <Path Data="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z" Fill="{StaticResource OnSurfaceBrush}"/>
-                                                        </Viewbox>
-                                                    </Button>
+                            <StackPanel Margin="0,0,0,20">
+                                <TextBlock Text="STANDARD PROTECTED FOLDERS" FontSize="10" FontWeight="Black" Foreground="{StaticResource SecondaryBrush}" Margin="0,0,0,12" Opacity="0.9"/>
+                                <ItemsControl ItemsSource="{Binding StandardProtectedPaths}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border Background="{StaticResource SurfaceContainerHighBrush}" Padding="16,12" Margin="0,0,0,8" CornerRadius="4">
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                        <ColumnDefinition Width="*"/>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                    </Grid.ColumnDefinitions>
+
+                                                    <Viewbox Grid.Column="0" Width="16" Height="16" Margin="0,0,16,0" Opacity="0.5">
+                                                        <Path Data="M10,4H4C2.89,4 2,4.89 2,6V18A2,2 0 0,0 4,20H20A2,2 0 0,0 22,18V8C22,6.89 21.1,6 20,6H12L10,4Z" Fill="{StaticResource OnSurfaceBrush}"/>
+                                                    </Viewbox>
+
+                                                    <TextBlock Grid.Column="1" Text="{Binding Path}" FontSize="12" Foreground="{StaticResource OnSurfaceBrush}" VerticalAlignment="Center" FontFamily="Consolas" TextTrimming="CharacterEllipsis"/>
+
+                                                    <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" Margin="16,0,0,0">
+                                                        <Border Background="{StaticResource SurfaceContainerHighestBrush}" Padding="8,4" CornerRadius="4" Margin="0,0,8,0">
+                                                            <TextBlock Text="STANDARD" FontSize="9" FontWeight="Black" Foreground="{StaticResource SecondaryBrush}" Opacity="0.8"/>
+                                                        </Border>
+                                                        <TextBlock Text="Always protected" FontSize="11" Foreground="{StaticResource OnSurfaceVariantBrush}" Opacity="0.7" VerticalAlignment="Center"/>
+                                                    </StackPanel>
                                                 </Grid>
-                                            </Grid>
-                                        </Border>
-                                    </DataTemplate>
-                                </ItemsControl.ItemTemplate>
-                            </ItemsControl>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+
+                            <StackPanel>
+                                <Grid Margin="0,0,0,12">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" Text="USER-ADDED FOLDERS" FontSize="10" FontWeight="Black" Foreground="{StaticResource PrimaryBrush}" VerticalAlignment="Center" Opacity="0.9"/>
+                                    <TextBlock Grid.Column="1" Text="You can remove these at any time." FontSize="11" Foreground="{StaticResource OnSurfaceVariantBrush}" Opacity="0.7" VerticalAlignment="Center"/>
+                                </Grid>
+
+                                <ItemsControl ItemsSource="{Binding UserAddedProtectedPaths}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border Background="{StaticResource SurfaceContainerHighBrush}" Padding="16,12" Margin="0,0,0,8" CornerRadius="4">
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                        <ColumnDefinition Width="*"/>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                    </Grid.ColumnDefinitions>
+
+                                                    <Viewbox Grid.Column="0" Width="16" Height="16" Margin="0,0,16,0" Opacity="0.5">
+                                                        <Path Data="M10,4H4C2.89,4 2,4.89 2,6V18A2,2 0 0,0 4,20H20A2,2 0 0,0 22,18V8C22,6.89 21.1,6 20,6H12L10,4Z" Fill="{StaticResource OnSurfaceBrush}"/>
+                                                    </Viewbox>
+
+                                                    <TextBlock Grid.Column="1" Text="{Binding Path}" FontSize="12" Foreground="{StaticResource OnSurfaceBrush}" VerticalAlignment="Center" FontFamily="Consolas" TextTrimming="CharacterEllipsis"/>
+
+                                                    <Grid Grid.Column="2" VerticalAlignment="Center" Margin="16,0,0,0">
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="Auto"/>
+                                                            <ColumnDefinition Width="Auto"/>
+                                                        </Grid.ColumnDefinitions>
+
+                                                        <Border Grid.Column="0" Background="{StaticResource SurfaceContainerHighestBrush}" Padding="8,4" CornerRadius="4" Margin="0,0,8,0">
+                                                            <TextBlock Text="CUSTOM" FontSize="9" FontWeight="Black" Foreground="{StaticResource PrimaryBrush}" Opacity="0.85"/>
+                                                        </Border>
+
+                                                        <Button Grid.Column="1"
+                                                                Command="{Binding DataContext.RemovePathCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                                CommandParameter="{Binding}"
+                                                                ToolTip="Remove this custom folder from protection"
+                                                                HorizontalAlignment="Right"
+                                                                VerticalAlignment="Center"
+                                                                Style="{StaticResource IconButton}">
+                                                            <Viewbox Width="14" Height="14" Opacity="0.4">
+                                                                <Path Data="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z" Fill="{StaticResource OnSurfaceBrush}"/>
+                                                            </Viewbox>
+                                                        </Button>
+                                                    </Grid>
+                                                </Grid>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+
+                                <Border Background="{StaticResource SurfaceContainerHighBrush}" Padding="16,14" CornerRadius="4">
+                                    <Border.Style>
+                                        <Style TargetType="Border">
+                                            <Setter Property="Visibility" Value="Visible"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding HasUserAddedProtectedPaths}" Value="True">
+                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Border.Style>
+                                    <TextBlock Text="No custom folders added yet. Use Add Folder to protect project folders, shared drives, or other locations beyond the standard baseline." FontSize="11" Foreground="{StaticResource OnSurfaceVariantBrush}" Opacity="0.75" TextWrapping="Wrap"/>
+                                </Border>
+                            </StackPanel>
                         </StackPanel>
                     </Border>
 

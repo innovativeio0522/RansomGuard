@@ -118,8 +118,8 @@ namespace RansomGuard.Core.Services
                 {
                     // Use a non-exclusive read to avoid conflicts with external processes
                     string json;
-                    using (var fs = new FileStream(ConfigFile, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
-                    using (var sr = new StreamReader(fs))
+                    using var fs = new FileStream(ConfigFile, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+                    using var sr = new StreamReader(fs);
                     {
                         json = sr.ReadToEnd();
                     }

@@ -181,6 +181,7 @@
                                   Background="{StaticResource SurfaceContainerHighestBrush}"
                                   BorderThickness="0"
                                   Padding="12,6"
+                                  ToolTip="{Binding SelectedPath.ToolTip}"
                                   SelectedItem="{Binding SelectedPath}">
                             <ComboBox.Style>
                                 <Style TargetType="ComboBox">
@@ -194,8 +195,9 @@
                                                             <ColumnDefinition Width="*"/>
                                                             <ColumnDefinition Width="20"/>
                                                         </Grid.ColumnDefinitions>
-                                                        <TextBlock x:Name="Header" Text="{Binding SelectedItem, RelativeSource={RelativeSource TemplatedParent}}" 
+                                                        <TextBlock x:Name="Header" Text="{Binding SelectedItem.DisplayName, RelativeSource={RelativeSource TemplatedParent}}" 
                                                                    FontSize="11" Foreground="{StaticResource OnSurfaceBrush}" VerticalAlignment="Center"
+                                                                   ToolTip="{Binding SelectedItem.ToolTip, RelativeSource={RelativeSource TemplatedParent}}"
                                                                    TextTrimming="CharacterEllipsis"/>
                                                         <Path x:Name="Chevron" Grid.Column="1" Data="M7,10L12,15L17,10H7Z" Fill="{StaticResource OnSurfaceVariantBrush}" 
                                                               HorizontalAlignment="Right" VerticalAlignment="Center"/>
@@ -226,12 +228,12 @@
                             </ComboBox.Style>
                             <ComboBox.ItemTemplate>
                                 <DataTemplate>
-                                    <Border Padding="12,8">
+                                    <Border Padding="12,8" ToolTip="{Binding ToolTip}">
                                         <StackPanel Orientation="Horizontal">
                                             <Viewbox Width="12" Height="12" Margin="0,0,12,0">
                                                 <Path Data="M10,4H4C2.89,4 2,4.89 2,6V18A2,2 0 0,0 4,20H20A2,2 0 0,0 22,18V8C22,6.89 21.1,6 20,6H12L10,4Z" Fill="{StaticResource PrimaryBrush}"/>
                                             </Viewbox>
-                                            <TextBlock Text="{Binding}" FontSize="12" Foreground="{StaticResource OnSurfaceBrush}" MaxWidth="400" TextTrimming="CharacterEllipsis"/>
+                                            <TextBlock Text="{Binding DisplayName}" FontSize="12" Foreground="{StaticResource OnSurfaceBrush}" MaxWidth="400" TextTrimming="CharacterEllipsis"/>
                                         </StackPanel>
                                     </Border>
                                 </DataTemplate>
@@ -487,32 +489,40 @@
                 </Grid.ColumnDefinitions>
 
                 <!-- Entropy Distribution Chart -->
-                <Border Grid.Column="0" Background="{StaticResource SurfaceContainerBrush}" CornerRadius="16" Padding="24">
+                <Border Grid.Column="0" Background="{StaticResource SurfaceContainerBrush}" CornerRadius="16" Padding="24"
+                        ToolTipService.ShowDuration="30000"
+                        ToolTip="Shows how random recent file contents look. A sudden move toward the high end can happen when files are being encrypted.">
                     <StackPanel>
                         <Grid Margin="0,0,0,16">
                             <TextBlock Text="ENTROPY DISTRIBUTION" FontSize="10" FontWeight="Black" Foreground="{StaticResource OnSurfaceVariantBrush}"/>
-                            <Viewbox Width="18" Height="18" HorizontalAlignment="Right">
-                                <Path Data="M12,2A10,10 0 1,0 22,12A10,10 0 0,0 12,2M12,4A8,8 0 1,1 4,12A8,8 0 0,1 12,4M12,6A6,6 0 1,0 18,12A6,6 0 0,0 12,6M12,8A4,4 0 1,1 8,12A4,4 0 0,1 12,8M12,10A2,2 0 1,0 14,12A2,2 0 0,0 12,10Z" 
-                                      Fill="{StaticResource PrimaryBrush}" RenderTransformOrigin="0.5,0.5">
-                                    <Path.RenderTransform>
-                                        <ScaleTransform x:Name="IconScale"/>
-                                    </Path.RenderTransform>
-                                    <Path.Triggers>
-                                        <EventTrigger RoutedEvent="Loaded">
-                                            <BeginStoryboard>
-                                                <Storyboard RepeatBehavior="Forever">
-                                                    <DoubleAnimation Storyboard.TargetProperty="(Path.RenderTransform).(ScaleTransform.ScaleX)"
-                                                                     From="1.0" To="1.1" Duration="0:0:1.5" AutoReverse="True"/>
-                                                    <DoubleAnimation Storyboard.TargetProperty="(Path.RenderTransform).(ScaleTransform.ScaleY)"
-                                                                     From="1.0" To="1.1" Duration="0:0:1.5" AutoReverse="True"/>
-                                                    <DoubleAnimation Storyboard.TargetProperty="Opacity"
-                                                                     From="1.0" To="0.4" Duration="0:0:1.5" AutoReverse="True"/>
-                                                </Storyboard>
-                                            </BeginStoryboard>
-                                        </EventTrigger>
-                                    </Path.Triggers>
-                                </Path>
-                            </Viewbox>
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                <Border Width="18" Height="18" CornerRadius="9" Background="{StaticResource SurfaceVariantBrush}" Margin="0,0,8,0"
+                                        ToolTip="Shows how random recent file contents look. A sudden move toward the high end can happen when files are being encrypted.">
+                                    <TextBlock Text="?" FontSize="10" FontWeight="Bold" Foreground="{StaticResource OnSurfaceBrush}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                                <Viewbox Width="18" Height="18">
+                                    <Path Data="M12,2A10,10 0 1,0 22,12A10,10 0 0,0 12,2M12,4A8,8 0 1,1 4,12A8,8 0 0,1 12,4M12,6A6,6 0 1,0 18,12A6,6 0 0,0 12,6M12,8A4,4 0 1,1 8,12A4,4 0 0,1 12,8M12,10A2,2 0 1,0 14,12A2,2 0 0,0 12,10Z" 
+                                          Fill="{StaticResource PrimaryBrush}" RenderTransformOrigin="0.5,0.5">
+                                        <Path.RenderTransform>
+                                            <ScaleTransform x:Name="IconScale"/>
+                                        </Path.RenderTransform>
+                                        <Path.Triggers>
+                                            <EventTrigger RoutedEvent="Loaded">
+                                                <BeginStoryboard>
+                                                    <Storyboard RepeatBehavior="Forever">
+                                                        <DoubleAnimation Storyboard.TargetProperty="(Path.RenderTransform).(ScaleTransform.ScaleX)"
+                                                                         From="1.0" To="1.1" Duration="0:0:1.5" AutoReverse="True"/>
+                                                        <DoubleAnimation Storyboard.TargetProperty="(Path.RenderTransform).(ScaleTransform.ScaleY)"
+                                                                         From="1.0" To="1.1" Duration="0:0:1.5" AutoReverse="True"/>
+                                                        <DoubleAnimation Storyboard.TargetProperty="Opacity"
+                                                                         From="1.0" To="0.4" Duration="0:0:1.5" AutoReverse="True"/>
+                                                    </Storyboard>
+                                                </BeginStoryboard>
+                                            </EventTrigger>
+                                        </Path.Triggers>
+                                    </Path>
+                                </Viewbox>
+                            </StackPanel>
                         </Grid>
                         
                         <!-- Visual Wave Distribution -->
@@ -540,9 +550,17 @@
                 </Border>
 
                 <!-- I/O Intensive Nodes -->
-                <Border Grid.Column="2" Background="{StaticResource SurfaceContainerBrush}" CornerRadius="16" Padding="24">
+                <Border Grid.Column="2" Background="{StaticResource SurfaceContainerBrush}" CornerRadius="16" Padding="24"
+                        ToolTipService.ShowDuration="30000"
+                        ToolTip="Shows which apps are touching the most files right now. Heavy activity can be normal, but unusual spikes are worth checking.">
                     <StackPanel>
-                        <TextBlock Text="I/O INTENSIVE NODES" FontSize="10" FontWeight="Black" Foreground="{StaticResource OnSurfaceVariantBrush}" Margin="0,0,0,20"/>
+                        <Grid Margin="0,0,0,20">
+                            <TextBlock Text="I/O INTENSIVE NODES" FontSize="10" FontWeight="Black" Foreground="{StaticResource OnSurfaceVariantBrush}"/>
+                            <Border Width="18" Height="18" CornerRadius="9" Background="{StaticResource SurfaceVariantBrush}" HorizontalAlignment="Right"
+                                    ToolTip="Shows which apps are touching the most files right now. Heavy activity can be normal, but unusual spikes are worth checking.">
+                                <TextBlock Text="?" FontSize="10" FontWeight="Bold" Foreground="{StaticResource OnSurfaceBrush}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                        </Grid>
                         
                         <ItemsControl ItemsSource="{Binding IoIntensiveNodes}">
                             <ItemsControl.ItemTemplate>
@@ -566,13 +584,21 @@
                 </Border>
 
                 <!-- Statistics Summary -->
-                <Border Grid.Column="4" Background="{StaticResource SurfaceContainerBrush}" CornerRadius="16" Padding="24" VerticalAlignment="Stretch">
+                <Border Grid.Column="4" Background="{StaticResource SurfaceContainerBrush}" CornerRadius="16" Padding="24" VerticalAlignment="Stretch"
+                        ToolTipService.ShowDuration="30000"
+                        ToolTip="Approximate number of file events checked each minute. Higher numbers mean the app is watching more activity.">
                     <Grid>
                         <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
                             <TextBlock Text="{Binding EventsPerMin}" FontSize="42" FontWeight="Black" Foreground="#ff5451" HorizontalAlignment="Center">
                                 <TextBlock.Effect><DropShadowEffect Color="#ff5451" BlurRadius="15" ShadowDepth="0" Opacity="0.3"/></TextBlock.Effect>
                             </TextBlock>
-                            <TextBlock Text="EVENTS SCANNED / MIN" FontSize="10" FontWeight="Black" Foreground="{StaticResource OnSurfaceVariantBrush}" HorizontalAlignment="Center" Margin="0,4,0,0"/>
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,4,0,0">
+                                <TextBlock Text="EVENTS SCANNED / MIN" FontSize="10" FontWeight="Black" Foreground="{StaticResource OnSurfaceVariantBrush}" VerticalAlignment="Center"/>
+                                <Border Width="18" Height="18" CornerRadius="9" Background="{StaticResource SurfaceVariantBrush}" Margin="8,0,0,0"
+                                        ToolTip="Approximate number of file events checked each minute. Higher numbers mean the app is watching more activity.">
+                                    <TextBlock Text="?" FontSize="10" FontWeight="Bold" Foreground="{StaticResource OnSurfaceBrush}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                            </StackPanel>
                             
                             <Border Background="#1a4edea3" CornerRadius="20" Padding="12,6" Margin="0,20,0,0" HorizontalAlignment="Center">
                                 <StackPanel Orientation="Horizontal">
