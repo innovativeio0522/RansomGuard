@@ -15,7 +15,7 @@ public class FirewallManagerTests
         args.Should().Contain("dir=in");
         args.Should().Contain("protocol=UDP");
         args.Should().Contain("localport=47888");
-        args.Should().Contain("profile=private,domain");
+        args.Should().Contain("profile=any");
     }
 
     [Fact]
@@ -27,7 +27,7 @@ public class FirewallManagerTests
         args.Should().Contain("dir=out");
         args.Should().Contain("protocol=UDP");
         args.Should().Contain("localport=47888");
-        args.Should().Contain("profile=private,domain");
+        args.Should().Contain("profile=any");
     }
 
     [Fact]

@@ -43,6 +43,10 @@ namespace RansomGuard.Core.Helpers
                     return false;
                 }
 
+                // Delete existing rules first to ensure profiles and settings are refreshed
+                DeleteRule(LanRuleName);
+                DeleteRule(LanRuleNameOutbound);
+
                 bool inboundReady = EnsureRule(LanRuleName, port, BuildInboundRuleArguments(port));
                 bool outboundReady = EnsureRule(LanRuleNameOutbound, port, BuildOutboundRuleArguments(port));
 
@@ -153,13 +157,13 @@ namespace RansomGuard.Core.Helpers
         internal static string BuildInboundRuleArguments(int port) =>
             $"advfirewall firewall add rule name=\"{LanRuleName}\" " +
             $"dir=in action=allow protocol=UDP localport={port} " +
-            "profile=private,domain " +
+            "profile=any " +
             "description=\"Allows RansomGuard to discover and communicate with peers on the local network\"";
 
         internal static string BuildOutboundRuleArguments(int port) =>
             $"advfirewall firewall add rule name=\"{LanRuleNameOutbound}\" " +
             $"dir=out action=allow protocol=UDP localport={port} " +
-            "profile=private,domain " +
+            "profile=any " +
             "description=\"Allows RansomGuard to broadcast discovery beacons on the local network\"";
 
         internal static bool RuleOutputMatchesPort(string output, int port)
