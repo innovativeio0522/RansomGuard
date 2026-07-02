@@ -58,6 +58,12 @@ namespace RansomGuard.Service.Engine
         /// <summary>Whether the circuit breaker has been tripped.</summary>
         public bool IsCircuitBroken => _isCircuitBroken;
 
+        /// <summary>Info about what triggered the circuit break, if any.</summary>
+        public string TriggerInfo => _triggerInfo;
+
+        /// <summary>Gets the list of currently active LAN peers.</summary>
+        public List<LanPeer> GetActivePeers() => _peers.Values.ToList();
+
         public LanCircuitBreaker()
         {
             _nodeId = GetMachineId();

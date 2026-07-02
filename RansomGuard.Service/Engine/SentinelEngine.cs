@@ -167,6 +167,8 @@ namespace RansomGuard.Service.Engine
                 }
             }
             
+            FileLogger.Log(AppIdentifiers.SentinelEngineLogFile, $"[SENTINEL] ETW Monitor initialized: {_etwMonitor != null}, IsEtwActive: {_isEtwActive}");
+            
             // Run cleanup timer
             _engineCleanupTimer = new System.Timers.Timer(DebounceCleanupIntervalMs);
             _engineCleanupTimer.Elapsed += (s, e) => {
@@ -313,9 +315,12 @@ namespace RansomGuard.Service.Engine
                 if (path.Contains("!$RansomGuard_Bait", StringComparison.OrdinalIgnoreCase))
                 {
                     // Honeypot bait file hit detected!
+                    FileLogger.Log(AppIdentifiers.SentinelEngineLogFile, $"[HoneyPot] Bait hit detected: {path} | Process: {providedProcessName} | IsEtwActive: {_isEtwActive}");
+                    
                     // 1. Check if the process is whitelisted (safe system/admin/backup processes)
                     if (IsWhitelistedHoneypotProcess(providedProcessName))
                     {
+                        FileLogger.Log(AppIdentifiers.SentinelEngineLogFile, $"[HoneyPot] Ignoring hit from whitelisted process: {providedProcessName}");
                         return; // Ignore safe process activity
                     }
 
@@ -597,7 +602,7 @@ namespace RansomGuard.Service.Engine
             data.LastScanTime = _lastScanTime;
             data.TotalScansCount = ConfigurationService.Instance.TotalScansCount;
             data.FilesPerHour = _historyManager.GetFilesPerHour();
-            data.ActiveEndpointsCount = _lanCircuitBreaker?.PeerCount ?? 0;
+            data.ActiveEndpointsCount = (_lanCircuitBreaker?.PeerCount ?? 0) + 1;
 
             // Performance metrics
             data.AvgAnalysisMs = perfSnap.AvgAnalysisMs;
@@ -608,6 +613,17 @@ namespace RansomGuard.Service.Engine
             data.TotalMassEncryptionAlerts = perfSnap.TotalMassEncryptionAlerts;
             
             return data;
+        }
+
+        public LanPeerListUpdate GetLanPeerList()
+        {
+            if (_lanCircuitBreaker == null) return new LanPeerListUpdate();
+            return new LanPeerListUpdate
+            {
+                Peers = _lanCircuitBreaker.GetActivePeers(),
+                IsCircuitBroken = _lanCircuitBreaker.IsCircuitBroken,
+                TriggerInfo = _lanCircuitBreaker.TriggerInfo
+            };
         }
 
         // ISystemMonitorService implementation - Quarantine operations

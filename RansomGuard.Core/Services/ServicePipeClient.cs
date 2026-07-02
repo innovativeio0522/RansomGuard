@@ -86,6 +86,10 @@ namespace RansomGuard.Services
                     _pipeClient = pipeClient;
                     _writer = writer;
 
+                    // Clear local caches on new connection to prepare for fresh snapshots
+                    lock (_activitiesLock) { _recentActivities.Clear(); }
+                    lock (_threatsLock) { _recentThreats.Clear(); }
+
                     // 1. Send Handshake
                     await SendPacket(MessageType.HandshakeRequest, "HELLO", token).ConfigureAwait(false);
 
@@ -342,6 +346,7 @@ namespace RansomGuard.Services
         public long GetSystemMemoryUsage() { lock (_telemetryLock) { return _lastTelemetry.MemoryUsage; } }
         public int GetMonitoredFilesCount() { return ConfigurationService.Instance.MonitoredPaths.Count; }
         public TelemetryData GetTelemetry() { lock (_telemetryLock) { return _lastTelemetry; } }
+        public LanPeerListUpdate GetLanPeerList() => new LanPeerListUpdate();
         public double GetQuarantineStorageUsage() { lock (_telemetryLock) { return _lastTelemetry.QuarantineStorageMb; } }
 
         public IEnumerable<string> GetQuarantinedFiles()

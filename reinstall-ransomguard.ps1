@@ -36,9 +36,21 @@ Write-Host " RansomGuard Complete Reinstallation Script" -ForegroundColor Cyan
 Write-Host "=============================================" -ForegroundColor Cyan
 Write-Host ""
 
-# 1. Stop and Delete Services
-Write-Host "[1/7] Stopping and removing services..." -ForegroundColor Yellow
-$services = @("RGService", "RansomGuardSentinel")
+# 1. Stop processes
+Write-Host "[1/7] Terminating running processes..." -ForegroundColor Yellow
+$processes = @("RGUI", "RGWorker", "RansomGuard", "RansomGuard.Watchdog")
+foreach ($procName in $processes) {
+    $proc = Get-Process -Name $procName -ErrorAction SilentlyContinue
+    if ($proc) {
+        Write-Host "  Stopping $procName..." -ForegroundColor Cyan
+        $proc | Stop-Process -Force
+    }
+}
+Start-Sleep -Seconds 1
+
+# 2. Stop and Delete Services
+Write-Host "`n[2/7] Stopping and removing services..." -ForegroundColor Yellow
+$services = @("RGService", "RGServicePackaged", "RansomGuardSentinel")
 foreach ($serviceName in $services) {
     Write-Host "  Service: $serviceName" -ForegroundColor Cyan
     $service = Get-Service -Name $serviceName -ErrorAction SilentlyContinue
@@ -55,18 +67,6 @@ foreach ($serviceName in $services) {
         Write-Host "    Not found." -ForegroundColor DarkGray
     }
 }
-
-# 2. Stop processes
-Write-Host "`n[2/7] Terminating running processes..." -ForegroundColor Yellow
-$processes = @("RGUI", "RGWorker", "RansomGuard", "RansomGuard.Watchdog")
-foreach ($procName in $processes) {
-    $proc = Get-Process -Name $procName -ErrorAction SilentlyContinue
-    if ($proc) {
-        Write-Host "  Stopping $procName..." -ForegroundColor Cyan
-        $proc | Stop-Process -Force
-    }
-}
-Start-Sleep -Seconds 1
 
 # 3. Remove scheduled tasks
 Write-Host "`n[3/7] Cleaning up scheduled tasks..." -ForegroundColor Yellow
@@ -109,24 +109,28 @@ foreach ($dbPath in $dbPaths) {
 
 # 6. Locate and install latest package
 Write-Host "`n[6/7] Finding latest installation package..." -ForegroundColor Yellow
-$packageRoot = Join-Path $PSScriptRoot "RansomGuard.Package\AppPackages"
-if (-not (Test-Path $packageRoot)) {
-    $packageRoot = Join-Path $PSScriptRoot "AppPackages"
-}
-if (-not (Test-Path $packageRoot)) {
-    Write-Host "ERROR: Could not find AppPackages directory (checked in RansomGuard.Package\AppPackages and AppPackages)." -ForegroundColor Red
-    Write-Host "Please build the package first using scripts\build-package.ps1!" -ForegroundColor Red
-    Read-Host "`nPress Enter to exit"
-    exit 1
+
+$packageRoots = @(
+    (Join-Path $PSScriptRoot "AppPackages"),
+    (Join-Path $PSScriptRoot "RansomGuard.Package\AppPackages")
+)
+
+$installFolders = @()
+foreach ($rootPath in $packageRoots) {
+    if (Test-Path $rootPath) {
+        $folders = Get-ChildItem -Path $rootPath -Recurse -Filter "Add-AppDevPackage.ps1" -ErrorAction SilentlyContinue | 
+                   ForEach-Object { $_.Directory } | 
+                   Where-Object { 
+                       (Get-ChildItem -Path $_.FullName -Filter "*.cer" -ErrorAction SilentlyContinue) -and 
+                       (Get-ChildItem -Path $_.FullName -Filter "*.msix*" -ErrorAction SilentlyContinue) 
+                   }
+        if ($folders) {
+            $installFolders += $folders
+        }
+    }
 }
 
-$installFolders = Get-ChildItem -Path $packageRoot -Recurse -Filter "Add-AppDevPackage.ps1" | 
-                  ForEach-Object { $_.Directory } | 
-                  Where-Object { 
-                      (Get-ChildItem -Path $_.FullName -Filter "*.cer" -ErrorAction SilentlyContinue) -and 
-                      (Get-ChildItem -Path $_.FullName -Filter "*.msix*" -ErrorAction SilentlyContinue) 
-                  } | 
-                  Sort-Object LastWriteTime -Descending
+$installFolders = $installFolders | Sort-Object LastWriteTime -Descending
 
 if ($null -eq $installFolders -or $installFolders.Count -eq 0) {
     Write-Host "ERROR: No sideloading packages found." -ForegroundColor Red

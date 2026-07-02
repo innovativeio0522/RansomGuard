@@ -93,6 +93,11 @@ namespace RansomGuard.Core.Interfaces
         RansomGuard.Core.IPC.TelemetryData GetTelemetry();
 
         /// <summary>
+        /// Retrieves the current list of active LAN peers.
+        /// </summary>
+        LanPeerListUpdate GetLanPeerList();
+
+        /// <summary>
         /// Retrieves a list of files currently in quarantine.
         /// </summary>
         /// <returns>A collection of file paths for quarantined files.</returns>

@@ -63,6 +63,7 @@ namespace RansomGuard.Service.Communication
 
             _monitorService.FileActivityDetected += (activity) => ReliableBroadcast(MessageType.FileActivity, activity);
             _monitorService.ThreatDetected += (threat) => ReliableBroadcast(MessageType.ThreatDetected, threat);
+            _monitorService.LanPeerListUpdated += (update) => ReliableBroadcast(MessageType.LanPeerUpdate, update);
 
         }
 
@@ -73,7 +74,6 @@ namespace RansomGuard.Service.Communication
                 try
                 {
                     var telemetry = _monitorService.GetTelemetry();
-                    telemetry.ActiveEndpointsCount = _clients.Count;
                     // Telemetry is lossy — we use DropOldest strategy
                     Broadcast(MessageType.TelemetryUpdate, telemetry, dropOldest: true);
                 }
@@ -299,6 +299,10 @@ namespace RansomGuard.Service.Communication
                                 var telemetryData = _monitorService.GetTelemetry();
                                 if (telemetryData != null)
                                     EnqueueMessage(context, MessageType.TelemetryUpdate, telemetryData);
+
+                                var lanPeerList = _monitorService.GetLanPeerList();
+                                if (lanPeerList != null)
+                                    EnqueueMessage(context, MessageType.LanPeerUpdate, lanPeerList);
                             }
                             catch (Exception ex)
                             {

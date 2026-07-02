@@ -62,7 +62,14 @@ Copy-Item -Path "$watchdogPublishDir\*" -Destination $servicePublishDir -Force
 
 Write-Host "Building MSIX Package ($Configuration|$Platform)..." -ForegroundColor Cyan
 $certPassword = if ($env:RANSOMGUARD_CERT_PASSWORD) { $env:RANSOMGUARD_CERT_PASSWORD } else { "RansomGuardDev123!" }
-msbuild RansomGuard.Package\RansomGuard.Package.wapproj /p:Configuration=$Configuration /p:Platform=$Platform /p:AppxBundle=Always /p:AppxBundlePlatforms="$Platform" /p:UapAppxPackageBuildMode=StoreUpload /p:PackageCertificatePassword=$certPassword /restore
+# Find MSBuild using vswhere
+$vsWhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+$msbuildPath = & $vsWhere -latest -requires Microsoft.Component.MSBuild -find MSBuild\**\Bin\MSBuild.exe | Select-Object -First 1
+if (-not $msbuildPath) {
+    Write-Host "MSBuild not found!" -ForegroundColor Red
+    exit 1
+}
+& $msbuildPath RansomGuard.Package\RansomGuard.Package.wapproj /p:Configuration=$Configuration /p:Platform=$Platform /p:AppxBundle=Always /p:AppxBundlePlatforms="$Platform" /p:UapAppxPackageBuildMode=StoreUpload /p:PackageCertificatePassword=$certPassword /restore
 
 if ($LASTEXITCODE -eq 0) {
     Write-Host "`nSuccessfully built the MSIX package!" -ForegroundColor Green

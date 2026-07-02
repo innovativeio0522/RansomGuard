@@ -54,7 +54,13 @@ Copy-Item -Path "$watchdogPublishDir\*" -Destination $servicePublishDir -Force
 # 4. Create MSIX Package
 Write-Host "`n[4/4] Creating MSIX Package..." -ForegroundColor Yellow
 $certPassword = if ($env:RANSOMGUARD_CERT_PASSWORD) { $env:RANSOMGUARD_CERT_PASSWORD } else { "RansomGuardDev123!" }
-$msbuild = "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\MSBuild\Current\Bin\MSBuild.exe"
+# Find MSBuild using vswhere
+$vsWhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+$msbuild = & $vsWhere -latest -requires Microsoft.Component.MSBuild -find MSBuild\**\Bin\MSBuild.exe | Select-Object -First 1
+if (-not $msbuild) {
+    Write-Host "MSBuild not found!" -ForegroundColor Red
+    exit 1
+}
 & $msbuild RansomGuard.Package\RansomGuard.Package.wapproj `
     /restore `
     /p:Configuration=$config `
