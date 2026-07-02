@@ -75,9 +75,9 @@ namespace RansomGuard.Core.Interfaces
         double GetSystemCpuUsage();
         
         /// <summary>
-        /// Gets the current memory usage of the monitoring service in bytes.
+        /// Gets the current used system RAM in bytes.
         /// </summary>
-        /// <returns>Memory usage in bytes.</returns>
+        /// <returns>Used system RAM in bytes.</returns>
         long GetSystemMemoryUsage();
         
         /// <summary>
@@ -160,13 +160,20 @@ namespace RansomGuard.Core.Interfaces
         Task MitigateThreat(string threatId);
         
         /// <summary>
-        /// Handles mass encryption response: kills the malicious process and quarantines affected files.
-        /// Called when user confirms or timeout occurs (5 seconds) for mass encryption threats.
+        /// Handles an explicit mass encryption response from the UI or the service timeout flow.
         /// </summary>
+        /// <param name="threatId">The unique threat ID being resolved.</param>
+        /// <param name="shouldMitigate">True to mitigate immediately; false to record a user decline.</param>
+        /// <param name="isUserInitiated">True when this response came from the user prompt; false when triggered by service timeout.</param>
         /// <param name="processId">The process ID to terminate</param>
         /// <param name="processName">The process name for logging</param>
         /// <param name="filesToQuarantine">List of file paths to quarantine</param>
         /// <returns>A task representing the asynchronous operation</returns>
-        Task HandleMassEncryptionResponse(int processId, string processName, List<string> filesToQuarantine);
+        Task HandleMassEncryptionResponse(string threatId, bool shouldMitigate, bool isUserInitiated, int processId, string processName, List<string> filesToQuarantine);
+
+        /// <summary>
+        /// Permanently deletes all historical file activity records from the database.
+        /// </summary>
+        Task ClearActivityHistory();
     }
 }

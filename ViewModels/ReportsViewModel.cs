@@ -22,6 +22,7 @@ namespace RansomGuard.ViewModels
     public partial class ReportsViewModel : ViewModelBase, IDisposable
     {
         private readonly ISystemMonitorService? _monitorService;
+        private bool _disposed;
 
         [ObservableProperty]
         private string _lastScanDate = "Never";
@@ -77,6 +78,7 @@ namespace RansomGuard.ViewModels
 
         private void OnConnectionStatusChanged(bool connected)
         {
+            if (_disposed) return;
             if (connected)
             {
                 System.Windows.Application.Current.Dispatcher.Invoke(LoadData);
@@ -85,6 +87,7 @@ namespace RansomGuard.ViewModels
 
         private void OnTelemetryUpdated(TelemetryData telemetry)
         {
+            if (_disposed) return;
             // Only update metrics that don't trigger chart re-renders
             System.Windows.Application.Current.Dispatcher.Invoke(() => {
                 CalculateSecurityScore();
@@ -100,6 +103,7 @@ namespace RansomGuard.ViewModels
 
         private void OnThreatDetected(Threat threat)
         {
+            if (_disposed) return;
             System.Windows.Application.Current.Dispatcher.Invoke(LoadData);
         }
 
@@ -411,6 +415,9 @@ namespace RansomGuard.ViewModels
 
         public void Dispose()
         {
+            if (_disposed) return;
+            _disposed = true;
+
             if (_monitorService != null)
             {
                 _monitorService.ConnectionStatusChanged -= OnConnectionStatusChanged;

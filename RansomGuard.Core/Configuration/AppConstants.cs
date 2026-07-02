@@ -13,6 +13,7 @@ namespace RansomGuard.Core.Configuration
         {
             public const string AppName = "RGCoreEssentials";
             public const string CompanyName = "InnovativeIO";
+            public static readonly string[] DefaultExcludedFolders = { "obj", "bin", ".git", ".vs", "node_modules", "vendor", ".idea" };
         }
 
         /// <summary>
@@ -103,6 +104,31 @@ namespace RansomGuard.Core.Configuration
             /// Controls how often the service broadcasts process list updates
             /// </summary>
             public const int ProcessListBroadcastMs = 5000;
+
+            /// <summary>
+            /// LAN discovery beacon interval (5 seconds = 5000ms)
+            /// </summary>
+            public const int LanBeaconIntervalMs = 5000;
+
+            /// <summary>
+            /// LAN peer cleanup interval (5 seconds = 5000ms)
+            /// </summary>
+            public const int LanCleanupIntervalMs = 5000;
+
+            /// <summary>
+            /// Panic mode toggle cooldown (2 seconds)
+            /// </summary>
+            public const int PanicModeCooldownSeconds = 2;
+
+            /// <summary>
+            /// Watchdog process check interval (5 seconds)
+            /// </summary>
+            public const int WatchdogCheckIntervalMs = 5000;
+
+            /// <summary>
+            /// Standard timeout for external process operations (3 seconds)
+            /// </summary>
+            public const int ExternalProcessTimeoutMs = 3000;
         }
 
         /// <summary>
@@ -151,6 +177,56 @@ namespace RansomGuard.Core.Configuration
             /// Larger buffer reduces chance of missing file events under high load
             /// </summary>
             public const int FileWatcherBufferSize = 65536;
+
+            /// <summary>
+            /// Maximum wait time for pipe connection (5 seconds)
+            /// </summary>
+            public const int PipeConnectionTimeoutMs = 5000;
+
+            /// <summary>
+            /// Maximum active alerts in Dashboard (100 items)
+            /// </summary>
+            public const int MaxActiveAlerts = 100;
+
+            /// <summary>
+            /// Maximum threats tracked in ThreatAlerts (500 items)
+            /// </summary>
+            public const int MaxThreats = 500;
+
+            /// <summary>
+            /// Baseline risk score for a clean system
+            /// </summary>
+            public const int BaselineRiskScore = 8;
+
+            /// <summary>
+            /// Minutes threshold for considering a threat as "recent" in Dashboard (60 minutes)
+            /// </summary>
+            public const int MinutesThresholdForRecent = 60;
+
+            /// <summary>
+            /// Maximum size for activity buffer before processing (1000 items)
+            /// </summary>
+            public const int MaxBufferSize = 1000;
+
+            /// <summary>
+            /// Time in seconds before a LAN peer is considered offline if no beacon is received (15 seconds)
+            /// </summary>
+            public const int LanPeerTimeoutSeconds = 15;
+
+            /// <summary>
+            /// Default page size for list views in the UI (20 items)
+            /// </summary>
+            public const int PageSize = 20;
+
+            /// <summary>
+            /// Maximum storage allocated for quarantine (5 GB = 5120 MB)
+            /// </summary>
+            public const double QuarantineStorageLimitMb = 5120.0;
+
+            /// <summary>
+            /// Display text for quarantine storage limit
+            /// </summary>
+            public const string QuarantineStorageLimitText = "5 GB";
         }
 
         /// <summary>
@@ -226,6 +302,16 @@ namespace RansomGuard.Core.Configuration
             /// </summary>
             public const int ClientHeartbeatTimeoutSeconds = 60;
             
+            /// <summary>
+            /// Maximum allowed IPC payload size (64 KB) to prevent memory exhaustion
+            /// </summary>
+            public const int MaxIpcPayloadSizeBytes = 65536;
+
+            /// <summary>
+            /// Minimum time between requests from the same client (50 ms) for throttling
+            /// </summary>
+            public const int IpcRequestThrottleMs = 50;
+
             /// <summary>
             /// Retry delay jitter range (±200ms)
             /// Random variation added to retry delays

@@ -3,7 +3,10 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using Microsoft.Win32;
+using RansomGuard.Core.Models;
 using RansomGuard.Core.Helpers;
+using RansomGuard.Core.Constants;
+using RansomGuard.Core.Configuration;
 
 namespace RansomGuard.Service.Engine
 {
@@ -11,23 +14,44 @@ namespace RansomGuard.Service.Engine
     {
         public void KillProcess(int pid)
         {
+            if (pid <= 0 || pid > 65535)
+            {
+                FileLogger.LogWarning(AppIdentifiers.ActiveResponseLogFile, $"KillProcess blocked: Invalid PID {pid}");
+                return;
+            }
+
             try
             {
-                var process = Process.GetProcessById(pid);
-                string path = process.MainModule?.FileName ?? "";
-                
-                process.Kill(true);
-                Console.WriteLine($"Killed suspicious process: {pid}");
-
-                if (!string.IsNullOrEmpty(path))
+                RetryHelper.Execute(() =>
                 {
-                    QuarantineFile(path);
-                    ScrubPersistence(path);
-                }
+                    // Check if process still exists
+                    Process process;
+                    try 
+                    { 
+                        process = Process.GetProcessById(pid); 
+                    }
+                    catch (ArgumentException)
+                    {
+                        FileLogger.LogWarning(AppIdentifiers.ActiveResponseLogFile, $"KillProcess skipped: Process {pid} no longer exists.");
+                        return;
+                    }
+
+                    string path = string.Empty;
+                    try { path = process.MainModule?.FileName ?? ""; } catch { }
+                    
+                    process.Kill(true);
+                    FileLogger.Log(AppIdentifiers.ActiveResponseLogFile, $"Killed suspicious process: {pid}");
+
+                    if (!string.IsNullOrEmpty(path))
+                    {
+                        QuarantineFile(path);
+                        ScrubPersistence(path);
+                    }
+                }, maxRetries: 2, shouldRetry: ex => ex is InvalidOperationException || ex is System.ComponentModel.Win32Exception);
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Failed to kill process {pid}: {ex.Message}");
+                FileLogger.LogError(AppIdentifiers.ActiveResponseLogFile, $"Failed to kill process {pid}", ex);
             }
         }
 
@@ -41,45 +65,65 @@ namespace RansomGuard.Service.Engine
                 string fileName = Path.GetFileName(filePath);
                 string destPath = Path.Combine(quarantinePath, fileName + ".quarantine");
 
-                File.Move(filePath, destPath, true);
-                Console.WriteLine($"Quarantined file to: {destPath}");
+                RetryHelper.Execute(() => 
+                {
+                    File.Move(filePath, destPath, true);
+                }, maxRetries: 5, initialDelayMs: 200, shouldRetry: ex => ex is IOException);
+                
+                FileLogger.Log(AppIdentifiers.ActiveResponseLogFile, $"Quarantined file to: {destPath}");
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Quarantine failed for {filePath}: {ex.Message}");
+                FileLogger.LogError(AppIdentifiers.ActiveResponseLogFile, $"Quarantine failed for {filePath}", ex);
             }
         }
 
         public void ScrubPersistence(string maliciousPath)
         {
+            if (string.IsNullOrWhiteSpace(maliciousPath)) return;
+
+            // SECURITY: Sanitize path to prevent registry value spoofing or injection
+            if (maliciousPath.Intersect(Path.GetInvalidPathChars()).Any() || maliciousPath.Contains(';'))
+            {
+                FileLogger.LogWarning(AppIdentifiers.ActiveResponseLogFile, $"ScrubPersistence blocked: Suspicious path characters in {maliciousPath}");
+                return;
+            }
+
             try
             {
                 // Scrub Registry Run keys
                 string[] runKeys = {
-                    @"SOFTWARE\Microsoft\Windows\CurrentVersion\Run",
-                    @"SOFTWARE\Microsoft\Windows\CurrentVersion\RunOnce"
+                    AppIdentifiers.RegistryRunKey,
+                    AppIdentifiers.RegistryRunOnceKey
                 };
 
                 foreach (var keyPath in runKeys)
                 {
-                    using var key = Registry.CurrentUser.OpenSubKey(keyPath, true);
-                    if (key != null)
+                    try
                     {
-                        foreach (var valueName in key.GetValueNames())
+                        using var key = Registry.CurrentUser.OpenSubKey(keyPath, true);
+                        if (key != null)
                         {
-                            var value = key.GetValue(valueName)?.ToString();
-                            if (value != null && value.Contains(maliciousPath, StringComparison.OrdinalIgnoreCase))
+                            foreach (var valueName in key.GetValueNames())
                             {
-                                key.DeleteValue(valueName);
-                                Console.WriteLine($"Removed persistence from Registry: {valueName}");
+                                var value = key.GetValue(valueName)?.ToString();
+                                if (value != null && value.Contains(maliciousPath, StringComparison.OrdinalIgnoreCase))
+                                {
+                                    key.DeleteValue(valueName);
+                                    FileLogger.Log(AppIdentifiers.ActiveResponseLogFile, $"Removed persistence from Registry: {valueName} ({keyPath})");
+                                }
                             }
                         }
+                    }
+                    catch (Exception ex)
+                    {
+                        FileLogger.LogWarning(AppIdentifiers.ActiveResponseLogFile, $"Failed to scrub Registry key {keyPath}: {ex.Message}");
                     }
                 }
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Persistence scrubbing failed: {ex.Message}");
+                FileLogger.LogError(AppIdentifiers.ActiveResponseLogFile, "Persistence scrubbing failed", ex);
             }
         }
 
@@ -89,16 +133,16 @@ namespace RansomGuard.Service.Engine
             {
                 Process.Start(new ProcessStartInfo
                 {
-                    FileName = "netsh",
-                    Arguments = "interface set interface name=\"*\" admin=disabled",
+                    FileName = AppIdentifiers.PowerShellExe,
+                    Arguments = "-NoProfile -ExecutionPolicy Bypass -Command \"Get-NetAdapter | Where-Object { $_.Status -eq 'Up' } | Disable-NetAdapter -Confirm:$false\"",
                     CreateNoWindow = true,
                     UseShellExecute = false
                 });
-                Console.WriteLine("Network Lockdown Engaged.");
+                FileLogger.Log(AppIdentifiers.ActiveResponseLogFile, "Network Lockdown Engaged.");
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Network Lockdown failed: {ex.Message}");
+                FileLogger.LogError(AppIdentifiers.ActiveResponseLogFile, "Network Lockdown failed", ex);
             }
         }
 
@@ -106,10 +150,10 @@ namespace RansomGuard.Service.Engine
         {
             try
             {
-                Console.WriteLine("!!! CRITICAL THREAT - ENGAGING EMERGENCY SHUTDOWN !!!");
+                FileLogger.Log(AppIdentifiers.ActiveResponseLogFile, "!!! CRITICAL THREAT - ENGAGING EMERGENCY SHUTDOWN !!!");
                 Process.Start(new ProcessStartInfo
                 {
-                    FileName = "shutdown.exe",
+                    FileName = AppIdentifiers.ShutdownExe,
                     Arguments = "/s /f /t 0",
                     CreateNoWindow = true,
                     UseShellExecute = false
@@ -117,7 +161,7 @@ namespace RansomGuard.Service.Engine
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Emergency Shutdown failed: {ex.Message}");
+                FileLogger.LogError(AppIdentifiers.ActiveResponseLogFile, "Emergency shutdown failed", ex);
             }
         }
     }

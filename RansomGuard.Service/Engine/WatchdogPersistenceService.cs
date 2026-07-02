@@ -6,6 +6,8 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using RansomGuard.Core.Services;
+using RansomGuard.Core.Constants;
+using RansomGuard.Core.Configuration;
 
 namespace RansomGuard.Service.Engine
 {
@@ -16,9 +18,10 @@ namespace RansomGuard.Service.Engine
     public class WatchdogPersistenceService(ILogger<WatchdogPersistenceService> logger) : BackgroundService
     {
         private readonly ILogger<WatchdogPersistenceService> _logger = logger;
-        private const string WatchdogProcessName = "RGWorker";
-        private const string WatchdogTaskName = "RGWorkerTask";
-        private const int CheckIntervalMs = 5000; // Check every 5 seconds
+        private const string WatchdogProcessName = AppIdentifiers.WatchdogProcessName;
+        private const string WatchdogTaskName = AppIdentifiers.WatchdogTaskName;
+        private const int CheckIntervalMs = AppConstants.Timers.WatchdogCheckIntervalMs;
+        private const int ProcessTimeoutMs = AppConstants.Timers.ExternalProcessTimeoutMs;
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
@@ -65,7 +68,7 @@ namespace RansomGuard.Service.Engine
                     _logger.LogWarning("Watchdog executable was not found. Scheduled task will only run if it already exists.");
                 }
 
-                var psi = new ProcessStartInfo("schtasks", $"/run /tn \"{WatchdogTaskName}\"")
+                var psi = new ProcessStartInfo(AppIdentifiers.SchTasksExe, $"/run /tn \"{WatchdogTaskName}\"")
                 {
                     CreateNoWindow = true,
                     UseShellExecute = false,
@@ -79,7 +82,7 @@ namespace RansomGuard.Service.Engine
                     return;
                 }
 
-                process.WaitForExit(3000);
+                process.WaitForExit(ProcessTimeoutMs);
                 if (process.ExitCode != 0)
                 {
                     _logger.LogWarning("Scheduled task run request for {taskName} exited with code {exitCode}.", WatchdogTaskName, process.ExitCode);
@@ -100,14 +103,14 @@ namespace RansomGuard.Service.Engine
                 string escapedWatchdogPath = watchdogPath.Replace("\"", "\"\"");
                 string args = $"/create /tn \"{WatchdogTaskName}\" /tr \"\\\"{escapedWatchdogPath}\\\"\" /sc ONCE /st 00:00 /it /f /rl HIGHEST";
                 
-                var psi = new ProcessStartInfo("schtasks", args)
+                var psi = new ProcessStartInfo(AppIdentifiers.SchTasksExe, args)
                 {
                     CreateNoWindow = true,
                     UseShellExecute = false,
                     WindowStyle = ProcessWindowStyle.Hidden
                 };
                 var p = Process.Start(psi);
-                p?.WaitForExit(3000);
+                p?.WaitForExit(ProcessTimeoutMs);
             }
             catch (Exception ex)
             {

@@ -11,6 +11,8 @@ using System.Threading.Tasks;
 using RansomGuard.Core.Helpers;
 using RansomGuard.Core.IPC;
 using RansomGuard.Core.Services;
+using RansomGuard.Core.Constants;
+using RansomGuard.Core.Configuration;
 
 namespace RansomGuard.Service.Engine
 {
@@ -33,13 +35,14 @@ namespace RansomGuard.Service.Engine
         private Task? _cleanupTask;
         private bool _disposed;
         private bool _isStarted;
-        private bool _isCircuitBroken;
-        private string _triggerInfo = string.Empty;
+        private volatile bool _isCircuitBroken;  // volatile: read/written from multiple threads
+        private volatile string _triggerInfo = string.Empty;
         private readonly object _lifecycleLock = new();
+        private readonly object _circuitBreakLock = new(); // guards _isCircuitBroken + _triggerInfo writes
 
-        private const int BeaconIntervalMs = 5000;
-        private const int PeerTimeoutSeconds = 15;
-        private const int CleanupIntervalMs = 5000;
+        private const int BeaconIntervalMs = AppConstants.Timers.LanBeaconIntervalMs;
+        private const int PeerTimeoutSeconds = AppConstants.Limits.LanPeerTimeoutSeconds;
+        private const int CleanupIntervalMs = AppConstants.Timers.LanCleanupIntervalMs;
 
         /// <summary>Raised when the peer list changes (peer added, removed, or status changed).</summary>
         public event Action<LanPeerListUpdate>? PeerListChanged;
@@ -57,7 +60,7 @@ namespace RansomGuard.Service.Engine
         {
             _nodeId = GetMachineId();
             _nodeName = Environment.MachineName;
-            _appVersion = "1.0.1.17";
+            _appVersion = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "1.0.0.0";
         }
 
         /// <summary>
@@ -72,32 +75,32 @@ namespace RansomGuard.Service.Engine
 
                 if (_isStarted)
                 {
-                    FileLogger.Log("sentinel_engine.log", "[LAN] Circuit Breaker already started.");
+                    FileLogger.Log(AppIdentifiers.SentinelEngineLogFile, "[LAN] Circuit Breaker already started.");
                     return;
                 }
 
                 var config = ConfigurationService.Instance;
                 if (!config.LanCircuitBreakerEnabled)
                 {
-                    FileLogger.Log("sentinel_engine.log", "[LAN] Circuit Breaker is DISABLED in settings.");
+                    FileLogger.Log(AppIdentifiers.SentinelEngineLogFile, "[LAN] Circuit Breaker is DISABLED in settings.");
                     return;
                 }
 
                 int port = config.LanBroadcastPort;
                 if (port is < 1 or > 65535)
                 {
-                    FileLogger.LogError("sentinel_engine.log", $"[LAN] Invalid broadcast port configured: {port}");
+                    FileLogger.LogError(AppIdentifiers.SentinelEngineLogFile, $"[LAN] Invalid broadcast port configured: {port}");
                     return;
                 }
 
                 try
                 {
-                    FileLogger.Log("sentinel_engine.log", $"[LAN] Ensuring firewall rules for UDP port {port} via runtime service.");
+                    FileLogger.Log(AppIdentifiers.SentinelEngineLogFile, $"[LAN] Ensuring firewall rules for UDP port {port} via runtime service.");
                     bool firewallConfigured = FirewallManager.EnsureLanFirewallRules(port);
 
                     if (!firewallConfigured)
                     {
-                        FileLogger.LogError("sentinel_engine.log", "[LAN] Firewall rules were not verified. LAN discovery may be blocked by Windows Firewall.");
+                        FileLogger.LogError(AppIdentifiers.SentinelEngineLogFile, "[LAN] Firewall rules were not verified. LAN discovery may be blocked by Windows Firewall.");
                     }
 
                     _udpClient = new UdpClient(AddressFamily.InterNetwork);
@@ -112,12 +115,12 @@ namespace RansomGuard.Service.Engine
                     _cleanupTask = Task.Run(() => CleanupLoopAsync(token), token);
                     _isStarted = true;
 
-                    FileLogger.Log("sentinel_engine.log", $"[LAN] Circuit Breaker STARTED on UDP port {port}. NodeId={_nodeId}, NodeName={_nodeName}");
+                    FileLogger.Log(AppIdentifiers.SentinelEngineLogFile, $"[LAN] Circuit Breaker STARTED on UDP port {port}. NodeId={_nodeId}, NodeName={_nodeName}");
                 }
                 catch (Exception ex)
                 {
                     CleanupSocket();
-                    FileLogger.LogError("sentinel_engine.log", $"[LAN] Failed to start Circuit Breaker: {ex.Message}");
+                    FileLogger.LogError(AppIdentifiers.SentinelEngineLogFile, $"[LAN] Failed to start Circuit Breaker: {ex.Message}");
                 }
             }
         }
@@ -133,7 +136,7 @@ namespace RansomGuard.Service.Engine
                     return;
 
                 CleanupSocket();
-                FileLogger.Log("sentinel_engine.log", "[LAN] Circuit Breaker STOPPED.");
+                FileLogger.Log(AppIdentifiers.SentinelEngineLogFile, "[LAN] Circuit Breaker STOPPED.");
             }
         }
 
@@ -141,12 +144,15 @@ namespace RansomGuard.Service.Engine
         /// Broadcasts a CIRCUIT_BREAK signal to all LAN peers.
         /// Called by SentinelEngine when mass encryption is detected.
         /// </summary>
-        public void TriggerCircuitBreak(string threatInfo)
+        public async Task TriggerCircuitBreakAsync(string threatInfo)
         {
             if (_disposed || _udpClient == null) return;
 
-            _isCircuitBroken = true;
-            _triggerInfo = threatInfo;
+            lock (_circuitBreakLock)
+            {
+                _isCircuitBroken = true;
+                _triggerInfo = threatInfo;
+            }
 
             var packet = CreatePacket(LanMessageType.CircuitBreak);
             packet.ThreatInfo = threatInfo;
@@ -161,16 +167,16 @@ namespace RansomGuard.Service.Engine
                 // Send 3 times for reliability (UDP is unreliable)
                 for (int i = 0; i < 3; i++)
                 {
-                    _udpClient.Send(bytes, bytes.Length, endpoint);
-                    Thread.Sleep(50);
+                    await _udpClient.SendAsync(bytes, bytes.Length, endpoint).ConfigureAwait(false);
+                    if (i < 2) await Task.Delay(50).ConfigureAwait(false);
                 }
 
-                FileLogger.Log("sentinel_engine.log", $"[LAN] CIRCUIT_BREAK broadcast sent! Threat: {threatInfo}");
+                FileLogger.Log(AppIdentifiers.SentinelEngineLogFile, $"[LAN] CIRCUIT_BREAK broadcast sent! Threat: {threatInfo}");
                 NotifyPeerListChanged();
             }
             catch (Exception ex)
             {
-                FileLogger.LogError("sentinel_engine.log", $"[LAN] Failed to broadcast CIRCUIT_BREAK: {ex.Message}");
+                FileLogger.LogError(AppIdentifiers.SentinelEngineLogFile, $"[LAN] Failed to broadcast CIRCUIT_BREAK: {ex.Message}");
             }
         }
 
@@ -179,9 +185,12 @@ namespace RansomGuard.Service.Engine
         /// </summary>
         public void ResetCircuitBreaker()
         {
-            _isCircuitBroken = false;
-            _triggerInfo = string.Empty;
-            FileLogger.Log("sentinel_engine.log", "[LAN] Circuit Breaker RESET by user.");
+            lock (_circuitBreakLock)
+            {
+                _isCircuitBroken = false;
+                _triggerInfo = string.Empty;
+            }
+            FileLogger.Log(AppIdentifiers.SentinelEngineLogFile, "[LAN] Circuit Breaker RESET by user.");
             NotifyPeerListChanged();
         }
 
@@ -205,7 +214,7 @@ namespace RansomGuard.Service.Engine
                 catch (ObjectDisposedException) { break; }
                 catch (Exception ex)
                 {
-                    FileLogger.LogError("sentinel_engine.log", $"[LAN] Beacon send error: {ex.Message}");
+                    FileLogger.LogError(AppIdentifiers.SentinelEngineLogFile, $"[LAN] Beacon send error: {ex.Message}");
                 }
 
                 try
@@ -245,7 +254,16 @@ namespace RansomGuard.Service.Engine
                     // Validate HMAC if shared secret is configured
                     if (!ValidateHmac(packet, json))
                     {
-                        FileLogger.LogError("sentinel_engine.log", $"[LAN] HMAC validation FAILED from {packet.NodeName} ({result.RemoteEndPoint.Address}). Ignoring.");
+                        FileLogger.LogError(AppIdentifiers.SentinelEngineLogFile, $"[LAN] HMAC validation FAILED from {packet.NodeName} ({result.RemoteEndPoint.Address}). Ignoring.");
+                        continue;
+                    }
+                    
+                    // SECURITY: Replay Protection
+                    // Validate that the packet was created within the last 60 seconds
+                    var drift = Math.Abs((DateTime.UtcNow - packet.Timestamp).TotalSeconds);
+                    if (drift > 60)
+                    {
+                        FileLogger.LogError(AppIdentifiers.SentinelEngineLogFile, $"[LAN] REPLAY ATTACK BLOCKED from {packet.NodeName} ({result.RemoteEndPoint.Address}). Timestamp drift: {drift:F1}s");
                         continue;
                     }
 
@@ -264,7 +282,7 @@ namespace RansomGuard.Service.Engine
                 catch (ObjectDisposedException) { break; }
                 catch (Exception ex)
                 {
-                    FileLogger.LogError("sentinel_engine.log", $"[LAN] Listener error: {ex.Message}");
+                    FileLogger.LogError(AppIdentifiers.SentinelEngineLogFile, $"[LAN] Listener error: {ex.Message}");
                     if (!token.IsCancellationRequested)
                         await Task.Delay(1000, token).ConfigureAwait(false);
                 }
@@ -287,13 +305,16 @@ namespace RansomGuard.Service.Engine
                 bool changed = false;
                 var now = DateTime.UtcNow;
 
-                foreach (var kvp in _peers)
+                // Snapshot keys first — ConcurrentDictionary is safe to enumerate but
+                // snapshotting avoids processing entries added after we started cleanup
+                foreach (var key in _peers.Keys.ToArray())
                 {
-                    if ((now - kvp.Value.LastSeen).TotalSeconds > PeerTimeoutSeconds)
+                    if (_peers.TryGetValue(key, out var peer) &&
+                        (now - peer.LastSeen).TotalSeconds > PeerTimeoutSeconds)
                     {
-                        if (_peers.TryRemove(kvp.Key, out _))
+                        if (_peers.TryRemove(key, out _))
                         {
-                            FileLogger.Log("sentinel_engine.log", $"[LAN] Peer timed out: {kvp.Value.NodeName} ({kvp.Value.IpAddress})");
+                            FileLogger.Log(AppIdentifiers.SentinelEngineLogFile, $"[LAN] Peer timed out: {peer.NodeName} ({peer.IpAddress})");
                             changed = true;
                         }
                     }
@@ -332,18 +353,23 @@ namespace RansomGuard.Service.Engine
 
             if (isNew)
             {
-                FileLogger.Log("sentinel_engine.log", $"[LAN] New peer discovered: {packet.NodeName} ({ipAddress}) v{packet.AppVersion}");
+                FileLogger.Log(AppIdentifiers.SentinelEngineLogFile, $"[LAN] New peer discovered: {packet.NodeName} ({ipAddress}) v{packet.AppVersion}");
                 NotifyPeerListChanged();
             }
         }
 
         private void HandleCircuitBreak(LanPacket packet, string ipAddress)
         {
-            FileLogger.Log("sentinel_engine.log",
+            FileLogger.Log(AppIdentifiers.SentinelEngineLogFile,
                 $"[LAN] *** CIRCUIT_BREAK RECEIVED from {packet.NodeName} ({ipAddress}) *** Threat: {packet.ThreatInfo}");
 
-            _isCircuitBroken = true;
-            _triggerInfo = $"Remote alert from {packet.NodeName}: {packet.ThreatInfo}";
+            string triggerInfo;
+            lock (_circuitBreakLock)
+            {
+                _isCircuitBroken = true;
+                _triggerInfo = $"Remote alert from {packet.NodeName}: {packet.ThreatInfo}";
+                triggerInfo = _triggerInfo;
+            }
 
             // Update peer status to Alert
             if (_peers.TryGetValue(packet.NodeId, out var peer))
@@ -354,7 +380,7 @@ namespace RansomGuard.Service.Engine
             NotifyPeerListChanged();
 
             // Fire event — SentinelEngine will call ExecuteCriticalResponse()
-            CircuitBreakReceived?.Invoke(_triggerInfo);
+            CircuitBreakReceived?.Invoke(triggerInfo);
         }
 
         #endregion
@@ -407,11 +433,19 @@ namespace RansomGuard.Service.Engine
 
         private void NotifyPeerListChanged()
         {
+            bool isCircuitBroken;
+            string triggerInfo;
+            lock (_circuitBreakLock)
+            {
+                isCircuitBroken = _isCircuitBroken;
+                triggerInfo = _triggerInfo;
+            }
+
             var update = new LanPeerListUpdate
             {
                 Peers = _peers.Values.ToList(),
-                IsCircuitBroken = _isCircuitBroken,
-                TriggerInfo = _triggerInfo
+                IsCircuitBroken = isCircuitBroken,
+                TriggerInfo = triggerInfo
             };
             PeerListChanged?.Invoke(update);
         }

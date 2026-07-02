@@ -5,6 +5,8 @@ using System.Threading.Tasks;
 using Microsoft.Data.Sqlite;
 using RansomGuard.Core.Models;
 using RansomGuard.Core.Helpers;
+using RansomGuard.Core.Constants;
+using System.Linq;
 
 namespace RansomGuard.Service.Services
 {
@@ -68,11 +70,11 @@ namespace RansomGuard.Service.Services
                     CREATE INDEX IF NOT EXISTS idx_threats_status ON Threats(Status);
                 ";
                 command.ExecuteNonQuery();
-                Console.WriteLine("[HistoryStore] Database initialized successfully.");
+                FileLogger.Log(AppIdentifiers.HistoryStoreLogFile, "[HistoryStore] Database initialized successfully.");
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[HistoryStore] Database initialization failed: {ex.Message}");
+                FileLogger.LogError(AppIdentifiers.HistoryStoreLogFile, "[HistoryStore] Database initialization failed", ex);
             }
         }
 
@@ -80,26 +82,29 @@ namespace RansomGuard.Service.Services
         {
             try
             {
-                using var connection = new SqliteConnection(_connectionString);
-                await connection.OpenAsync().ConfigureAwait(false);
+                await RetryHelper.ExecuteAsync(async () =>
+                {
+                    using var connection = new SqliteConnection(_connectionString);
+                    await connection.OpenAsync().ConfigureAwait(false);
 
-                var command = connection.CreateCommand();
-                command.CommandText = @"
-                    INSERT INTO FileActivities (Timestamp, Action, FilePath, Entropy, IsSuspicious, ProcessName)
-                    VALUES ($timestamp, $action, $filePath, $entropy, $isSuspicious, $processName)
-                ";
-                command.Parameters.AddWithValue("$timestamp", activity.Timestamp);
-                command.Parameters.AddWithValue("$action", activity.Action);
-                command.Parameters.AddWithValue("$filePath", activity.FilePath);
-                command.Parameters.AddWithValue("$entropy", activity.Entropy);
-                command.Parameters.AddWithValue("$isSuspicious", activity.IsSuspicious ? 1 : 0);
-                command.Parameters.AddWithValue("$processName", activity.ProcessName);
+                    var command = connection.CreateCommand();
+                    command.CommandText = @"
+                        INSERT INTO FileActivities (Timestamp, Action, FilePath, Entropy, IsSuspicious, ProcessName)
+                        VALUES ($timestamp, $action, $filePath, $entropy, $isSuspicious, $processName)
+                    ";
+                    command.Parameters.AddWithValue("$timestamp", activity.Timestamp);
+                    command.Parameters.AddWithValue("$action", activity.Action);
+                    command.Parameters.AddWithValue("$filePath", activity.FilePath);
+                    command.Parameters.AddWithValue("$entropy", activity.Entropy);
+                    command.Parameters.AddWithValue("$isSuspicious", activity.IsSuspicious ? 1 : 0);
+                    command.Parameters.AddWithValue("$processName", activity.ProcessName);
 
-                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
+                    await command.ExecuteNonQueryAsync().ConfigureAwait(false);
+                }, maxRetries: 3, shouldRetry: ex => ex is SqliteException sex && sex.SqliteErrorCode == 5); // 5 = SQLITE_BUSY
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[HistoryStore] Error saving activity: {ex.Message}");
+                FileLogger.LogError(AppIdentifiers.HistoryStoreLogFile, "[HistoryStore] Error saving activity", ex);
             }
         }
 
@@ -108,30 +113,33 @@ namespace RansomGuard.Service.Services
             var results = new List<FileActivity>();
             try
             {
-                using var connection = new SqliteConnection(_connectionString);
-                await connection.OpenAsync().ConfigureAwait(false);
-
-                var command = connection.CreateCommand();
-                command.CommandText = "SELECT * FROM FileActivities ORDER BY Timestamp DESC LIMIT $limit";
-                command.Parameters.AddWithValue("$limit", limit);
-
-                using var reader = await command.ExecuteReaderAsync().ConfigureAwait(false);
-                while (await reader.ReadAsync().ConfigureAwait(false))
+                await RetryHelper.ExecuteAsync(async () =>
                 {
-                    results.Add(new FileActivity
+                    using var connection = new SqliteConnection(_connectionString);
+                    await connection.OpenAsync().ConfigureAwait(false);
+
+                    var command = connection.CreateCommand();
+                    command.CommandText = "SELECT * FROM FileActivities ORDER BY Timestamp DESC LIMIT $limit";
+                    command.Parameters.AddWithValue("$limit", limit);
+
+                    using var reader = await command.ExecuteReaderAsync().ConfigureAwait(false);
+                    while (await reader.ReadAsync().ConfigureAwait(false))
                     {
-                        Timestamp = reader.GetDateTime(1),
-                        Action = reader.GetString(2),
-                        FilePath = reader.GetString(3),
-                        Entropy = reader.GetDouble(4),
-                        IsSuspicious = reader.GetInt32(5) == 1,
-                        ProcessName = reader.GetString(6)
-                    });
-                }
+                        results.Add(new FileActivity
+                        {
+                            Timestamp = reader.GetDateTime(reader.GetOrdinal("Timestamp")),
+                            Action = reader.GetString(reader.GetOrdinal("Action")),
+                            FilePath = reader.GetString(reader.GetOrdinal("FilePath")),
+                            Entropy = reader.GetDouble(reader.GetOrdinal("Entropy")),
+                            IsSuspicious = reader.GetInt32(reader.GetOrdinal("IsSuspicious")) == 1,
+                            ProcessName = reader.GetString(reader.GetOrdinal("ProcessName"))
+                        });
+                    }
+                }, maxRetries: 3, shouldRetry: ex => ex is SqliteException sex && sex.SqliteErrorCode == 5);
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[HistoryStore] Error reading history: {ex.Message}");
+                FileLogger.LogError(AppIdentifiers.HistoryStoreLogFile, "[HistoryStore] Error reading history", ex);
             }
             return results;
         }
@@ -140,54 +148,59 @@ namespace RansomGuard.Service.Services
         {
             try
             {
-                using var connection = new SqliteConnection(_connectionString);
-                await connection.OpenAsync().ConfigureAwait(false);
-
-                // Check for existing recent threat for this path
-                var checkCmd = connection.CreateCommand();
-                checkCmd.CommandText = "SELECT Id, Status FROM Threats WHERE Path = $path AND Name = $name AND Timestamp >= $since LIMIT 1";
-                checkCmd.Parameters.AddWithValue("$path", threat.Path);
-                checkCmd.Parameters.AddWithValue("$name", threat.Name);
-                checkCmd.Parameters.AddWithValue("$since", threat.Timestamp.AddMinutes(-15));
-                
-                using var reader = await checkCmd.ExecuteReaderAsync().ConfigureAwait(false);
-                if (await reader.ReadAsync().ConfigureAwait(false))
+                await RetryHelper.ExecuteAsync(async () =>
                 {
-                    long id = reader.GetInt64(0);
-                    string currentStatus = reader.GetString(1);
+                    using var connection = new SqliteConnection(_connectionString);
+                    await connection.OpenAsync().ConfigureAwait(false);
+
+                    // Check for existing recent threat for this path
+                    var checkCmd = connection.CreateCommand();
+                    checkCmd.CommandText = "SELECT Id, Status FROM Threats WHERE Path = $path AND Name = $name AND Timestamp >= $since LIMIT 1";
+                    checkCmd.Parameters.AddWithValue("$path", threat.Path);
+                    checkCmd.Parameters.AddWithValue("$name", threat.Name);
+                    checkCmd.Parameters.AddWithValue("$since", threat.Timestamp.AddMinutes(-15));
                     
-                    // If the new status is more "advanced" than the current one, update it
-                    if (threat.ActionTaken != "Detected" && threat.ActionTaken != "Active" && currentStatus != threat.ActionTaken)
+                    using (var reader = await checkCmd.ExecuteReaderAsync().ConfigureAwait(false))
                     {
-                        var updateCmd = connection.CreateCommand();
-                        updateCmd.CommandText = "UPDATE Threats SET Status = $status, Timestamp = $timestamp WHERE Id = $id";
-                        updateCmd.Parameters.AddWithValue("$status", threat.ActionTaken);
-                        updateCmd.Parameters.AddWithValue("$timestamp", threat.Timestamp);
-                        updateCmd.Parameters.AddWithValue("$id", id);
-                        await updateCmd.ExecuteNonQueryAsync().ConfigureAwait(false);
+                        if (await reader.ReadAsync().ConfigureAwait(false))
+                        {
+                            long id = reader.GetInt64(reader.GetOrdinal("Id"));
+                            string currentStatus = reader.GetString(reader.GetOrdinal("Status"));
+                            
+                            // If the new status is more "advanced" than the current one, update it
+                            if (threat.ActionTaken != "Detected" && threat.ActionTaken != "Active" && currentStatus != threat.ActionTaken)
+                            {
+                                var updateCmd = connection.CreateCommand();
+                                updateCmd.CommandText = "UPDATE Threats SET Status = $status, Timestamp = $timestamp WHERE Id = $id";
+                                updateCmd.Parameters.AddWithValue("$status", threat.ActionTaken);
+                                updateCmd.Parameters.AddWithValue("$timestamp", threat.Timestamp);
+                                updateCmd.Parameters.AddWithValue("$id", id);
+                                await updateCmd.ExecuteNonQueryAsync().ConfigureAwait(false);
+                            }
+                            return; // Handled existing entry
+                        }
                     }
-                    return; // Handled existing entry (either updated or skipped as redundant)
-                }
 
-                var command = connection.CreateCommand();
-                command.CommandText = @"
-                    INSERT INTO Threats (Timestamp, Name, Description, Path, ProcessName, ProcessId, Severity, Status)
-                    VALUES ($timestamp, $name, $description, $path, $processName, $processId, $severity, $status)
-                ";
-                command.Parameters.AddWithValue("$timestamp", threat.Timestamp);
-                command.Parameters.AddWithValue("$name", threat.Name);
-                command.Parameters.AddWithValue("$description", threat.Description);
-                command.Parameters.AddWithValue("$path", threat.Path);
-                command.Parameters.AddWithValue("$processName", threat.ProcessName);
-                command.Parameters.AddWithValue("$processId", threat.ProcessId);
-                command.Parameters.AddWithValue("$severity", threat.Severity.ToString());
-                command.Parameters.AddWithValue("$status", threat.ActionTaken ?? "Detected");
+                    var command = connection.CreateCommand();
+                    command.CommandText = @"
+                        INSERT INTO Threats (Timestamp, Name, Description, Path, ProcessName, ProcessId, Severity, Status)
+                        VALUES ($timestamp, $name, $description, $path, $processName, $processId, $severity, $status)
+                    ";
+                    command.Parameters.AddWithValue("$timestamp", threat.Timestamp);
+                    command.Parameters.AddWithValue("$name", threat.Name);
+                    command.Parameters.AddWithValue("$description", threat.Description);
+                    command.Parameters.AddWithValue("$path", threat.Path);
+                    command.Parameters.AddWithValue("$processName", threat.ProcessName);
+                    command.Parameters.AddWithValue("$processId", threat.ProcessId);
+                    command.Parameters.AddWithValue("$severity", threat.Severity.ToString());
+                    command.Parameters.AddWithValue("$status", threat.ActionTaken ?? "Detected");
 
-                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
+                    await command.ExecuteNonQueryAsync().ConfigureAwait(false);
+                }, maxRetries: 3, shouldRetry: ex => ex is SqliteException sex && sex.SqliteErrorCode == 5);
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[HistoryStore] Error saving threat: {ex.Message}");
+                FileLogger.LogError(AppIdentifiers.HistoryStoreLogFile, "[HistoryStore] Error saving threat", ex);
             }
         }
 
@@ -197,44 +210,44 @@ namespace RansomGuard.Service.Services
             var results = new List<Threat>();
             try
             {
-                using var connection = new SqliteConnection(_connectionString);
-                await connection.OpenAsync().ConfigureAwait(false);
-
-                var command = connection.CreateCommand();
-                command.CommandText = "SELECT * FROM Threats WHERE Status IN ('Active', 'Detected', 'Awaiting Confirmation', 'Mitigated', 'Mitigated (Auto)', 'Quarantined', 'Quarantined (Auto)', 'Terminated') ORDER BY Timestamp DESC LIMIT 100";
-
-                using var reader = await command.ExecuteReaderAsync().ConfigureAwait(false);
-                while (await reader.ReadAsync().ConfigureAwait(false))
+                await RetryHelper.ExecuteAsync(async () =>
                 {
-                    string severityStr = reader.GetString(7);
-                    ThreatSeverity severity = ThreatSeverity.Medium;
-                    if (Enum.TryParse<ThreatSeverity>(severityStr, out var parsedSeverity))
+                    using var connection = new SqliteConnection(_connectionString);
+                    await connection.OpenAsync().ConfigureAwait(false);
+
+                    var command = connection.CreateCommand();
+                    command.CommandText = "SELECT * FROM Threats WHERE Status IN ('Active', 'Detected', 'Awaiting Confirmation', 'Mitigating', 'Mitigated', 'Mitigated (Auto)', 'Quarantined', 'Quarantined (Auto)', 'Terminated', 'User Declined') ORDER BY Timestamp DESC LIMIT 100";
+
+                    using var reader = await command.ExecuteReaderAsync().ConfigureAwait(false);
+                    while (await reader.ReadAsync().ConfigureAwait(false))
                     {
-                        severity = parsedSeverity;
+                        string severityStr = reader.GetString(reader.GetOrdinal("Severity"));
+                        ThreatSeverity severity = ThreatSeverity.Medium;
+                        if (Enum.TryParse<ThreatSeverity>(severityStr, out var parsedSeverity))
+                        {
+                            severity = parsedSeverity;
+                        }
+
+                        string dbStatus = reader.GetString(reader.GetOrdinal("Status"));
+                        string actionTaken = dbStatus; 
+
+                        results.Add(new Threat
+                        {
+                            Timestamp = reader.GetDateTime(reader.GetOrdinal("Timestamp")),
+                            Name = reader.GetString(reader.GetOrdinal("Name")),
+                            Description = reader.GetString(reader.GetOrdinal("Description")),
+                            Path = reader.GetString(reader.GetOrdinal("Path")),
+                            ProcessName = reader.GetString(reader.GetOrdinal("ProcessName")),
+                            ProcessId = reader.GetInt32(reader.GetOrdinal("ProcessId")),
+                            Severity = severity,
+                            ActionTaken = actionTaken
+                        });
                     }
-
-                    // Column 8 is Status ("Active", "Quarantined", etc.)
-                    // Map DB Status → ActionTaken so the dashboard filter (ActionTaken == "Detected")
-                    // correctly includes unresolved threats.
-                    string dbStatus = reader.GetString(8);
-                    string actionTaken = dbStatus; // Just use the DB status directly
-
-                    results.Add(new Threat
-                    {
-                        Timestamp = reader.GetDateTime(1),
-                        Name = reader.GetString(2),
-                        Description = reader.GetString(3),
-                        Path = reader.GetString(4),
-                        ProcessName = reader.GetString(5),
-                        ProcessId = reader.GetInt32(6),
-                        Severity = severity,
-                        ActionTaken = actionTaken
-                    });
-                }
+                }, maxRetries: 3, shouldRetry: ex => ex is SqliteException sex && sex.SqliteErrorCode == 5);
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[HistoryStore] Error reading active threats: {ex.Message}");
+                FileLogger.LogError(AppIdentifiers.HistoryStoreLogFile, "[HistoryStore] Error reading active threats", ex);
             }
             return results;
         }
@@ -243,23 +256,52 @@ namespace RansomGuard.Service.Services
         {
             try
             {
-                using var connection = new SqliteConnection(_connectionString);
-                await connection.OpenAsync().ConfigureAwait(false);
+                await RetryHelper.ExecuteAsync(async () =>
+                {
+                    using var connection = new SqliteConnection(_connectionString);
+                    await connection.OpenAsync().ConfigureAwait(false);
 
-                var command = connection.CreateCommand();
-                command.CommandText = @"
-                    UPDATE Threats 
-                    SET Status = $status 
-                    WHERE Path = $path AND (Status = 'Active' OR Status = 'Awaiting Confirmation')
-                ";
-                command.Parameters.AddWithValue("$status", status);
-                command.Parameters.AddWithValue("$path", path);
+                    var command = connection.CreateCommand();
+                    command.CommandText = @"
+                        UPDATE Threats 
+                        SET Status = $status 
+                        WHERE Path = $path AND (Status = 'Active' OR Status = 'Awaiting Confirmation')
+                    ";
+                    command.Parameters.AddWithValue("$status", status);
+                    command.Parameters.AddWithValue("$path", path);
 
-                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
+                    await command.ExecuteNonQueryAsync().ConfigureAwait(false);
+                }, maxRetries: 3, shouldRetry: ex => ex is SqliteException sex && sex.SqliteErrorCode == 5);
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[HistoryStore] Error updating threat status: {ex.Message}");
+                FileLogger.LogError(AppIdentifiers.HistoryStoreLogFile, "[HistoryStore] Error updating threat status", ex);
+            }
+        }
+        public async Task ClearActivitiesAsync()
+        {
+            try
+            {
+                await RetryHelper.ExecuteAsync(async () =>
+                {
+                    using var connection = new SqliteConnection(_connectionString);
+                    await connection.OpenAsync().ConfigureAwait(false);
+
+                    var command = connection.CreateCommand();
+                    command.CommandText = "DELETE FROM FileActivities";
+                    await command.ExecuteNonQueryAsync().ConfigureAwait(false);
+                    
+                    // Vaccuum to reclaim space
+                    var vacCmd = connection.CreateCommand();
+                    vacCmd.CommandText = "VACUUM";
+                    await vacCmd.ExecuteNonQueryAsync().ConfigureAwait(false);
+                }, maxRetries: 3, shouldRetry: ex => ex is SqliteException sex && sex.SqliteErrorCode == 5);
+                
+                FileLogger.Log(AppIdentifiers.HistoryStoreLogFile, "[HistoryStore] Activity history cleared successfully.");
+            }
+            catch (Exception ex)
+            {
+                FileLogger.LogError(AppIdentifiers.HistoryStoreLogFile, "[HistoryStore] Failed to clear activities", ex);
             }
         }
     }

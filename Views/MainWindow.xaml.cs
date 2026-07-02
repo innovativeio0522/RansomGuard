@@ -1,3 +1,4 @@
+using System;
 using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Interop;
@@ -75,21 +76,23 @@ namespace RansomGuard
             return IntPtr.Zero;
         }
 
-        public MainWindow()
+        private readonly MainViewModel _viewModel;
+
+        public MainWindow(MainViewModel viewModel)
         {
             InitializeComponent();
-            var vm = new MainViewModel();
-            DataContext = vm;
+            _viewModel = viewModel ?? throw new ArgumentNullException(nameof(viewModel));
+            DataContext = _viewModel;
             Loaded += (s, e) => ApplyScreenPercentageSize();
             LocationChanged += OnLocationChanged;
 
             // Listen for sidebar collapse toggle to update ColumnDefinition width
-            vm.PropertyChanged += (s, e) =>
+            _viewModel.PropertyChanged += (s, e) =>
             {
                 if (e.PropertyName == nameof(MainViewModel.IsSidebarCollapsed))
-                    SidebarColumn.Width = vm.IsSidebarCollapsed
+                    SidebarColumn.Width = _viewModel.IsSidebarCollapsed
                         ? new GridLength(48)
-                        : new GridLength(180);
+                        : new GridLength(240);
             };
         }
 

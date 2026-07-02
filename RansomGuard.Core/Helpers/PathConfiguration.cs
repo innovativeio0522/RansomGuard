@@ -83,6 +83,11 @@ namespace RansomGuard.Core.Helpers
         /// Gets the path to the activity log database.
         /// </summary>
         public static string ActivityLogDatabasePath => Path.Combine(BaseDirectory, "activity_log.db");
+
+        /// <summary>
+        /// Gets the path to the digital signature cache.
+        /// </summary>
+        public static string SignatureCachePath => Path.Combine(BaseDirectory, "signature_cache.json");
         
         /// <summary>
         /// Gets the configuration directory path.

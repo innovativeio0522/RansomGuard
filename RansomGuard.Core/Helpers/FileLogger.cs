@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.IO;
 using System.Linq;
 
@@ -7,12 +8,23 @@ namespace RansomGuard.Core.Helpers
     /// <summary>
     /// Centralized file logging utility with automatic log rotation.
     /// Prevents unbounded log file growth by rotating logs when they exceed size limits.
+    /// Uses per-file locking so parallel writes to different log files never block each other.
     /// </summary>
     public static class FileLogger
     {
         private const long MaxLogSizeBytes = 10 * 1024 * 1024; // 10 MB
         private const int MaxArchivedLogs = 5; // Keep last 5 archived logs
-        private static readonly object _logLock = new();
+
+        /// <summary>
+        /// Per-file lock objects. Using a file name as the key means concurrent writes to
+        /// different files (e.g. sentinel_engine.log vs ipc.log) proceed in parallel,
+        /// while writes to the same file remain serialized and safe.
+        /// </summary>
+        private static readonly ConcurrentDictionary<string, object> _fileLocks = new(StringComparer.OrdinalIgnoreCase);
+
+        private static object GetFileLock(string logFileName)
+            => _fileLocks.GetOrAdd(logFileName, _ => new object());
+
 
         /// <summary>
         /// Logs a message to the specified log file with automatic rotation.
@@ -33,7 +45,7 @@ namespace RansomGuard.Core.Helpers
 
                 string logPath = Path.Combine(logDir, logFileName);
 
-                lock (_logLock)
+                lock (GetFileLock(logFileName))
                 {
                     // Check if log rotation is needed
                     if (File.Exists(logPath))

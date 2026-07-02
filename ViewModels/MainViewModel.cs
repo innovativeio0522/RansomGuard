@@ -8,6 +8,7 @@ using RansomGuard.Core.Interfaces;
 using RansomGuard.Core.Models;
 using RansomGuard.Core.Helpers;
 using RansomGuard.Core.Configuration;
+using RansomGuard.Core.Constants;
 using RansomGuard.Views;
 using System.Collections.ObjectModel;
 using System.Linq;
@@ -69,12 +70,20 @@ namespace RansomGuard.ViewModels
         private readonly ReportsViewModel _reportsVM = null!;
         private readonly SettingsViewModel _settingsVM = null!;
 
-        public MainViewModel()
+        public MainViewModel(
+            ISystemMonitorService monitorService,
+            DashboardViewModel dashboardVM,
+            ThreatAlertsViewModel threatAlertsVM,
+            QuarantineViewModel quarantineVM,
+            ProcessMonitorViewModel processMonitorVM,
+            FileActivityViewModel fileActivityVM,
+            ReportsViewModel reportsVM,
+            SettingsViewModel settingsVM)
         {
             try
             {
                 // Initialize Services
-                _monitorService = new ServicePipeClient(); // Start() is called in constructor
+                _monitorService = monitorService;
                 
                 // Start with IsServiceConnected = true to avoid showing banner during initial connection
                 IsServiceConnected = true;
@@ -84,6 +93,7 @@ namespace RansomGuard.ViewModels
                     // Marshal to UI thread to update binding
                     Application.Current.Dispatcher.Invoke(() => 
                     {
+                        if (_disposed) return;
                         // Only update if grace period expired or connection is successful
                         if (_gracePeriodExpired || status)
                         {
@@ -97,6 +107,7 @@ namespace RansomGuard.ViewModels
                 {
                     Application.Current.Dispatcher.Invoke(() => 
                     {
+                        if (_disposed) return;
                         // Check if this is a mass encryption threat requiring user confirmation
                         if (threat.RequiresUserConfirmation && threat.Severity == ThreatSeverity.Critical)
                         {
@@ -132,6 +143,7 @@ namespace RansomGuard.ViewModels
                 };
                 _connectionGraceTimer.Tick += (s, e) =>
                 {
+                    if (_disposed) return;
                     _gracePeriodExpired = true;
                     _connectionGraceTimer.Stop();
                     
@@ -141,14 +153,14 @@ namespace RansomGuard.ViewModels
                 _connectionGraceTimer.Start();
 
                 // Initialize ViewModels
-                _dashboardVM = new DashboardViewModel(_monitorService);
+                _dashboardVM = dashboardVM;
                 _dashboardVM.NavigationRequested = destination => Navigate(destination);
-                _threatAlertsVM = new ThreatAlertsViewModel(_monitorService);
-                _quarantineVM = new QuarantineViewModel(_monitorService);
-                _processMonitorVM = new ProcessMonitorViewModel(_monitorService);
-                _fileActivityVM = new FileActivityViewModel(_monitorService);
-                _reportsVM = new ReportsViewModel(_monitorService);
-                _settingsVM = new SettingsViewModel();
+                _threatAlertsVM = threatAlertsVM;
+                _quarantineVM = quarantineVM;
+                _processMonitorVM = processMonitorVM;
+                _fileActivityVM = fileActivityVM;
+                _reportsVM = reportsVM;
+                _settingsVM = settingsVM;
 
                 // Set default view
                 CurrentView = _dashboardVM;
@@ -158,7 +170,11 @@ namespace RansomGuard.ViewModels
                 {
                     Interval = TimeSpan.FromSeconds(AppConstants.Timers.StatusBarUpdateSeconds)
                 };
-                _statusBarTimer.Tick += (s, e) => UpdateStatusBarTelemetry();
+                _statusBarTimer.Tick += (s, e) =>
+                {
+                    if (_disposed) return;
+                    UpdateStatusBarTelemetry();
+                };
                 _statusBarTimer.Start();
 
                 UpdateStatusBarTelemetry();
@@ -296,30 +312,38 @@ namespace RansomGuard.ViewModels
                 FileLogger.Log("ui_critical.log", $"[CRITICAL] Mass encryption prompt shown for process: {threat.ProcessName} (PID: {threat.ProcessId})");
 
                 // Show critical shield window with 5-second timeout
+                ShieldAlertWindow? shieldWindow = null;
                 bool? dialogResult = await Application.Current.Dispatcher.InvokeAsync(() =>
                 {
-                    var shieldWindow = new ShieldAlertWindow(threat);
+                    shieldWindow = new ShieldAlertWindow(threat);
                     return shieldWindow.ShowDialog();
                 });
 
-                bool shouldMitigate = dialogResult ?? true; // Default to true if closed unexpectedly
+                if (shieldWindow?.TimedOut == true)
+                {
+                    FileLogger.Log("ui_critical.log", $"[CRITICAL] Alert timed out for threat {threat.Id}. Awaiting service-side auto-mitigation.");
+                    return;
+                }
+
+                bool shouldMitigate = dialogResult == true;
                 FileLogger.Log("ui_critical.log", $"[CRITICAL] Alert closed. shouldMitigate: {shouldMitigate}");
 
-                // Execute mitigation regardless of response (Yes, No, or timeout)
-                FileLogger.Log("ui_critical.log", $"[CRITICAL] Executing mass encryption response for {threat.AffectedFiles.Count} files");
-                
                 await _monitorService.HandleMassEncryptionResponse(
+                    threat.Id,
+                    shouldMitigate,
+                    isUserInitiated: true,
                     threat.ProcessId,
                     threat.ProcessName,
                     threat.AffectedFiles);
 
-                // Show confirmation notification
                 var confirmItem = new NotificationItem
                 {
-                    Title = "Mass Encryption Mitigated",
-                    Message = $"Process terminated. {threat.AffectedFiles.Count} files quarantined.",
+                    Title = shouldMitigate ? "Mass Encryption Mitigated" : "Mass Encryption Declined",
+                    Message = shouldMitigate
+                        ? $"Process terminated. {threat.AffectedFiles.Count} files quarantined."
+                        : "Automatic mitigation was cancelled for this alert.",
                     Time = DateTime.Now.ToString("HH:mm:ss"),
-                    Color = "#ff5252"
+                    Color = shouldMitigate ? "#ff5252" : "#ffb74d"
                 };
                 Notifications.Insert(0, confirmItem);
                 if (Notifications.Count > 10) Notifications.RemoveAt(10);
@@ -331,7 +355,7 @@ namespace RansomGuard.ViewModels
             }
             catch (Exception ex)
             {
-                FileLogger.LogError("ui_critical.log", "[CRITICAL] Error in ShowMassEncryptionPrompt", ex);
+                FileLogger.LogError(AppIdentifiers.UiCriticalLogFile, "[CRITICAL] Error in ShowMassEncryptionPrompt", ex);
             }
             finally
             {
@@ -373,9 +397,6 @@ namespace RansomGuard.ViewModels
             (_processMonitorVM as IDisposable)?.Dispose();
             (_fileActivityVM as IDisposable)?.Dispose();
             (_reportsVM as IDisposable)?.Dispose();
-
-            // Dispose service if it implements IDisposable
-            (_monitorService as IDisposable)?.Dispose();
         }
     }
 

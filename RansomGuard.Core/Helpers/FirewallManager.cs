@@ -2,6 +2,8 @@ using System;
 using System.Diagnostics;
 using System.Linq;
 using System.Text;
+using RansomGuard.Core.Configuration;
+using RansomGuard.Core.Constants;
 
 namespace RansomGuard.Core.Helpers
 {
@@ -23,13 +25,13 @@ namespace RansomGuard.Core.Helpers
         {
             if (!OperatingSystem.IsWindows())
             {
-                FileLogger.Log("firewall.log", "[Firewall] Skipping LAN rules on non-Windows OS.");
+                FileLogger.Log(AppIdentifiers.FirewallLogFile, "[Firewall] Skipping LAN rules on non-Windows OS.");
                 return false;
             }
 
             if (port is < 1 or > 65535)
             {
-                FileLogger.LogError("firewall.log", $"[Firewall] Invalid LAN port: {port}");
+                FileLogger.LogError(AppIdentifiers.FirewallLogFile, $"[Firewall] Invalid LAN port: {port}");
                 return false;
             }
 
@@ -37,7 +39,7 @@ namespace RansomGuard.Core.Helpers
             {
                 if (!IsAdministrator())
                 {
-                    FileLogger.LogError("firewall.log", "[Firewall] LAN rules require elevated service/setup privileges.");
+                    FileLogger.LogError(AppIdentifiers.FirewallLogFile, "[Firewall] LAN rules require elevated service/setup privileges.");
                     return false;
                 }
 
@@ -46,16 +48,16 @@ namespace RansomGuard.Core.Helpers
 
                 if (inboundReady && outboundReady)
                 {
-                    FileLogger.Log("firewall.log", $"[Firewall] LAN discovery rules verified for UDP port {port}.");
+                    FileLogger.Log(AppIdentifiers.FirewallLogFile, $"[Firewall] LAN discovery rules verified for UDP port {port}.");
                     return true;
                 }
 
-                FileLogger.LogError("firewall.log", $"[Firewall] Failed to verify LAN discovery rules for UDP port {port}.");
+                FileLogger.LogError(AppIdentifiers.FirewallLogFile, $"[Firewall] Failed to verify LAN discovery rules for UDP port {port}.");
                 return false;
             }
             catch (Exception ex)
             {
-                FileLogger.LogError("firewall.log", $"[Firewall] Error ensuring LAN rules: {ex.Message}");
+                FileLogger.LogError(AppIdentifiers.FirewallLogFile, $"[Firewall] Error ensuring LAN rules: {ex.Message}");
                 return false;
             }
         }
@@ -75,7 +77,7 @@ namespace RansomGuard.Core.Helpers
 
                 if (inboundRemoved || outboundRemoved)
                 {
-                    FileLogger.Log("firewall.log", "[Firewall] LAN discovery rules removed.");
+                    FileLogger.Log(AppIdentifiers.FirewallLogFile, "[Firewall] LAN discovery rules removed.");
                     return true;
                 }
 
@@ -83,7 +85,7 @@ namespace RansomGuard.Core.Helpers
             }
             catch (Exception ex)
             {
-                FileLogger.LogError("firewall.log", $"[Firewall] Error removing LAN rules: {ex.Message}");
+                FileLogger.LogError(AppIdentifiers.FirewallLogFile, $"[Firewall] Error removing LAN rules: {ex.Message}");
                 return false;
             }
         }
@@ -124,13 +126,13 @@ namespace RansomGuard.Core.Helpers
         {
             if (CheckRuleExistsForPort(ruleName, port))
             {
-                FileLogger.Log("firewall.log", $"[Firewall] Rule already exists for UDP port {port}: {ruleName}");
+                FileLogger.Log(AppIdentifiers.FirewallLogFile, $"[Firewall] Rule already exists for UDP port {port}: {ruleName}");
                 return true;
             }
 
             if (CheckRuleExists(ruleName))
             {
-                FileLogger.Log("firewall.log", $"[Firewall] Replacing stale LAN rule for UDP port {port}: {ruleName}");
+                FileLogger.Log(AppIdentifiers.FirewallLogFile, $"[Firewall] Replacing stale LAN rule for UDP port {port}: {ruleName}");
                 DeleteRule(ruleName);
             }
 
@@ -141,7 +143,7 @@ namespace RansomGuard.Core.Helpers
             if (!success)
             {
                 FileLogger.LogError(
-                    "firewall.log",
+                    AppIdentifiers.FirewallLogFile,
                     $"[Firewall] Rule creation failed for '{ruleName}'. ExitCode={result.ExitCode}. Error={result.Error}");
             }
 
@@ -176,7 +178,7 @@ namespace RansomGuard.Core.Helpers
             {
                 StartInfo = new ProcessStartInfo
                 {
-                    FileName = "netsh",
+                    FileName = AppIdentifiers.NetshExe,
                     Arguments = arguments,
                     RedirectStandardOutput = true,
                     RedirectStandardError = true,

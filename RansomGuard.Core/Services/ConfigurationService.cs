@@ -4,6 +4,8 @@ using System.IO;
 using System.Text.Json;
 using System.Threading.Tasks;
 using RansomGuard.Core.Helpers;
+using RansomGuard.Core.Configuration;
+using RansomGuard.Core.Constants;
 
 namespace RansomGuard.Core.Services
 {
@@ -24,7 +26,7 @@ namespace RansomGuard.Core.Services
         private static readonly object _watcherLock = new object();
         private static FileSystemWatcher? _configWatcher;
         private static System.Timers.Timer? _debounceTimer;
-        private static bool _suppressReload = false; // True while we are writing the file ourselves
+        private static volatile bool _suppressReload = false; // True while we are writing the file ourselves
 
         /// <summary>
         /// Raised when the monitored paths collection changes.
@@ -136,7 +138,7 @@ namespace RansomGuard.Core.Services
                         instance.RealTimeProtection = newConfig.RealTimeProtection;
                         instance.AutoQuarantine = newConfig.AutoQuarantine;
                         instance.WatchdogEnabled = newConfig.WatchdogEnabled;
-                        instance.ExcludedFolderNames = newConfig.ExcludedFolderNames ?? new List<string> { "obj", "bin", ".git", ".vs", "node_modules", "vendor", ".idea" };
+                        instance.ExcludedFolderNames = newConfig.ExcludedFolderNames ?? new List<string>(AppConstants.General.DefaultExcludedFolders);
                         instance.LastScanTime = newConfig.LastScanTime;
                         instance.HasAutoPopulated = newConfig.HasAutoPopulated;
                         instance.NetworkIsolationEnabled = newConfig.NetworkIsolationEnabled;
@@ -152,7 +154,7 @@ namespace RansomGuard.Core.Services
                 }
                 catch (Exception ex)
                 {
-                    System.Diagnostics.Debug.WriteLine($"[ConfigurationService] Error during remote reload: {ex.Message}");
+                    FileLogger.LogError("config.log", "Error during remote reload", ex);
                 }
             }
         }
@@ -212,7 +214,7 @@ namespace RansomGuard.Core.Services
         /// <summary>
         /// Gets or sets the list of directory names to exclude from scanning (e.g., "obj", "bin").
         /// </summary>
-        public List<string> ExcludedFolderNames { get; set; } = new() { "obj", "bin", ".git", ".vs", "node_modules", "vendor", ".idea" };
+        public List<string> ExcludedFolderNames { get; set; } = new List<string>(AppConstants.General.DefaultExcludedFolders);
 
         /// <summary>
         /// Gets or sets the list of process names that have been manually whitelisted by the user.
@@ -287,24 +289,26 @@ namespace RansomGuard.Core.Services
                         Directory.CreateDirectory(directory);
                     }
                     
-                    // Suppress the FileSystemWatcher reload — we are writing the file ourselves,
-                    // so we don't want ReloadInstance() to overwrite our in-memory state.
                     _suppressReload = true;
                     try
                     {
                         var json = JsonSerializer.Serialize(this, new JsonSerializerOptions { WriteIndented = true });
                         File.WriteAllText(configPath, json);
+                        
+                        // Re-enable reload after a delay WITHOUT blocking the calling thread.
+                        // This ensures the FileSystemWatcher event has been debounced before we re-enable reload,
+                        // while allowing the UI thread to remain responsive.
+                        _ = Task.Delay(600).ContinueWith(_ => _suppressReload = false);
                     }
-                    finally
+                    catch
                     {
-                        // Keep suppressed for 500ms to cover the watcher debounce window (250ms)
-                        Task.Delay(500).ContinueWith(_ => _suppressReload = false);
+                        _suppressReload = false;
+                        throw;
                     }
                 }
                 catch (Exception ex)
                 {
-                    _suppressReload = false;
-                    System.Diagnostics.Debug.WriteLine($"[ConfigurationService] Failed to save configuration: {ex.Message}");
+                    FileLogger.LogError(AppIdentifiers.ConfigLogFile, "Failed to save configuration", ex);
                 }
             }
 
@@ -328,11 +332,11 @@ namespace RansomGuard.Core.Services
                 try
                 {
                     File.Copy(LegacyConfigFile, configPath, true);
-                    System.Diagnostics.Debug.WriteLine($"Migrated configuration from {LegacyConfigFile} to {configPath}");
+                    FileLogger.Log("config.log", $"Migrated configuration from {LegacyConfigFile} to {configPath}");
                 }
                 catch (Exception ex)
                 {
-                    System.Diagnostics.Debug.WriteLine($"Failed to migrate configuration: {ex.Message}");
+                    FileLogger.LogError("config.log", "Failed to migrate configuration", ex);
                 }
             }
 
@@ -350,14 +354,14 @@ namespace RansomGuard.Core.Services
                         // Ensure collections are not null
                         config.MonitoredPaths ??= new List<string>();
                         config.WhitelistedProcessNames ??= new List<string>();
-                        config.ExcludedFolderNames ??= new List<string> { "obj", "bin", ".git", ".vs", "node_modules", "vendor", ".idea" };
+                        config.ExcludedFolderNames ??= new List<string>(AppConstants.General.DefaultExcludedFolders);
 
                         // Clean up any WindowsApps paths that were accidentally added
                         int removed = config.MonitoredPaths.RemoveAll(p =>
                             p.Contains("WindowsApps", StringComparison.OrdinalIgnoreCase));
                         if (removed > 0)
                         {
-                            System.Diagnostics.Debug.WriteLine($"[ConfigurationService] Removed {removed} WindowsApps path(s) from monitored folders.");
+                            FileLogger.Log("config.log", $"[ConfigurationService] Removed {removed} WindowsApps path(s) from monitored folders.");
                             config.Save();
                         }
 
@@ -391,7 +395,7 @@ namespace RansomGuard.Core.Services
                 catch (Exception ex)
                 {
                     // Log error and fall back to defaults
-                    System.Diagnostics.Debug.WriteLine($"Failed to load configuration at {configPath}, using defaults: {ex.Message}");
+                    FileLogger.LogError("config.log", $"Failed to load configuration at {configPath}, using defaults", ex);
                 }
             }
             
@@ -426,7 +430,7 @@ namespace RansomGuard.Core.Services
             WatchdogEnabled = true;
             LastScanTime = DateTime.MinValue;
             TotalScansCount = 0;
-            ExcludedFolderNames = new List<string> { "obj", "bin", ".git", ".vs", "node_modules", "vendor", ".idea" };
+            ExcludedFolderNames = new List<string>(AppConstants.General.DefaultExcludedFolders);
             WhitelistedProcessNames = new List<string>();
             NotifyPathsChanged();
         }
@@ -460,7 +464,7 @@ namespace RansomGuard.Core.Services
                     }
                     else
                     {
-                        Console.WriteLine($"[PopulateDefaultFolders]   Skipped (Null or Not Found)");
+                        FileLogger.Log("config.log", $"[PopulateDefaultFolders] Skipped (Null or Not Found) for {folder}");
                     }
                 }
 
@@ -487,7 +491,7 @@ namespace RansomGuard.Core.Services
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Failed to populate default folders: {ex.Message}");
+                FileLogger.LogError("config.log", "Failed to populate default folders", ex);
             }
         }
 

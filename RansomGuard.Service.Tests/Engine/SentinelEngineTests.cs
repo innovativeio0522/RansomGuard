@@ -99,5 +99,94 @@ namespace RansomGuard.Tests.Engine
             // Assert
             criticalThreatRaised.Should().BeTrue();
         }
+
+        [Fact]
+        public async Task HandleMassEncryptionResponse_ShouldQuarantineOnce_WhenThreatIsClaimed()
+        {
+            // Arrange
+            string tempFile = Path.GetTempFileName();
+            Threat? claimedThreat = new Threat
+            {
+                Id = "mass-1",
+                Path = "ALL_DRIVES",
+                ActionTaken = "Mitigating"
+            };
+
+            _mockHistoryManager
+                .Setup(h => h.TryBeginMassEncryptionMitigation("mass-1", out claimedThreat))
+                .Returns(true);
+
+            // Act
+            try
+            {
+                await _engine.HandleMassEncryptionResponse(
+                    "mass-1",
+                    shouldMitigate: true,
+                    isUserInitiated: true,
+                    processId: 0,
+                    processName: "testproc",
+                    filesToQuarantine: new List<string> { tempFile });
+
+                // Assert
+                _mockQuarantine.Verify(q => q.QuarantineFile(tempFile), Times.Once);
+            }
+            finally
+            {
+                if (File.Exists(tempFile))
+                {
+                    File.Delete(tempFile);
+                }
+            }
+        }
+
+        [Fact]
+        public async Task HandleMassEncryptionResponse_ShouldSkipMitigation_WhenThreatWasAlreadyResolved()
+        {
+            // Arrange
+            Threat? unclaimedThreat = null;
+            _mockHistoryManager
+                .Setup(h => h.TryBeginMassEncryptionMitigation("mass-2", out unclaimedThreat))
+                .Returns(false);
+
+            // Act
+            await _engine.HandleMassEncryptionResponse(
+                "mass-2",
+                shouldMitigate: true,
+                isUserInitiated: true,
+                processId: 0,
+                processName: "testproc",
+                filesToQuarantine: new List<string> { "C:\\test\\doc2.txt" });
+
+            // Assert
+            _mockQuarantine.Verify(q => q.QuarantineFile(It.IsAny<string>()), Times.Never);
+        }
+
+        [Fact]
+        public async Task HandleMassEncryptionResponse_ShouldRecordDecline_WithoutMitigation()
+        {
+            // Arrange
+            Threat? declinedThreat = new Threat
+            {
+                Id = "mass-3",
+                Path = "ALL_DRIVES",
+                ActionTaken = "User Declined"
+            };
+
+            _mockHistoryManager
+                .Setup(h => h.TryDeclineMassEncryptionThreat("mass-3", out declinedThreat))
+                .Returns(true);
+
+            // Act
+            await _engine.HandleMassEncryptionResponse(
+                "mass-3",
+                shouldMitigate: false,
+                isUserInitiated: true,
+                processId: 0,
+                processName: "testproc",
+                filesToQuarantine: new List<string> { "C:\\test\\doc3.txt" });
+
+            // Assert
+            _mockQuarantine.Verify(q => q.QuarantineFile(It.IsAny<string>()), Times.Never);
+        }
     }
 }

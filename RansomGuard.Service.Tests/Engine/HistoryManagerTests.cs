@@ -100,6 +100,52 @@ namespace RansomGuard.Tests.Engine
             _manager.CleanupCache();
         }
 
+        [Fact]
+        public void TryBeginMassEncryptionMitigation_ShouldClaimThreatOnlyOnce()
+        {
+            var threat = new Threat
+            {
+                Id = "mass-1",
+                Path = "ALL_DRIVES",
+                Name = "MASSIVE FILE ENCRYPTION ACTION DETECTED",
+                ActionTaken = "Awaiting Confirmation",
+                RequiresUserConfirmation = true
+            };
+
+            _manager.AddThreat(threat);
+
+            var firstClaim = _manager.TryBeginMassEncryptionMitigation("mass-1", out var claimedThreat);
+            var secondClaim = _manager.TryBeginMassEncryptionMitigation("mass-1", out _);
+
+            firstClaim.Should().BeTrue();
+            secondClaim.Should().BeFalse();
+            claimedThreat.Should().NotBeNull();
+            claimedThreat!.ActionTaken.Should().Be("Mitigating");
+            claimedThreat.RequiresUserConfirmation.Should().BeFalse();
+        }
+
+        [Fact]
+        public void TryDeclineMassEncryptionThreat_ShouldTransitionPendingThreatToDeclined()
+        {
+            var threat = new Threat
+            {
+                Id = "mass-2",
+                Path = "ALL_DRIVES",
+                Name = "MASSIVE FILE ENCRYPTION ACTION DETECTED",
+                ActionTaken = "Awaiting Confirmation",
+                RequiresUserConfirmation = true
+            };
+
+            _manager.AddThreat(threat);
+
+            var declined = _manager.TryDeclineMassEncryptionThreat("mass-2", out var declinedThreat);
+
+            declined.Should().BeTrue();
+            declinedThreat.Should().NotBeNull();
+            declinedThreat!.ActionTaken.Should().Be("User Declined");
+            declinedThreat.RequiresUserConfirmation.Should().BeFalse();
+        }
+
         public void Dispose()
         {
             _manager.Dispose();

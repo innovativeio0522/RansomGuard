@@ -62,12 +62,19 @@ namespace RansomGuard.Core.IPC
         public string[] MonitoredPaths { get; set; } = Array.Empty<string>();
         public DateTime LastScanTime { get; set; } = DateTime.MinValue;
         public int TotalScansCount { get; set; }
+
+        // Performance monitoring fields
+        public double AvgAnalysisMs { get; set; }
+        public double P95AnalysisMs { get; set; }
+        public double AvgEntropyCalcMs { get; set; }
+        public double AvgIpcWriteMs { get; set; }
+        public long TotalEventsDropped { get; set; }
+        public long TotalMassEncryptionAlerts { get; set; }
     }
 
 
     public enum CommandType
     {
-
         KillProcess,
         ToggleShield,
         UpdatePaths,
@@ -79,7 +86,8 @@ namespace RansomGuard.Core.IPC
         WhitelistProcess,
         RemoveWhitelist,
         MitigateThreat,
-        HandleMassEncryption
+        HandleMassEncryption,
+        ClearHistory
     }
 
     public class CommandRequest

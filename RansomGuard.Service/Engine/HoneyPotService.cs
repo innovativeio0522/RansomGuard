@@ -5,6 +5,8 @@ using System.Linq;
 using RansomGuard.Core.Services;
 using RansomGuard.Core.Helpers;
 using RansomGuard.Core.Models;
+using RansomGuard.Core.Constants;
+using RansomGuard.Core.Configuration;
 
 namespace RansomGuard.Service.Engine
 {
@@ -12,8 +14,8 @@ namespace RansomGuard.Service.Engine
     {
         private readonly SentinelEngine _engine;
         private readonly List<FileSystemWatcher> _baitWatchers = new();
-        private const string BaitFolderName = "!$RansomGuard_Bait";
-        private const string BaitFileName = "_000_IMPORTANT_DATA_RECOVERY.docx";
+        private const string BaitFolderName = AppIdentifiers.HoneypotMarker;
+        private const string BaitFileName = AppIdentifiers.HoneypotFileName;
 
         public HoneyPotService(SentinelEngine engine)
         {
@@ -33,10 +35,10 @@ namespace RansomGuard.Service.Engine
         private void DeployBaits()
         {
             var targets = GetDefaultBaitLocations();
-            FileLogger.Log("sentinel_engine.log", $"[HoneyPot] Deploying baits to {targets.Count} locations...");
+            FileLogger.Log(AppIdentifiers.SentinelEngineLogFile, $"[HoneyPot] Deploying baits to {targets.Count} locations...");
             foreach (var path in targets)
             {
-                FileLogger.Log("sentinel_engine.log", $"[HoneyPot] Processing location: {path}");
+                FileLogger.Log(AppIdentifiers.SentinelEngineLogFile, $"[HoneyPot] Processing location: {path}");
                 if (Directory.Exists(path))
                 {
                     var baitPath = Path.Combine(path, BaitFolderName);
@@ -72,7 +74,7 @@ namespace RansomGuard.Service.Engine
                     {
                         // Some systems employ Controlled Folder Access (Windows Defender) 
                         // which blocks hidden folder creation in Documents/Desktop. We degrade gracefully.
-                        FileLogger.LogWarning("sentinel_engine.log", $"[HoneyPot] Warning: OS blocked deployment at {path}: {ex.Message}");
+                        FileLogger.LogWarning(AppIdentifiers.SentinelEngineLogFile, $"[HoneyPot] Warning: OS blocked deployment at {path}: {ex.Message}");
                     }
                 }
             }
@@ -80,35 +82,50 @@ namespace RansomGuard.Service.Engine
 
         private void HandleBaitHit(string path)
         {
-            _engine.ReportThreat(path, "HONEY POT TRIPWIRE TRIGGERED", 
-                "An unauthorized process attempted to access or modify a hidden Sentinel bait file.", 
-                "Unknown", 0, ThreatSeverity.High);
+            try
+            {
+                _engine.ReportThreat(path, "HONEY POT TRIPWIRE TRIGGERED", 
+                    "An unauthorized process attempted to access or modify a hidden Sentinel bait file.", 
+                    "Unknown", 0, ThreatSeverity.High);
+            }
+            catch (Exception ex)
+            {
+                FileLogger.LogError(AppIdentifiers.SentinelEngineLogFile, "[HoneyPot] Error reporting bait hit", ex);
+            }
         }
 
         private void CleanupBaits()
         {
-            foreach (var watcher in _baitWatchers)
+            try
             {
-                watcher.EnableRaisingEvents = false;
-                watcher.Dispose();
-            }
-            _baitWatchers.Clear();
-
-            var targets = GetDefaultBaitLocations();
-            foreach (var path in targets)
-            {
-                var baitPath = Path.Combine(path, BaitFolderName);
-                if (Directory.Exists(baitPath))
+                foreach (var watcher in _baitWatchers)
                 {
                     try
                     {
-                        Directory.Delete(baitPath, true);
+                        watcher.EnableRaisingEvents = false;
+                        watcher.Dispose();
                     }
-                    catch (Exception ex)
-                    {
-                        System.Diagnostics.Debug.WriteLine($"Failed to delete bait directory: {ex.Message}");
-                    }
+                    catch { }
                 }
+                _baitWatchers.Clear();
+
+                var targets = GetDefaultBaitLocations();
+                foreach (var path in targets)
+                {
+                    var baitPath = Path.Combine(path, BaitFolderName);
+                    try
+                    {
+                        if (Directory.Exists(baitPath))
+                        {
+                            Directory.Delete(baitPath, true);
+                        }
+                    }
+                    catch { }
+                }
+            }
+            catch (Exception ex)
+            {
+                FileLogger.LogError(AppIdentifiers.SentinelEngineLogFile, "[HoneyPot] Error during bait cleanup", ex);
             }
         }
 

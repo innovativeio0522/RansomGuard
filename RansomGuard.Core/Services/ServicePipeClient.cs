@@ -13,6 +13,7 @@ using RansomGuard.Core.IPC;
 using RansomGuard.Core.Services;
 using RansomGuard.Core.Helpers;
 using RansomGuard.Core.Configuration;
+using RansomGuard.Core.Constants;
 
 namespace RansomGuard.Services
 {
@@ -53,9 +54,9 @@ namespace RansomGuard.Services
         private readonly HashSet<string> _processedEventIds = new();
         private readonly object _eventIdsLock = new();
 
-        public ServicePipeClient(string pipeName = "SentinelGuardPipeV2")
+        public ServicePipeClient(string? pipeName = null)
         {
-            _pipeName = pipeName;
+            _pipeName = pipeName ?? AppIdentifiers.PipeName;
             Start();
         }
 
@@ -75,9 +76,9 @@ namespace RansomGuard.Services
                 try
                 {
                     using var pipeClient = new NamedPipeClientStream(".", _pipeName, PipeDirection.InOut, PipeOptions.Asynchronous);
-                    FileLogger.Log("ipc_client.log", $"[IPC Client] Attempting to connect to: {_pipeName}");
+                    FileLogger.Log(AppIdentifiers.IpcClientLogFile, $"[IPC Client] Attempting to connect to: {_pipeName}");
                     await pipeClient.ConnectAsync(AppConstants.Ipc.ConnectionTimeoutMs, token);
-                    FileLogger.Log("ipc_client.log", "[IPC Client] Connected to pipe server!");
+                    FileLogger.Log(AppIdentifiers.IpcClientLogFile, "[IPC Client] Connected to pipe server!");
                     
                     using var writer = new StreamWriter(pipeClient) { AutoFlush = true };
                     using var reader = new StreamReader(pipeClient);
@@ -101,18 +102,18 @@ namespace RansomGuard.Services
                         var line = await reader.ReadLineAsync(token).ConfigureAwait(false);
                         if (line == null) 
                         {
-                            FileLogger.Log("ipc_client.log", "[IPC Client] Disconnected (EOF)");
+                            FileLogger.Log(AppIdentifiers.IpcClientLogFile, "[IPC Client] Disconnected (EOF)");
                             break;
                         }
                         
-                        FileLogger.Log("ipc_client.log", $"[IPC Client] Received: {line.Substring(0, Math.Min(line.Length, 100))}");
+                        FileLogger.Log(AppIdentifiers.IpcClientLogFile, $"[IPC Client] Received: {line.Substring(0, Math.Min(line.Length, 100))}");
                         HandlePacket(line);
                     }
                 }
                 catch (OperationCanceledException) { break; }
                 catch (Exception ex)
                 {
-                    FileLogger.LogError("ipc_client.log", "[IPC Client] EXCEPTION", ex);
+                    FileLogger.LogError(AppIdentifiers.IpcClientLogFile, "[IPC Client] EXCEPTION", ex);
                     if (IsConnected) { IsConnected = false; ConnectionStatusChanged?.Invoke(false); }
                     int delay = Math.Clamp(retryDelayMs + _rng.Next(-AppConstants.Ipc.RetryDelayJitterMs, AppConstants.Ipc.RetryDelayJitterMs), 
                                           AppConstants.Ipc.MinRetryDelayMs, MaxRetryDelayMs);
@@ -123,6 +124,10 @@ namespace RansomGuard.Services
                 finally
                 {
                     if (IsConnected) { IsConnected = false; IsHandshaked = false; ConnectionStatusChanged?.Invoke(false); }
+                    lock (_telemetryLock)
+                    {
+                        _lastTelemetry = new TelemetryData();
+                    }
                     _writer = null; _pipeClient = null;
                 }
             }
@@ -254,7 +259,7 @@ namespace RansomGuard.Services
             }
             catch (Exception ex)
             {
-                FileLogger.LogError("ipc_client.log", "[IPC Client] Packet handle error", ex);
+                FileLogger.LogError(AppIdentifiers.IpcClientLogFile, "[IPC Client] Packet handle error", ex);
             }
         }
 
@@ -402,17 +407,32 @@ namespace RansomGuard.Services
                 await SendCommand(CommandType.MitigateThreat, threatId).ConfigureAwait(false);
         }
 
-        public async Task HandleMassEncryptionResponse(int processId, string processName, List<string> filesToQuarantine)
+        public async Task HandleMassEncryptionResponse(string threatId, bool shouldMitigate, bool isUserInitiated, int processId, string processName, List<string> filesToQuarantine)
         {
             if (IsConnected)
             {
                 var payload = new
                 {
+                    ThreatId = threatId,
+                    ShouldMitigate = shouldMitigate,
+                    IsUserInitiated = isUserInitiated,
                     ProcessId = processId,
                     ProcessName = processName,
                     FilesToQuarantine = filesToQuarantine
                 };
                 await SendCommand(CommandType.HandleMassEncryption, JsonSerializer.Serialize(payload)).ConfigureAwait(false);
+            }
+        }
+
+        public async Task ClearActivityHistory()
+        {
+            if (IsConnected)
+            {
+                lock (_activitiesLock)
+                {
+                    _recentActivities.Clear();
+                }
+                await SendCommand(CommandType.ClearHistory, string.Empty).ConfigureAwait(false);
             }
         }
 

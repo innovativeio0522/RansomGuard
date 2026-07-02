@@ -30,7 +30,7 @@ namespace RansomGuard.Service.Engine
         TelemetryData GetLatestTelemetry();
 
         double CurrentCpuUsage { get; }
-        long CurrentMemoryUsage { get; }
+        long CurrentMemoryUsage { get; } // Used system RAM in bytes
 
         /// <summary>
         /// Increments the count of threats that have been successfully blocked/mitigated.

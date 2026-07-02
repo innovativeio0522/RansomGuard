@@ -10,15 +10,7 @@ Write-Host ""
 # Step 1: Identify config location
 Write-Host "[1/6] Identifying configuration location..." -ForegroundColor Yellow
 
-$isMsix = $null -ne $env:MSIX_PACKAGE_FAMILY_NAME
-if ($isMsix) {
-    Write-Host "  Running as MSIX package: $env:MSIX_PACKAGE_FAMILY_NAME" -ForegroundColor Green
-    $configPath = "C:\ProgramData\RGCoreEssentials\config.json"
-} else {
-    Write-Host "  Running as traditional install" -ForegroundColor Green
-    $configPath = "$env:ProgramData\RansomGuard\config.json"
-}
-
+$configPath = "$env:ProgramData\RGCoreEssentials\config.json"
 Write-Host "  Config path: $configPath" -ForegroundColor Cyan
 Write-Host ""
 
@@ -90,8 +82,11 @@ Write-Host ""
 Write-Host "[5/6] Searching for duplicate config files..." -ForegroundColor Yellow
 
 $possiblePaths = @(
+    "$env:LocalAppData\RGCoreEssentials\config.json",
     "$env:LocalAppData\RansomGuard\config.json",
+    "$env:ProgramData\RGCoreEssentials\config.json",
     "$env:ProgramData\RansomGuard\config.json",
+    "$env:AppData\RGCoreEssentials\config.json",
     "$env:AppData\RansomGuard\config.json",
     ".\config.json",
     ".\bin\Debug\net8.0-windows\config.json"

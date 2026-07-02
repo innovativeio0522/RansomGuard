@@ -64,7 +64,9 @@ namespace RansomGuard.Service.Engine
                     CpuUsage = total,
                     KernelCpuUsage = kernel,
                     UserCpuUsage = user,
-                    MemoryUsage = Process.GetCurrentProcess().WorkingSet64,
+                    // This field is consumed by the UI as system RAM usage in bytes.
+                    // Keep it aligned with SystemRamUsedMb so the status bar and dashboard agree.
+                    MemoryUsage = 0,
                     TotalScansCount = _threatsBlockedCount // Overloading this field for now or I should add a new one.
                 };
 
@@ -73,6 +75,7 @@ namespace RansomGuard.Service.Engine
                 {
                     newData.SystemRamTotalMb = ms.ullTotalPhys / (1024.0 * 1024.0);
                     newData.SystemRamUsedMb = (ms.ullTotalPhys - ms.ullAvailPhys) / (1024.0 * 1024.0);
+                    newData.MemoryUsage = (long)(newData.SystemRamUsedMb * 1024.0 * 1024.0);
                 }
 
                 // High-performance process and thread counting via Win32 API

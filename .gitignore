@@ -52,6 +52,7 @@ artifacts/
 
 # ─── .NET / MSBuild ──────────────────────────────────────────────────────────
 *.cache
+*.lscache
 *.suo
 *.tmp
 *.temp
@@ -156,6 +157,8 @@ coverage.xml
 *.coverage
 *.coveragexml
 TestResults/
+[Tt]est[Rr]esults/
+[Tt]est-[Rr]esults/
 *.trx
 
 # ─── Miscellaneous ───────────────────────────────────────────────────────────
@@ -180,4 +183,5 @@ debug.txt
 qc
 query
 scratch/status-build/
+scratch/test-results/
 \!$RansomGuard_Bait/

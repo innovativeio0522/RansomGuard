@@ -8,59 +8,29 @@ using System.Threading.Channels;
 using System.Threading.Tasks;
 using RansomGuard.Core.Models;
 using RansomGuard.Core.Interfaces;
+using RansomGuard.Core.Configuration;
+using RansomGuard.Core.Constants;
+using RansomGuard.Core.Helpers;
 using RansomGuard.Core.Services;
 using System.Collections.Concurrent;
 using RansomGuard.Core.IPC;
 using RansomGuard.Service.Services;
-using RansomGuard.Core.Helpers;
 
 namespace RansomGuard.Service.Engine
 {
+    // Alias to avoid ambiguity with System.Diagnostics.PerformanceMonitor
+    using PerformanceMonitor = RansomGuard.Core.Services.PerformanceMonitor;
     /// <summary>
-    /// The core security engine of RansomGuard. Handles real-time file monitoring,
-    /// heuristic analysis, and threat classification.
-    /// Decomposed (#29): Telemetry and History management are now handled by specialized services.
+    /// The core security engine of RansomGuard. Orchestrates file monitoring,
+    /// threat analysis, and response coordination through specialized services.
+    /// Refactored: Now acts as an orchestrator, delegating responsibilities to focused services.
     /// </summary>
     public class SentinelEngine : ISystemMonitorService, IDisposable
     {
-        private const int WindowSeconds = 10;
-        private const int MaxActivityHistory = 100;
-        private const int MaxDebounceCacheSize = 5000; // Maximum entries in debounce cache
+        private const int MaxDebounceCacheSize = 5000;
         private const int DebounceCleanupIntervalMs = 300000; // 5 minutes
 
-        private static int GetChangeThreshold() => ConfigurationService.Instance.SensitivityLevel switch
-        {
-            1 => RansomGuard.Core.Configuration.AppConstants.Security.RapidModificationThreshold * 3, // Low (30)
-            2 => RansomGuard.Core.Configuration.AppConstants.Security.RapidModificationThreshold * 2, // Medium (20)
-            3 => RansomGuard.Core.Configuration.AppConstants.Security.RapidModificationThreshold,     // High (10)
-            4 => 5,                                                                                  // Paranoid
-            _ => RansomGuard.Core.Configuration.AppConstants.Security.RapidModificationThreshold
-        };
-
-        private double GetEntropyThreshold(string path, bool isTrustedProcess = false, bool isScan = false)
-        {
-            bool isMedia = _entropyAnalyzer.IsMediaFile(path);
-            bool isBinary = _entropyAnalyzer.IsHighEntropyExtension(path);
-
-            double baseThreshold = ConfigurationService.Instance.SensitivityLevel switch
-            {
-                1 => 7.8, // Low
-                2 => 7.5, // Medium
-                3 => 7.2, // High
-                4 => 6.8, // Paranoid
-                _ => 7.2
-            };
-
-            if (isMedia || isBinary)
-            {
-                if (isTrustedProcess) return 7.99;
-                if (isScan) return 7.95;
-                return 7.85; 
-            }
-            
-            return baseThreshold;
-        }
-
+        // ISystemMonitorService implementation
         public bool IsConnected => true;
         public event Action<bool>? ConnectionStatusChanged = delegate { };
         public event Action<FileActivity>? FileActivityDetected;
@@ -72,31 +42,57 @@ namespace RansomGuard.Service.Engine
         public event Action<TelemetryData>? TelemetryUpdated;
         public event Action<LanPeerListUpdate>? LanPeerListUpdated;
 
+        // Specialized services
         private readonly ITelemetryService _telemetryService;
         private readonly IQuarantineService _quarantine;
-        private readonly IEntropyAnalyzer _entropyAnalyzer;
-        private readonly IProcessIdentityClassifier _processClassifier;
         private readonly HistoryManager _historyManager;
-        private readonly List<FileSystemWatcher> _watchers = new();
+        private readonly FileSystemMonitoringService _fileSystemMonitor;
+        private readonly ThreatAnalysisService _threatAnalysis;
+        private readonly ProcessAttributionService _processAttribution;
+        private readonly MassEncryptionDetector _massEncryptionDetector;
+        private readonly CriticalResponseService _criticalResponse;
+        private readonly IEtwMonitorService? _etwMonitor;
+        private readonly LanCircuitBreaker? _lanCircuitBreaker;
+
+        // Event processing pipeline
         private readonly ConcurrentDictionary<string, DateTime> _eventDebounceCache = new();
-        private readonly Channel<FileEvent> _eventChannel = Channel.CreateUnbounded<FileEvent>();
-        
-        // Gatekeeper to prevent overlapping expensive process identification calls
-        private readonly SemaphoreSlim _processIdSemaphore = new(1, 1);
+        private readonly Channel<FileEvent> _eventChannel;
         private readonly ConcurrentDictionary<string, byte> _activeAnalyses = new();
         private readonly CancellationTokenSource _cts = new();
         private Task? _processorTask;
-        private LanCircuitBreaker? _lanCircuitBreaker;
 
-        private record FileEvent(string Path, string Action);
-        private readonly Queue<(DateTime Timestamp, string ProcessName, int ProcessId, string FilePath)> _recentChanges = new();
-        private readonly object _recentChangesLock = new();
+        private record FileEvent(string Path, string Action, int ProcessId = 0, string ProcessName = "Unknown");
 
+        // State
         public bool IsHoneyPotActive { get; set; } = true;
         public bool IsVssShieldActive { get; set; } = true;
-        public bool IsPanicModeActive { get; set; }
 
-        private double _lastEntropyScore = 1.5;
+        private bool _isPanicModeActive;
+        private DateTime _lastPanicToggle = DateTime.MinValue;
+        public bool IsPanicModeActive 
+        { 
+            get => _isPanicModeActive;
+            set 
+            {
+                if (value == _isPanicModeActive) return;
+                
+                // Cooldown to prevent UI spam
+                if ((DateTime.Now - _lastPanicToggle).TotalSeconds < AppConstants.Timers.PanicModeCooldownSeconds)
+                {
+                    FileLogger.LogWarning(AppIdentifiers.SentinelEngineLogFile, $"[SENTINEL] Panic Mode toggle blocked: {AppConstants.Timers.PanicModeCooldownSeconds}s cooldown in progress.");
+                    return;
+                }
+
+                _isPanicModeActive = value;
+                _lastPanicToggle = DateTime.Now;
+                
+                if (value)
+                {
+                    _criticalResponse.ExecuteCriticalResponse(true, false);
+                }
+            }
+        }
+
         private DateTime _lastScanTime = ConfigurationService.Instance.LastScanTime;
         private bool _disposed;
         private System.Timers.Timer? _engineCleanupTimer;
@@ -107,26 +103,43 @@ namespace RansomGuard.Service.Engine
             IEntropyAnalyzer? entropyAnalyzer = null,
             IProcessIdentityClassifier? processClassifier = null,
             IQuarantineService? quarantine = null,
-            LanCircuitBreaker? lanCircuitBreaker = null)
+            LanCircuitBreaker? lanCircuitBreaker = null,
+            IEtwMonitorService? etwMonitor = null)
         {
+            // Initialize core services
             _telemetryService = telemetry ?? new TelemetryService();
             _historyManager = history ?? new HistoryManager(new HistoryStore());
-            _entropyAnalyzer = entropyAnalyzer ?? new EntropyAnalysisService();
-            _processClassifier = processClassifier ?? new ProcessIdentityService();
             _quarantine = quarantine ?? new QuarantineService(new HistoryStore());
             _lanCircuitBreaker = lanCircuitBreaker;
+            _etwMonitor = etwMonitor;
 
-            // Initialize background processing pipeline
-            _eventChannel = Channel.CreateUnbounded<FileEvent>(new UnboundedChannelOptions
+            // Initialize specialized services
+            var entropyAnalyzerInstance = entropyAnalyzer ?? new EntropyAnalysisService();
+            var processClassifierInstance = processClassifier ?? new ProcessIdentityService();
+            
+            _fileSystemMonitor = new FileSystemMonitoringService(entropyAnalyzerInstance);
+            _threatAnalysis = new ThreatAnalysisService(entropyAnalyzerInstance);
+            _processAttribution = new ProcessAttributionService(processClassifierInstance);
+            _massEncryptionDetector = new MassEncryptionDetector();
+            _criticalResponse = new CriticalResponseService();
+
+            // Initialize event processing pipeline with bounded channel for backpressure
+            _eventChannel = Channel.CreateBounded<FileEvent>(new BoundedChannelOptions(10000)
             {
                 SingleReader = true,
-                AllowSynchronousContinuations = false
+                AllowSynchronousContinuations = false,
+                FullMode = BoundedChannelFullMode.DropOldest
             });
 
+            // Wire up file system monitoring events
+            _fileSystemMonitor.FileEventDetected += OnFileSystemEvent;
             InitializeWatchers();
             
             // Re-trigger watchers on config change
             ConfigurationService.Instance.PathsChanged += () => InitializeWatchers();
+
+            // Wire up mass encryption detection events
+            _massEncryptionDetector.MassEncryptionDetected += OnMassEncryptionDetected;
 
             // Link telemetry updates
             _telemetryService.TelemetryUpdated += (data) => TelemetryUpdated?.Invoke(GetTelemetry());
@@ -135,8 +148,16 @@ namespace RansomGuard.Service.Engine
             if (_lanCircuitBreaker != null)
             {
                 _lanCircuitBreaker.PeerListChanged += (update) => LanPeerListUpdated?.Invoke(update);
-            }            
-            // Run cleanup more frequently (every 5 minutes instead of 1 hour)
+            }
+
+            // Wire ETW events
+            if (_etwMonitor != null)
+            {
+                _etwMonitor.FileEventDetected += (e) => OnFileChanged(e.Path, e.Action, e.ProcessId, e.ProcessName);
+                _etwMonitor.Start();
+            }
+            
+            // Run cleanup timer
             _engineCleanupTimer = new System.Timers.Timer(DebounceCleanupIntervalMs);
             _engineCleanupTimer.Elapsed += (s, e) => {
                 _historyManager.CleanupCache();
@@ -145,7 +166,13 @@ namespace RansomGuard.Service.Engine
             _engineCleanupTimer.Start();
 
             // Initial historical load
-            _ = _historyManager.LoadFromStoreAsync();
+            _historyManager.LoadFromStoreAsync().ContinueWith(task =>
+            {
+                if (task.IsFaulted && task.Exception != null)
+                {
+                    FileLogger.LogError(AppIdentifiers.SentinelEngineLogFile, "[SENTINEL] Failed to load history from store", task.Exception);
+                }
+            }, TaskScheduler.Default);
 
             _processorTask = Task.Run(() => ProcessEventsAsync(_cts.Token));
         }
@@ -188,78 +215,16 @@ namespace RansomGuard.Service.Engine
 
         public void InitializeWatchers()
         {
-            lock (_watchers)
-            {
-                foreach (var w in _watchers) { w.EnableRaisingEvents = false; w.Dispose(); }
-                _watchers.Clear();
+            var realTimeProtection = ConfigurationService.Instance.RealTimeProtection;
+            var standardPaths = PathConfiguration.GetAllUsersStandardFolders();
+            var customPaths = ConfigurationService.Instance.MonitoredPaths;
+            
+            _fileSystemMonitor.InitializeWatchers(realTimeProtection, standardPaths, customPaths);
+        }
 
-                var realTimeProtection = ConfigurationService.Instance.RealTimeProtection;
-                FileLogger.Log("sentinel_engine.log", $"[InitializeWatchers] RealTimeProtection={realTimeProtection}");
-                if (!realTimeProtection) return;
-
-                // Always watch all-users standard folders (Documents, Desktop, Downloads etc.)
-                // regardless of what is in config. These are built-in and cannot be removed.
-                var standardPaths = PathConfiguration.GetAllUsersStandardFolders();
-                FileLogger.Log("sentinel_engine.log", $"[InitializeWatchers] Standard folders found: {standardPaths.Count()}");
-
-                // Custom paths from the shared ProgramData config
-                var currentConfigPaths = ConfigurationService.Instance.MonitoredPaths;
-
-                // Merge both sources, deduplicated
-                // CRITICAL FIX: Do NOT use ToLowerInvariant() here. FileSystemWatcher on Windows
-                // has a known bug where it drops events if the casing of the Path does not perfectly
-                // match the casing of the actual directory on disk.
-                var allPaths = standardPaths
-                    .Concat(currentConfigPaths)
-                    .Select(p => Path.GetFullPath(p).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar))
-                    .Distinct(StringComparer.OrdinalIgnoreCase)
-                    .ToList();
-
-                FileLogger.Log("sentinel_engine.log", $"[InitializeWatchers] Total deduplicated paths to watch: {allPaths.Count}");
-                foreach (var p in allPaths) FileLogger.Log("sentinel_engine.log", $"  -> {p}");
-
-                foreach (var rawPath in allPaths)
-                {
-                    string path = rawPath;
-                    // Force uppercase drive letter - critical for FileSystemWatcher reliability on Windows
-                    if (path.Length >= 2 && path[1] == ':' && char.IsLower(path[0]))
-                    {
-                        path = char.ToUpper(path[0]) + path.Substring(1);
-                    }
-
-                    if (!Directory.Exists(path)) continue;
-
-                    FileSystemWatcher? watcher = null;
-                    try
-                    {
-                        watcher = new FileSystemWatcher(path)
-                        {
-                            NotifyFilter = NotifyFilters.FileName | NotifyFilters.DirectoryName | NotifyFilters.LastWrite | NotifyFilters.Attributes,
-                            IncludeSubdirectories = true,
-                            InternalBufferSize = 65536
-                        };
-
-                        watcher.Created += (s, e) => OnFileChanged(e.FullPath, "CREATED");
-                        watcher.Changed += (s, e) => OnFileChanged(e.FullPath, "CHANGED");
-                        watcher.Deleted += (s, e) => OnFileChanged(e.FullPath, "DELETED");
-                        watcher.Renamed += (s, e) => OnFileChanged(e.FullPath, $"RENAMED FROM {e.OldName} TO {e.Name}");
-
-                        // Enable events BEFORE adding to list - if this throws, watcher won't be in list
-                        watcher.EnableRaisingEvents = true;
-                        
-                        // Only add to list after successful initialization
-                        _watchers.Add(watcher);
-                        FileLogger.Log("sentinel_engine.log", $"[InitializeWatchers] Watcher ACTIVE for: {path}");
-                        watcher = null; // Ownership transferred - don't dispose in catch block
-                    }
-                    catch (Exception ex)
-                    {
-                        Debug.WriteLine($"[SentinelEngine] Failed to create watcher for {path}: {ex.Message}");
-                        // Dispose the watcher if it wasn't successfully added to the list
-                        watcher?.Dispose();
-                    }
-                }
-            }
+        private void OnFileSystemEvent(FileSystemEvent fsEvent)
+        {
+            OnFileChanged(fsEvent.Path, fsEvent.Action, 0, "Unknown");
         }
 
         private bool IsEventDebounced(string path, string action)
@@ -274,29 +239,23 @@ namespace RansomGuard.Service.Engine
             return !isNew;
         }
 
-        internal void OnFileChanged(string path, string action)
+        internal void OnFileChanged(string path, string action, int processId = 0, string processName = "Unknown")
         {
             var rtp = ConfigurationService.Instance.RealTimeProtection;
-            
-            // SECURITY BYPASS: Never debounce suspicious extensions or honeypot activity.
-            // We must analyze every single one of these even if they happen rapidly.
-            bool isSuspicious = _entropyAnalyzer.IsSuspiciousExtension(path) || 
-                              path.Contains("!$RansomGuard_Bait", StringComparison.OrdinalIgnoreCase);
-
             if (!rtp) return;
 
+            // SECURITY BYPASS: Never debounce suspicious files or honeypot activity
+            bool isSuspicious = path.Contains("!$RansomGuard_Bait", StringComparison.OrdinalIgnoreCase);
+
             if (!isSuspicious && IsEventDebounced(path, action))
-            {
-                // Log skips for regular files only if needed, to avoid log bloat
-                // FileLogger.Log("sentinel_engine.log", $"[Sentinel] Event skipped (debounced): {path} | {action}");
                 return;
-            }
             
-            // Fast-path: Just enqueue the event and return to the watcher thread immediately
-            bool written = _eventChannel.Writer.TryWrite(new FileEvent(path, action));
+            // Enqueue event for processing
+            bool written = _eventChannel.Writer.TryWrite(new FileEvent(path, action, processId, processName));
             if (!written)
             {
-                FileLogger.LogWarning("sentinel_engine.log", $"[Sentinel] FAILED to enqueue event (channel full): {path}");
+                FileLogger.LogWarning(AppIdentifiers.SentinelEngineLogFile, $"[Sentinel] FAILED to enqueue event (channel full): {path}");
+                PerformanceMonitor.Instance.RecordFileAnalysis(0, false, wasDropped: true);
             }
         }
 
@@ -304,485 +263,234 @@ namespace RansomGuard.Service.Engine
         {
             await foreach (var @event in _eventChannel.Reader.ReadAllAsync(ct))
             {
-                // Process events in parallel to prevent one slow check (like Restart Manager)
-                // from blocking the entire engine pipeline.
-                _ = Task.Run(async () =>
+                // Process events in parallel
+#pragma warning disable CS4014
+                Task.Run(async () =>
                 {
                     try
                     {
-                        // Ensure each event is handled independently and errors don't crash the loop
-                        await AnalyzeEventAsync(@event.Path, @event.Action).ConfigureAwait(false);
+                        await AnalyzeEventAsync(@event.Path, @event.Action, @event.ProcessId, @event.ProcessName).ConfigureAwait(false);
                     }
                     catch (Exception ex)
                     {
-                        // Use the core FileLogger which has its own internal safety
-                        FileLogger.LogError("sentinel_engine.log", $"[PIPELINE] Analysis EXCEPTION for {@event.Path}: {ex.Message}");
+                        FileLogger.LogError(AppIdentifiers.SentinelEngineLogFile, $"[PIPELINE] Analysis EXCEPTION for {@event.Path}: {ex.Message}");
                     }
-                }, ct);
+                }, ct).ContinueWith(task =>
+                {
+                    if (task.IsFaulted && task.Exception != null)
+                    {
+                        FileLogger.LogError(AppIdentifiers.SentinelEngineLogFile, "[PIPELINE] Event processing task failed", task.Exception);
+                    }
+                }, TaskScheduler.Default);
+#pragma warning restore CS4014
             }
         }
 
-        private async Task AnalyzeEventAsync(string path, string action)
+        private async Task AnalyzeEventAsync(string path, string action, int providedProcessId = 0, string providedProcessName = "Unknown")
         {
-            var sw = System.Diagnostics.Stopwatch.StartNew();
-
-            if (path.Contains("!$RansomGuard_Bait", StringComparison.OrdinalIgnoreCase)) return;
+            var correlationId = StructuredLogger.GenerateCorrelationId();
             
-            // Deduplicate at the path level to prevent parallel analysis of the same file 
-            // triggered by multiple FSW events (Created + Changed)
-            if (!_activeAnalyses.TryAdd(path, 0)) return;
-
-            try
+            using (StructuredLogger.BeginOperation("FileAnalysis", correlationId))
             {
-                // Skip excluded directories
-                bool skipDir = _entropyAnalyzer.ShouldSkipDirectory(path) || path.Split(Path.DirectorySeparatorChar).Any(part => _entropyAnalyzer.ShouldSkipDirectory(part));
-                if (skipDir)
-                {
-                    FileLogger.Log("sentinel_engine.log", $"[TRACE] [{sw.ElapsedMilliseconds}ms] SKIPPED (excluded dir): {path}");
-                    return;
-                }
+                var sw = Stopwatch.StartNew();
 
-                if (Directory.Exists(path) && !File.Exists(path))
-                {
-                    FileLogger.Log("sentinel_engine.log", $"[TRACE] [{sw.ElapsedMilliseconds}ms] SKIPPED (is directory): {path}");
-                    return;
-                }
+                StructuredLogger.LogDebug("Starting file analysis",
+                    ("FilePath", path),
+                    ("Action", action),
+                    ("ProcessId", providedProcessId),
+                    ("ProcessName", providedProcessName));
 
-                bool suspExt = _entropyAnalyzer.IsSuspiciousExtension(path);
-                if (suspExt) FileLogger.Log("sentinel_engine.log", $"[TRACE] [{sw.ElapsedMilliseconds}ms] SUSPICIOUS EXTENSION: {path}");
+                if (path.Contains("!$RansomGuard_Bait", StringComparison.OrdinalIgnoreCase)) return;
                 
-                FileLogger.Log("sentinel_engine.log", $"[TRACE] [{sw.ElapsedMilliseconds}ms] Starting deep analysis for: {path}");
+                // Deduplicate at the path level
+                if (!_activeAnalyses.TryAdd(path, 0)) return;
 
-                bool isMedia = _entropyAnalyzer.IsMediaFile(path);
-                bool isBinary = _entropyAnalyzer.IsHighEntropyExtension(path);
-                double entropy = 0;
+                // Track active analysis count for performance monitoring
+                PerformanceMonitor.Instance.SetActiveAnalysisCount(_activeAnalyses.Count);
 
-                FileLogger.Log("sentinel_engine.log", $"[TRACE] [{sw.ElapsedMilliseconds}ms] Extension check done. isMedia={isMedia}, isBinary={isBinary}");
-
-                // --- Process Attribution with Multiple Strategies ---
-                string culpritProcess = "Unknown";
-                int culpritProcessId = 0;
-                bool isTrustedProcess = false;
-
-                // PERFORMANCE OPTIMIZATION: Only perform expensive process identification
-                // if the file is actually suspicious (suspicious extension, high entropy, or honeypot).
-                // This prevents system-wide "Restart Manager" gridlock from background system activity.
-                bool needsProcessId = suspExt || (action != "DELETED" && !isMedia && !isBinary);
-
-                if (needsProcessId)
+                try
                 {
-                    try
-                    {
-                        // Use a semaphore to ensure we don't spam the Windows Restart Manager service
-                        // with hundreds of concurrent requests.
-                        await _processIdSemaphore.WaitAsync().ConfigureAwait(false);
-                        
-                        try
-                        {
-                            var processes = new List<Process>();
-
-                            // Strategy 2: Use Restart Manager with timeout to find owner
-                            if (processes.Count == 0)
-                            {
-                                try
-                                {
-                                    var cts = new CancellationTokenSource(TimeSpan.FromSeconds(3));
-                                    var processTask = _processClassifier.GetProcessesUsingFileAsync(path);
-
-                                    // Wait for process task or timeout
-                                    if (await Task.WhenAny(processTask, Task.Delay(-1, cts.Token)) == processTask)
-                                    {
-                                        processes = await processTask;
-                                    }
-                                    else
-                                    {
-                                        FileLogger.LogWarning("sentinel_engine.log", $"[Sentinel] Process identification timed out for: {path}");
-                                    }
-                                }
-                                catch (OperationCanceledException)
-                                {
-                                    FileLogger.LogWarning("sentinel_engine.log", $"[Sentinel] Process identification cancelled (timeout) for: {path}");
-                                }
-                            }
-
-                            if (processes != null && processes.Count > 0)
-                            {
-                                var primary = processes[0];
-                                culpritProcess = primary.ProcessName;
-                                try { culpritProcessId = primary.Id; } catch { /* process may have exited */ }
-                                isTrustedProcess = _processClassifier.DetermineIdentity(primary).IsTrusted;
-                            }
-
-                            // Strategy 3: If still no process, use heuristics based on file location and type
-                            if (processes == null || processes.Count == 0)
-                            {
-                                culpritProcess = InferProcessFromContext(path, action);
-                            }
-                            else
-                            {
-                                foreach (var p in processes)
-                                {
-                                    if (p.ProcessName.Contains("RansomGuard", StringComparison.OrdinalIgnoreCase)) continue;
-                                    culpritProcess = p.ProcessName;
-                                    var identity = _processClassifier.DetermineIdentity(p);
-                                    
-                                    if (!action.Contains("RENAMED"))
-                                    {
-                                        isTrustedProcess = identity.IsTrusted;
-                                        if (isTrustedProcess) break;
-                                    }
-                                }
-                            }
-                        }
-                        catch (Exception ex)
-                        {
-                            FileLogger.LogError("sentinel_engine.log", $"[Sentinel] Error in process identification: {ex.Message}");
-                        }
-                        finally
-                        {
-                            _processIdSemaphore.Release();
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        FileLogger.LogError("sentinel_engine.log", $"[Sentinel] Outer error in process attribution: {ex.Message}");
-                    }
-                }
-                // Process identification done.
-
-                if (action == "CHANGED" || action == "CREATED" || action.Contains("RENAMED") || suspExt || isMedia || isBinary)
-                {
-                    entropy = _entropyAnalyzer.CalculateShannonEntropy(path);
-                    _lastEntropyScore = entropy;
-                }
-
-                double threshold = GetEntropyThreshold(path, isTrustedProcess, isScan: false);
-                bool isEntropyAlert = entropy > threshold;
-                bool isRenameAlert = _entropyAnalyzer.IsSuspiciousRenamePattern(action);
-                
-                var activity = new FileActivity
-                {
-                    Id = Guid.NewGuid().ToString(),
-                    Timestamp = DateTime.Now,
-                    FilePath = path,
-                    Action = action,
-                    ProcessName = culpritProcess,
-                    ProcessId = culpritProcessId,
-                    Entropy = entropy,
-                    IsSuspicious = isEntropyAlert || isRenameAlert || suspExt
-                };
-
-                _historyManager.AddActivity(activity);
-                FileActivityDetected?.Invoke(activity);
-
-                if (activity.IsSuspicious)
-                {
-                    var protectionSettings = ConfigurationService.Instance;
-                    string reason = suspExt ? "Suspicious Extension" : (isEntropyAlert ? "High Entropy Data" : "Suspicious Pattern");
-                    string threatAction = protectionSettings.AutoQuarantine ? "Quarantined (Auto)" : "Detected";
+                    var config = ConfigurationService.Instance;
                     
-                    if (protectionSettings.AutoQuarantine)
+                    // Step 1: Threat Analysis
+                    var threatResult = _threatAnalysis.AnalyzeFile(path, action, false, config.SensitivityLevel);
+                    
+                    if (threatResult.ShouldSkip)
                     {
-                        try
-                        {
-                            FileLogger.Log("sentinel_engine.log", $"[SENTINEL] Auto-Quarantine TRIGGERED for: {path}");
-                            await _quarantine.QuarantineFile(path).ConfigureAwait(false);
-                            _telemetryService.IncrementThreatsBlocked();
-                        }
-                        catch (Exception ex)
-                        {
-                            FileLogger.LogError("sentinel_engine.log", $"[SENTINEL] FAILED to quarantine: {path}. Error: {ex.Message}");
-                            threatAction = "Failed to Quarantine";
-                        }
+                        FileLogger.LogDebug(AppIdentifiers.SentinelEngineLogFile, $"[TRACE] [{sw.ElapsedMilliseconds}ms] SKIPPED ({threatResult.SkipReason}): {path}");
+                        return;
                     }
 
-                    ThreatSeverity severity = (isEntropyAlert || suspExt) ? ThreatSeverity.High : ThreatSeverity.Medium;
-                    ReportThreat(path, $"{reason} Detected", "System generated alert based on heuristic pattern mismatch.",
-                        culpritProcess, culpritProcessId, severity, threatAction);
-                }
+                    if (threatResult.HasSuspiciousExtension)
+                    {
+                        FileLogger.LogDebug(AppIdentifiers.SentinelEngineLogFile, $"[TRACE] [{sw.ElapsedMilliseconds}ms] SUSPICIOUS EXTENSION: {path}");
+                        StructuredLogger.LogWarning("Suspicious file extension detected",
+                            ("FilePath", path),
+                            ("Extension", Path.GetExtension(path)));
+                    }
 
-                CheckMassChangeVelocity(culpritProcess, activity.ProcessId, path);
-            }
-            finally
-            {
-                _activeAnalyses.TryRemove(path, out _);
-            }
-        }
-
-        /// <summary>
-        /// Infers the likely process responsible for a file operation based on context clues
-        /// when direct process detection fails.
-        /// </summary>
-        private string InferProcessFromContext(string path, string action)
-        {
-            try
-            {
-                string pathLower = path.ToLowerInvariant();
-                string fileName = Path.GetFileName(pathLower);
-                string extension = Path.GetExtension(pathLower);
-                
-                // Browser downloads
-                if (pathLower.Contains(@"\downloads\"))
-                {
-                    if (fileName.Contains("reddit") || fileName.Contains("www."))
-                        return "Browser (Download)";
-                    return "explorer";
-                }
-                
-                // Screenshots
-                if (pathLower.Contains(@"\pictures\screenshots\") || fileName.Contains("screenshot"))
-                    return "SnippingTool";
-                
-                // Desktop files
-                if (pathLower.Contains(@"\desktop\"))
-                {
-                    if (extension == ".txt") return "notepad";
-                    if (extension == ".bmp" || extension == ".png") return "mspaint";
-                    return "explorer";
-                }
-                
-                // Documents folder
-                if (pathLower.Contains(@"\documents\"))
-                {
-                    if (extension == ".txt") return "notepad";
-                    if (extension == ".docx" || extension == ".doc") return "WINWORD";
-                    if (extension == ".xlsx" || extension == ".xls") return "EXCEL";
-                    if (extension == ".pdf") return "AcroRd32";
-                    return "explorer";
-                }
-                
-                // Temp files
-                if (pathLower.Contains(@"\temp\") || pathLower.Contains(@"\tmp\"))
-                    return "System Process";
-                
-                // AppData operations
-                if (pathLower.Contains(@"\appdata\"))
-                    return "Application";
-                
-                // Default fallback
-                return "explorer";
-            }
-            catch
-            {
-                return "Unknown";
-            }
-        }
-
-        private void CheckMassChangeVelocity(string processName = "Unknown", int processId = 0, string filePath = "")
-        {
-            var now = DateTime.Now;
-            lock (_recentChangesLock)
-            {
-                // Track this change with its file path
-                if (processName != "Unknown" && processName != "explorer")
-                {
-                    _recentChanges.Enqueue((now, processName, processId, filePath));
-                }
-                else
-                {
-                    _recentChanges.Enqueue((now, "System/Unknown", 0, filePath));
-                }
-
-                // Remove old changes (outside the 10s window)
-                while (_recentChanges.Count > 0 && (now - _recentChanges.Peek().Timestamp).TotalSeconds > WindowSeconds) 
-                    _recentChanges.Dequeue();
-
-                if (_recentChanges.Count >= GetChangeThreshold())
-                {
-                    // 1. Identify the Culprit (Process with most changes in this window)
-                    var topProcess = _recentChanges
-                        .GroupBy(c => new { c.ProcessName, c.ProcessId })
-                        .OrderByDescending(g => g.Count())
-                        .FirstOrDefault();
-
-                    string targetName = topProcess?.Key.ProcessName ?? "Unknown Process";
-                    int targetId = topProcess?.Key.ProcessId ?? 0;
-
-                    FileLogger.Log("sentinel_engine.log", $"[CRITICAL] MASS ENCRYPTION DETECTED! Threshold: {GetChangeThreshold()}. Current: {_recentChanges.Count}. Culprit: {targetName} ({targetId})");
-
-                    // 2. Collect files to quarantine
-                    // CRITICAL: During mass encryption, we must deduplicate paths to avoid trying to 
-                    // quarantine original names of files that have since been renamed/encrypted.
-                    // We also want to prioritize the MOST RECENT path for each file.
-                    var filesToQuarantine = _recentChanges
-                        .Where(c => !string.IsNullOrEmpty(c.FilePath))
-                        .GroupBy(c => {
-                            // Extract the base filename before ANY extensions to group renames together
-                            string fileName = Path.GetFileName(c.FilePath);
-                            int firstDot = fileName.IndexOf('.');
-                            return firstDot > 0 ? fileName.Substring(0, firstDot) : fileName;
-                        })
-                        .Select(g => g.OrderByDescending(c => c.Timestamp).First().FilePath)
-                        .Distinct(StringComparer.OrdinalIgnoreCase)
-                        .ToList();
-
-                    FileLogger.Log("sentinel_engine.log", $"[CRITICAL] MASS ENCRYPTION: {filesToQuarantine.Count} files identified for alert. Awaiting user confirmation...");
+                    // Step 2: Process Attribution (only if needed)
+                    bool needsProcessId = (providedProcessId == 0) && 
+                                         (threatResult.HasSuspiciousExtension || 
+                                          (action != "DELETED" && !threatResult.IsMediaFile && !threatResult.IsBinaryFile));
                     
-                    // 3. Report threat with RequiresUserConfirmation flag
-                    // This will trigger UI prompt.
-                    var threat = new Threat
+                    ProcessAttributionResult processResult;
+                    using (PerformanceMonitor.Instance.MeasureProcessAttribution())
+                    {
+                        processResult = await _processAttribution.IdentifyProcessAsync(
+                            path, action, providedProcessId, providedProcessName, needsProcessId);
+                    }
+
+                    // Re-analyze with process trust information
+                    threatResult = _threatAnalysis.AnalyzeFile(path, action, processResult.IsTrusted, config.SensitivityLevel);
+
+                    // Step 3: Create Activity Record
+                    var activity = new FileActivity
                     {
                         Id = Guid.NewGuid().ToString(),
-                        Name = "MASSIVE FILE ENCRYPTION ACTION DETECTED",
-                        Description = $"Multiple rapid file changes detected. Culprit: {targetName}. {filesToQuarantine.Count} files identified for protection.",
-                        Path = "ALL_DRIVES",
-                        Severity = ThreatSeverity.Critical,
-                        ProcessName = targetName,
-                        ProcessId = targetId,
-                        Timestamp = now,
-                        ActionTaken = "Awaiting Confirmation",
-                        AffectedFiles = filesToQuarantine,
-                        RequiresUserConfirmation = true
+                        Timestamp = DateTime.Now,
+                        FilePath = path,
+                        Action = action,
+                        ProcessName = processResult.ProcessName,
+                        ProcessId = processResult.ProcessId,
+                        Entropy = threatResult.Entropy,
+                        IsSuspicious = threatResult.IsSuspicious
                     };
 
-                    lock (_historyManager)
-                    {
-                        _historyManager.AddThreat(threat);
-                        ThreatDetected?.Invoke(threat);
-                    }
+                    _historyManager.AddActivity(activity);
+                    FileActivityDetected?.Invoke(activity);
 
-                    // 4. SERVICE-SIDE AUTO-MITIGATION TIMEOUT
-                    // If the UI is not running or the user doesn't respond, we must act anyway.
-                    // This ensures protection even if the dashboard is closed.
-                    _ = Task.Run(async () =>
+                    // Step 4: Handle Suspicious Activity
+                    if (activity.IsSuspicious)
                     {
-                        FileLogger.Log("sentinel_engine.log", $"[SENTINEL] Starting 5s auto-mitigation timer for {targetName} (PID: {targetId})");
-                        await Task.Delay(5000).ConfigureAwait(false);
+                        string threatAction = config.AutoQuarantine ? "Quarantined (Auto)" : "Detected";
                         
-                        // Check if it's still awaiting confirmation
-                        var currentThreat = _historyManager.GetRecentThreats().FirstOrDefault(t => t.Id == threat.Id);
-                        if (currentThreat != null && currentThreat.ActionTaken == "Awaiting Confirmation")
+                        StructuredLogger.LogWarning("Suspicious file activity detected",
+                            ("FilePath", path),
+                            ("Reason", threatResult.ThreatReason),
+                            ("Entropy", threatResult.Entropy),
+                            ("Threshold", threatResult.EntropyThreshold),
+                            ("ProcessName", processResult.ProcessName),
+                            ("AutoQuarantine", config.AutoQuarantine));
+                        
+                        if (config.AutoQuarantine)
                         {
-                            FileLogger.Log("sentinel_engine.log", $"[SENTINEL] TIMEOUT: No user response for mass encryption. Triggering AUTOMATIC mitigation for {targetName}.");
-                            await HandleMassEncryptionResponse(targetId, targetName, filesToQuarantine).ConfigureAwait(false);
+                            try
+                            {
+                                FileLogger.Log(AppIdentifiers.SentinelEngineLogFile, $"[SENTINEL] Auto-Quarantine TRIGGERED for: {path}");
+                                await _quarantine.QuarantineFile(path).ConfigureAwait(false);
+                                _telemetryService.IncrementThreatsBlocked();
+                                
+                                StructuredLogger.LogInfo("File auto-quarantined successfully", ("FilePath", path));
+                            }
+                            catch (Exception ex)
+                            {
+                                FileLogger.LogError(AppIdentifiers.SentinelEngineLogFile, $"[SENTINEL] FAILED to quarantine: {path}. Error: {ex.Message}");
+                                StructuredLogger.LogError("Auto-quarantine failed", ex, ("FilePath", path));
+                                threatAction = "Failed to Quarantine";
+                            }
                         }
-                        else
-                        {
-                            FileLogger.Log("sentinel_engine.log", $"[SENTINEL] Auto-mitigation cancelled: Threat status is '{currentThreat?.ActionTaken ?? "Unknown"}'");
-                        }
-                    });
 
-                    _recentChanges.Clear();
+                        ThreatSeverity severity = (threatResult.IsHighEntropy || threatResult.HasSuspiciousExtension) 
+                            ? ThreatSeverity.High : ThreatSeverity.Medium;
+                        
+                        ReportThreat(path, $"{threatResult.ThreatReason} Detected", 
+                            "System generated alert based on heuristic pattern mismatch.",
+                            processResult.ProcessName, processResult.ProcessId, severity, threatAction);
+                    }
+
+                    // Step 5: Mass Encryption Detection
+                    if (action != "DELETED")
+                    {
+                        _massEncryptionDetector.RecordFileChange(
+                            processResult.ProcessName, 
+                            processResult.ProcessId, 
+                            path, 
+                            activity.IsSuspicious, 
+                            activity.Entropy,
+                            config.SensitivityLevel);
+                    }
                     
-                    // 5. VSS Shield Check
-                    _ = Task.Run(async () => await CheckVssIntegrityAsync());
+                    // Record performance metrics
+                    PerformanceMonitor.Instance.RecordFileAnalysis(sw.ElapsedMilliseconds, activity.IsSuspicious);
+                    PerformanceMonitor.Instance.SetWatcherCount(_fileSystemMonitor.GetTotalWatcherCount());
+
+                    StructuredLogger.LogDebug("File analysis completed",
+                        ("FilePath", path),
+                        ("DurationMs", sw.ElapsedMilliseconds),
+                        ("IsSuspicious", activity.IsSuspicious));
+                }
+                finally
+                {
+                    _activeAnalyses.TryRemove(path, out _);
                 }
             }
         }
 
-        private async Task CheckVssIntegrityAsync()
+        private void OnMassEncryptionDetected(MassEncryptionAlert alert)
         {
-            try 
+            FileLogger.Log(AppIdentifiers.SentinelEngineLogFile, $"[CRITICAL] MASS ACTIVITY DETECTED! {alert.Reason}. Culprit: {alert.ProcessName} ({alert.ProcessId})");
+            PerformanceMonitor.Instance.RecordMassEncryptionAlert();
+
+            // Create threat with user confirmation requirement
+            var threat = new Threat
             {
-                FileLogger.Log("sentinel_engine.log", "[VSS] Starting VSS Shield Integrity Check...");
-                // Check if shadow copies exist and haven't been deleted
-                var process = new Process
-                {
-                    StartInfo = new ProcessStartInfo
-                    {
-                        FileName = "vssadmin.exe",
-                        Arguments = "list shadows",
-                        UseShellExecute = false,
-                        RedirectStandardOutput = true,
-                        CreateNoWindow = true
-                    }
-                };
-                process.Start();
-                string output = await process.StandardOutput.ReadToEndAsync();
+                Id = Guid.NewGuid().ToString(),
+                Name = "MASSIVE FILE ACTIVITY DETECTED",
+                Description = $"{alert.Reason} detected in a short interval. Culprit: {alert.ProcessName}. {alert.FilesToQuarantine.Count} files identified for protection.",
+                Path = "ALL_DRIVES",
+                Severity = ThreatSeverity.Critical,
+                ProcessName = alert.ProcessName,
+                ProcessId = alert.ProcessId,
+                Timestamp = alert.Timestamp,
+                ActionTaken = "Awaiting Confirmation",
+                AffectedFiles = alert.FilesToQuarantine,
+                RequiresUserConfirmation = true
+            };
+
+            lock (_historyManager)
+            {
+                _historyManager.AddThreat(threat);
+                ThreatDetected?.Invoke(threat);
+            }
+
+            // SERVICE-SIDE AUTO-MITIGATION TIMEOUT (5 seconds)
+            Task.Run(async () =>
+            {
+                FileLogger.Log(AppIdentifiers.SentinelEngineLogFile, $"[SENTINEL] Starting 5s auto-mitigation timer for {alert.ProcessName} (PID: {alert.ProcessId})");
+                await Task.Delay(5000).ConfigureAwait(false);
                 
-                if (string.IsNullOrEmpty(output) || output.Contains("No items found"))
+                // Check if still awaiting confirmation
+                var currentThreat = _historyManager.GetRecentThreats().FirstOrDefault(t => t.Id == threat.Id);
+                if (currentThreat != null && currentThreat.ActionTaken == "Awaiting Confirmation")
                 {
-                    FileLogger.LogError("sentinel_engine.log", "[VSS] WARNING: No Shadow Copies found! Ransomware may have deleted them.");
+                    FileLogger.Log(AppIdentifiers.SentinelEngineLogFile, $"[SENTINEL] TIMEOUT: No user response. Triggering AUTOMATIC mitigation for {alert.ProcessName}.");
+                    await HandleMassEncryptionResponse(threat.Id, shouldMitigate: true, isUserInitiated: false, 
+                        alert.ProcessId, alert.ProcessName, alert.FilesToQuarantine).ConfigureAwait(false);
                 }
-                else 
+            });
+
+            // VSS Shield Check
+#pragma warning disable CS4014
+            Task.Run(async () => await _criticalResponse.CheckVssIntegrityAsync()).ContinueWith(task =>
+            {
+                if (task.IsFaulted && task.Exception != null)
                 {
-                    FileLogger.Log("sentinel_engine.log", "[VSS] Shadow Copies verified as intact.");
+                    FileLogger.LogError(AppIdentifiers.SentinelEngineLogFile, "[SENTINEL] VSS integrity check failed", task.Exception);
                 }
-            }
-            catch (Exception ex)
-            {
-                FileLogger.LogError("sentinel_engine.log", $"[VSS] Check failed: {ex.Message}");
-            }
-        }
-
-        internal void ExecuteCriticalResponse()
-        {
-            var config = ConfigurationService.Instance;
-            FileLogger.Log("sentinel_engine.log", $"[CRITICAL] ExecuteCriticalResponse triggered. NetworkIsolation={config.NetworkIsolationEnabled}, Shutdown={config.EmergencyShutdownEnabled}");
-
-            if (config.NetworkIsolationEnabled)
-            {
-                IsolateNetwork();
-            }
-
-            if (config.EmergencyShutdownEnabled)
-            {
-                EmergencyShutdown();
-            }
-        }
-
-        private void IsolateNetwork()
-        {
-            try
-            {
-                FileLogger.Log("sentinel_engine.log", "[CRITICAL] Running Network Isolation command...");
-                // Disables all active network adapters using powershell
-                var process = new Process
-                {
-                    StartInfo = new ProcessStartInfo
-                    {
-                        FileName = "powershell.exe",
-                        Arguments = "-NoProfile -ExecutionPolicy Bypass -Command \"Get-NetAdapter | Where-Object { $_.Status -eq 'Up' } | Disable-NetAdapter -Confirm:$false\"",
-                        UseShellExecute = false,
-                        CreateNoWindow = true
-                    }
-                };
-                process.Start();
-                FileLogger.Log("sentinel_engine.log", "[CRITICAL] Network Isolation command started successfully.");
-            }
-            catch (Exception ex)
-            {
-                FileLogger.LogError("sentinel_engine.log", $"[CRITICAL] Failed to trigger network isolation: {ex.Message}");
-            }
-        }
-
-        private void EmergencyShutdown()
-        {
-            try
-            {
-                Debug.WriteLine("[SentinelEngine] CRITICAL: Triggering Emergency Shutdown...");
-                Process.Start(new ProcessStartInfo
-                {
-                    FileName = "shutdown.exe",
-                    Arguments = "/s /f /t 5 /c \"RansomGuard: Critical Threat Detected. Emergency Shutdown triggered to prevent data loss.\"",
-                    CreateNoWindow = true,
-                    UseShellExecute = false
-                });
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"[SentinelEngine] Failed to trigger shutdown: {ex.Message}");
-            }
+            }, TaskScheduler.Default);
+#pragma warning restore CS4014
         }
 
         public void ReportThreat(string path, string threatName, string description, 
             string processName = "Sentinel Heuristics", int processId = 0,
             ThreatSeverity severity = ThreatSeverity.Medium, string actionTaken = "Detected")
         {
-            // Validate required parameters
-            if (string.IsNullOrWhiteSpace(path))
-            {
-                System.Diagnostics.Debug.WriteLine("[SentinelEngine] ReportThreat called with empty path");
+            if (string.IsNullOrWhiteSpace(path) || string.IsNullOrWhiteSpace(threatName))
                 return;
-            }
             
-            if (string.IsNullOrWhiteSpace(threatName))
-            {
-                System.Diagnostics.Debug.WriteLine("[SentinelEngine] ReportThreat called with empty threat name");
+            if (!_historyManager.ShouldReportThreat(path, threatName, actionTaken)) 
                 return;
-            }
-            
-            if (!_historyManager.ShouldReportThreat(path, threatName, actionTaken)) return;
 
             var threat = new Threat
             {
@@ -798,29 +506,32 @@ namespace RansomGuard.Service.Engine
 
             _historyManager.AddThreat(threat);
             ThreatDetected?.Invoke(threat);
+            PerformanceMonitor.Instance.RecordThreatDetected();
 
-            // If the threat is high or critical, trigger response protocols
+            // If high or critical severity, trigger response protocols
             if (severity >= ThreatSeverity.High)
             {
-                ExecuteCriticalResponse();
+                var config = ConfigurationService.Instance;
+                _criticalResponse.ExecuteCriticalResponse(config.NetworkIsolationEnabled, config.EmergencyShutdownEnabled);
             }
         }
+
+        // ISystemMonitorService implementation - Query methods
         public IEnumerable<Threat> GetRecentThreats() => _historyManager.GetRecentThreats();
         public IEnumerable<FileActivity> GetRecentFileActivities() => _historyManager.GetRecentActivities();
         public DateTime GetLastScanTime() => _lastScanTime;
 
-
-
-
         public IEnumerable<ProcessInfo> GetActiveProcesses()
         {
-            // This is still fairly expensive, but we delegate identity to the classifier
             return Process.GetProcesses().Select(p => {
                 try {
-                    (bool isTrusted, string status) = _processClassifier.DetermineIdentity(p);
                     return new ProcessInfo {
-                        Pid = p.Id, Name = p.ProcessName, CpuUsage = 0, // Simplified for this view
-                        MemoryUsage = p.WorkingSet64, IsTrusted = isTrusted, SignatureStatus = status,
+                        Pid = p.Id, 
+                        Name = p.ProcessName, 
+                        CpuUsage = 0,
+                        MemoryUsage = p.WorkingSet64, 
+                        IsTrusted = false,
+                        SignatureStatus = "Unknown",
                         IoRate = Math.Round(Random.Shared.NextDouble() * 5, 2)
                     };
                 } catch { return null; }
@@ -829,17 +540,17 @@ namespace RansomGuard.Service.Engine
 
         public double GetSystemCpuUsage() => _telemetryService.CurrentCpuUsage;
         public long GetSystemMemoryUsage() => _telemetryService.CurrentMemoryUsage;
-        public int GetMonitoredFilesCount() => _watchers.Count;
+        public int GetMonitoredFilesCount() => _fileSystemMonitor.GetTotalWatcherCount();
 
         public TelemetryData GetTelemetry()
         {
             var data = _telemetryService.GetLatestTelemetry();
+            var perfSnap = PerformanceMonitor.Instance.GetSnapshot();
             
-            int activeWatcherCount;
-            lock (_watchers) { activeWatcherCount = _watchers.Count(w => w.EnableRaisingEvents); }
+            int activeWatcherCount = _fileSystemMonitor.GetActiveWatcherCount();
 
-            data.EntropyScore = _lastEntropyScore;
-            data.MonitoredFilesCount = _watchers.Count;
+            data.EntropyScore = _threatAnalysis.LastEntropyScore;
+            data.MonitoredFilesCount = _fileSystemMonitor.GetTotalWatcherCount();
             data.ActiveWatchers = activeWatcherCount;
             data.IsHoneyPotActive = IsHoneyPotActive;
             data.IsVssShieldActive = IsVssShieldActive;
@@ -847,15 +558,24 @@ namespace RansomGuard.Service.Engine
             data.QuarantinedFilesCount = GetQuarantinedFiles().Count();
             data.QuarantineStorageMb = GetQuarantineStorageUsage();
             data.IsRealTimeProtectionEnabled = ConfigurationService.Instance.RealTimeProtection;
-            data.MonitoredPaths = _watchers.Select(w => w.Path).ToArray();
+            data.MonitoredPaths = _fileSystemMonitor.GetMonitoredPaths().ToArray();
             data.LastScanTime = _lastScanTime;
             data.TotalScansCount = ConfigurationService.Instance.TotalScansCount;
             data.FilesPerHour = _historyManager.GetFilesPerHour();
             data.ActiveEndpointsCount = _lanCircuitBreaker?.PeerCount ?? 0;
+
+            // Performance metrics
+            data.AvgAnalysisMs = perfSnap.AvgAnalysisMs;
+            data.P95AnalysisMs = perfSnap.P95AnalysisMs;
+            data.AvgEntropyCalcMs = perfSnap.AvgEntropyCalcMs;
+            data.AvgIpcWriteMs = perfSnap.AvgIpcWriteMs;
+            data.TotalEventsDropped = perfSnap.TotalEventsDropped;
+            data.TotalMassEncryptionAlerts = perfSnap.TotalMassEncryptionAlerts;
             
             return data;
         }
 
+        // ISystemMonitorService implementation - Quarantine operations
         public IEnumerable<string> GetQuarantinedFiles() => _quarantine.GetQuarantinedFiles();
         public double GetQuarantineStorageUsage() => _quarantine.GetStorageUsageMb();
         
@@ -863,6 +583,7 @@ namespace RansomGuard.Service.Engine
         {
             await _quarantine.QuarantineFile(path).ConfigureAwait(false);
             _historyManager.UpdateThreatStatus(path, "Quarantined");
+            PerformanceMonitor.Instance.RecordFileQuarantined();
         }
 
         public async Task RestoreQuarantinedFile(string path)
@@ -879,9 +600,14 @@ namespace RansomGuard.Service.Engine
 
         public async Task ClearSafeFiles() => await _quarantine.ClearOldFiles().ConfigureAwait(false);
 
+        // ISystemMonitorService implementation - Process operations
         public async Task KillProcess(int pid)
         {
-            await Task.Run(() => { try { Process.GetProcessById(pid).Kill(true); } catch { } });
+            await Task.Run(() => { 
+                try { 
+                    Process.GetProcessById(pid).Kill(true); 
+                } catch { } 
+            });
         }
 
         public async Task WhitelistProcess(string name)
@@ -906,126 +632,135 @@ namespace RansomGuard.Service.Engine
             });
         }
 
+        // ISystemMonitorService implementation - Threat mitigation
         public async Task MitigateThreat(string threatId)
         {
             var threat = _historyManager.GetThreatById(threatId);
             if (threat == null) return;
 
-            FileLogger.Log("sentinel_engine.log", $"[MITIGATION] Manual mitigation triggered for threat: {threat.Id} | Path: {threat.Path}");
+            FileLogger.Log(AppIdentifiers.SentinelEngineLogFile, $"[MITIGATION] Manual mitigation triggered for threat: {threat.Id} | Path: {threat.Path}");
 
-            // 1. Kill the process if it's still running
+            // Kill the process if still running
             if (threat.ProcessId > 0)
             {
                 try
                 {
                     await KillProcess(threat.ProcessId).ConfigureAwait(false);
-                    FileLogger.Log("sentinel_engine.log", $"[MITIGATION] Process {threat.ProcessId} ({threat.ProcessName}) killed.");
+                    FileLogger.Log(AppIdentifiers.SentinelEngineLogFile, $"[MITIGATION] Process {threat.ProcessId} ({threat.ProcessName}) killed.");
                 }
                 catch (Exception ex)
                 {
-                    FileLogger.LogError("sentinel_engine.log", $"[MITIGATION] Failed to kill process {threat.ProcessId}", ex);
+                    FileLogger.LogError(AppIdentifiers.SentinelEngineLogFile, $"[MITIGATION] Failed to kill process {threat.ProcessId}", ex);
                 }
             }
 
-            // 2. Quarantine the file
+            // Quarantine the file
             try
             {
                 await _quarantine.QuarantineFile(threat.Path).ConfigureAwait(false);
                 _historyManager.UpdateThreatStatusById(threat.Id, "Quarantined");
-                
-                // Signal UI to update
                 ThreatDetected?.Invoke(threat);
-                
-                FileLogger.Log("sentinel_engine.log", $"[MITIGATION] File {threat.Path} quarantined successfully.");
+                FileLogger.Log(AppIdentifiers.SentinelEngineLogFile, $"[MITIGATION] File {threat.Path} quarantined successfully.");
             }
             catch (Exception ex)
             {
-                FileLogger.LogError("sentinel_engine.log", $"[MITIGATION] Failed to quarantine file {threat.Path}", ex);
+                FileLogger.LogError(AppIdentifiers.SentinelEngineLogFile, $"[MITIGATION] Failed to quarantine file {threat.Path}", ex);
             }
         }
 
         /// <summary>
         /// Handles mass encryption response: kills the malicious process and quarantines affected files.
         /// Called when user confirms or timeout occurs (5 seconds) for mass encryption threats.
-        /// This executes REGARDLESS of AutoQuarantine settings - it's a critical security response.
         /// </summary>
-        public async Task HandleMassEncryptionResponse(int processId, string processName, List<string> filesToQuarantine)
+        public async Task HandleMassEncryptionResponse(string threatId, bool shouldMitigate, bool isUserInitiated, 
+            int processId, string processName, List<string> filesToQuarantine)
         {
-            FileLogger.Log("sentinel_engine.log", $"[CRITICAL] HandleMassEncryptionResponse triggered. Process: {processName} (PID: {processId}), Initial Files: {filesToQuarantine.Count}");
+            FileLogger.Log(AppIdentifiers.SentinelEngineLogFile, $"[CRITICAL] HandleMassEncryptionResponse triggered. ThreatId: {threatId}, ShouldMitigate={shouldMitigate}, UserInitiated={isUserInitiated}, Process: {processName} (PID: {processId}), Initial Files: {filesToQuarantine.Count}");
 
-            // 0. Sweep for any additional files modified by this process in the last few seconds
-            // This catches files modified AFTER the alert was triggered but BEFORE the user confirmed.
-            lock (_recentChangesLock)
+            if (string.IsNullOrWhiteSpace(threatId))
             {
-                var extraFiles = _recentChanges
-                    .Where(c => (c.ProcessId == processId || (processId == 0 && c.ProcessName == processName)) && !string.IsNullOrEmpty(c.FilePath))
-                    .Select(c => c.FilePath)
-                    .ToList();
-                
-                foreach (var file in extraFiles)
-                {
-                    if (!filesToQuarantine.Contains(file, StringComparer.OrdinalIgnoreCase))
-                    {
-                        filesToQuarantine.Add(file);
-                    }
-                }
-                
-                // Clear recent changes for this process so we don't re-detect them
-                // (Actually, clearing all is fine since we are in a critical response)
-                _recentChanges.Clear();
+                FileLogger.LogWarning(AppIdentifiers.SentinelEngineLogFile, "[CRITICAL] Mass encryption response ignored because threat ID was missing.");
+                return;
             }
 
-            FileLogger.Log("sentinel_engine.log", $"[CRITICAL] Mass encryption protection expanded to {filesToQuarantine.Count} total files.");
+            if (!shouldMitigate)
+            {
+                if (_historyManager.TryDeclineMassEncryptionThreat(threatId, out var declinedThreat) && declinedThreat != null)
+                {
+                    declinedThreat.Description = $"User declined mitigation for suspected mass encryption by {processName}.";
+                    ThreatDetected?.Invoke(declinedThreat);
+                    FileLogger.Log(AppIdentifiers.SentinelEngineLogFile, $"[CRITICAL] User declined mitigation for threat {threatId}.");
+                }
+                return;
+            }
 
-            // 1. KILL THE PROCESS IMMEDIATELY (regardless of settings)
+            if (!_historyManager.TryBeginMassEncryptionMitigation(threatId, out var existingThreat))
+            {
+                FileLogger.Log(AppIdentifiers.SentinelEngineLogFile, $"[CRITICAL] Mitigation ignored for threat {threatId} because it was already claimed or resolved.");
+                return;
+            }
+
+            // Sweep for additional files modified by this process
+            var extraFiles = _massEncryptionDetector.GetAdditionalFilesByProcess(processId, processName);
+            foreach (var file in extraFiles)
+            {
+                if (!filesToQuarantine.Contains(file, StringComparer.OrdinalIgnoreCase))
+                {
+                    filesToQuarantine.Add(file);
+                }
+            }
+            
+            _massEncryptionDetector.ClearRecentChanges();
+
+            FileLogger.Log(AppIdentifiers.SentinelEngineLogFile, $"[CRITICAL] Mass encryption protection expanded to {filesToQuarantine.Count} total files.");
+
+            // KILL THE PROCESS IMMEDIATELY
             if (processId > 0 && processName != "explorer" && !processName.Contains("RansomGuard"))
             {
                 try
                 {
-                    FileLogger.Log("sentinel_engine.log", $"[CRITICAL] PROACTIVE DEFENSE: Terminating malicious process {processName} (PID: {processId})");
+                    FileLogger.Log(AppIdentifiers.SentinelEngineLogFile, $"[CRITICAL] PROACTIVE DEFENSE: Terminating malicious process {processName} (PID: {processId})");
                     await KillProcess(processId).ConfigureAwait(false);
-                    FileLogger.Log("sentinel_engine.log", $"[CRITICAL] Process {processId} terminated successfully.");
+                    FileLogger.Log(AppIdentifiers.SentinelEngineLogFile, $"[CRITICAL] Process {processId} terminated successfully.");
                 }
                 catch (Exception ex)
                 {
-                    FileLogger.LogError("sentinel_engine.log", $"[CRITICAL] Failed to terminate process {processId}", ex);
+                    FileLogger.LogError(AppIdentifiers.SentinelEngineLogFile, $"[CRITICAL] Failed to terminate process {processId}", ex);
                 }
             }
 
-            // 2. QUARANTINE ALL AFFECTED FILES (regardless of AutoQuarantine setting)
-            FileLogger.Log("sentinel_engine.log", $"[CRITICAL] PROACTIVE DEFENSE: Quarantining {filesToQuarantine.Count} suspicious files.");
+            // QUARANTINE ALL AFFECTED FILES
+            FileLogger.Log(AppIdentifiers.SentinelEngineLogFile, $"[CRITICAL] PROACTIVE DEFENSE: Quarantining {filesToQuarantine.Count} suspicious files.");
             
             int successCount = 0;
             int failCount = 0;
             
             foreach (var file in filesToQuarantine)
             {
-                FileLogger.Log("sentinel_engine.log", $"[QUARANTINE] Processing: {file}");
+                FileLogger.Log(AppIdentifiers.SentinelEngineLogFile, $"[QUARANTINE] Processing: {file}");
                 try
                 {
                     string targetFile = file;
                     
                     if (!File.Exists(targetFile))
                     {
-                        FileLogger.Log("sentinel_engine.log", $"[QUARANTINE] Exact match not found: {targetFile}. Searching for variants...");
-                        // Proactive Check: If the exact file is gone, it might have been renamed or we caught an intermediate state.
+                        FileLogger.Log(AppIdentifiers.SentinelEngineLogFile, $"[QUARANTINE] Exact match not found: {targetFile}. Searching for variants...");
                         string directory = Path.GetDirectoryName(file) ?? string.Empty;
                         string fileName = Path.GetFileName(file);
                         
                         if (!string.IsNullOrEmpty(directory) && Directory.Exists(directory))
                         {
-                            // Strategy 1: Look for the file with ANY extra extension (e.g. if we have doc_1.txt, look for doc_1.txt.*)
+                            // Look for the file with ANY extra extension
                             string searchPattern = fileName + ".*";
                             var potentialFiles = Directory.GetFiles(directory, searchPattern);
                             
                             if (potentialFiles.Length > 0)
                             {
                                 targetFile = potentialFiles[0];
-                                FileLogger.Log("sentinel_engine.log", $"[QUARANTINE] Found renamed target via pattern {searchPattern}: {targetFile}");
+                                FileLogger.Log(AppIdentifiers.SentinelEngineLogFile, $"[QUARANTINE] Found renamed target via pattern {searchPattern}: {targetFile}");
                             }
                             else
                             {
-                                // Strategy 2: If we have doc_1.txt.ransom, look for doc_1.txt (the original) or other variants
                                 // Strip the LAST extension and search again
                                 int lastDot = fileName.LastIndexOf('.');
                                 if (lastDot > 0)
@@ -1036,7 +771,7 @@ namespace RansomGuard.Service.Engine
                                     if (potentialFiles.Length > 0)
                                     {
                                         targetFile = potentialFiles[0];
-                                        FileLogger.Log("sentinel_engine.log", $"[QUARANTINE] Found target via base pattern {searchPattern}: {targetFile}");
+                                        FileLogger.Log(AppIdentifiers.SentinelEngineLogFile, $"[QUARANTINE] Found target via base pattern {searchPattern}: {targetFile}");
                                     }
                                 }
                             }
@@ -1045,63 +780,82 @@ namespace RansomGuard.Service.Engine
 
                     if (File.Exists(targetFile))
                     {
-                        FileLogger.Log("sentinel_engine.log", $"[QUARANTINE] Final target verified, moving to quarantine: {targetFile}");
+                        FileLogger.Log(AppIdentifiers.SentinelEngineLogFile, $"[QUARANTINE] Final target verified, moving to quarantine: {targetFile}");
                         await _quarantine.QuarantineFile(targetFile).ConfigureAwait(false);
                         successCount++;
                     }
                     else
                     {
-                        FileLogger.LogError("sentinel_engine.log", $"[QUARANTINE] FAILED: File not found after all strategies: {file}");
+                        FileLogger.LogError(AppIdentifiers.SentinelEngineLogFile, $"[QUARANTINE] FAILED: File not found after all strategies: {file}");
                         failCount++;
                     }
                 }
                 catch (Exception ex)
                 {
-                    FileLogger.LogError("sentinel_engine.log", $"[QUARANTINE] EXCEPTION processing {file}: {ex.Message}");
+                    FileLogger.LogError(AppIdentifiers.SentinelEngineLogFile, $"[QUARANTINE] EXCEPTION processing {file}: {ex.Message}");
                     failCount++;
                 }
             }
 
-            FileLogger.Log("sentinel_engine.log", $"[CRITICAL] Mass encryption response complete. Quarantined: {successCount}, Failed: {failCount}");
+            FileLogger.Log(AppIdentifiers.SentinelEngineLogFile, $"[CRITICAL] Mass encryption response complete. Quarantined: {successCount}, Failed: {failCount}");
 
-            // 3. Update threat status to reflected mitigated state
-            var existingThreat = _historyManager.GetRecentThreats().FirstOrDefault(t => t.Path == "ALL_DRIVES" && t.ActionTaken == "Awaiting Confirmation");
+            // Update threat status
             if (existingThreat != null)
             {
-                existingThreat.ActionTaken = "Mitigated (Auto)";
+                existingThreat.ActionTaken = isUserInitiated ? "Mitigated" : "Mitigated (Auto)";
                 existingThreat.RequiresUserConfirmation = false;
                 existingThreat.Description = $"Multiple rapid file changes detected. Culprit: {processName}. {successCount} files quarantined, {failCount} failed.";
-                _historyManager.UpdateThreatStatusById(existingThreat.Id, "Mitigated (Auto)");
-                
-                // Notify UI of the update
+                _historyManager.UpdateThreatStatusById(existingThreat.Id, existingThreat.ActionTaken);
                 ThreatDetected?.Invoke(existingThreat);
             }
             else
             {
                 ReportThreat("ALL_DRIVES", "MASSIVE FILE ENCRYPTION ACTION DETECTED", 
                     $"Multiple rapid file changes detected. Culprit: {processName}. {successCount} files quarantined, {failCount} failed.", 
-                    processName, processId, ThreatSeverity.Critical, "Mitigated (Auto)");
+                    processName, processId, ThreatSeverity.Critical, isUserInitiated ? "Mitigated" : "Mitigated (Auto)");
             }
 
-            // 4. Trigger Critical Response (Network/Shutdown if configured)
-            ExecuteCriticalResponse();
+            // Trigger Critical Response
+            var config = ConfigurationService.Instance;
+            _criticalResponse.ExecuteCriticalResponse(config.NetworkIsolationEnabled, config.EmergencyShutdownEnabled);
 
-            // 5. LAN Circuit Breaker — Alert all peers on the network
-            _lanCircuitBreaker?.TriggerCircuitBreak($"Mass encryption by {processName} (PID:{processId}). {successCount} files quarantined.");
+            // LAN Circuit Breaker
+            if (_lanCircuitBreaker != null)
+            {
+                await _lanCircuitBreaker.TriggerCircuitBreakAsync($"Mass encryption by {processName} (PID:{processId}). {successCount} files quarantined.").ConfigureAwait(false);
+            }
             
-            // 6. VSS Shield Check
-            _ = Task.Run(async () => await CheckVssIntegrityAsync());
+            // VSS Shield Check
+#pragma warning disable CS4014
+            Task.Run(async () => await _criticalResponse.CheckVssIntegrityAsync()).ContinueWith(task =>
+            {
+                if (task.IsFaulted && task.Exception != null)
+                {
+                    FileLogger.LogError(AppIdentifiers.SentinelEngineLogFile, "[SENTINEL] VSS integrity check failed", task.Exception);
+                }
+            }, TaskScheduler.Default);
+#pragma warning restore CS4014
+        }
+
+        public async Task ClearActivityHistory()
+        {
+            await _historyManager.ClearHistory().ConfigureAwait(false);
+            TelemetryUpdated?.Invoke(GetTelemetry());
         }
 
         public void Dispose()
         {
             if (_disposed) return;
             _disposed = true;
+            
+            _cts.Cancel();
+            _cts.Dispose();
             _engineCleanupTimer?.Dispose();
             _telemetryService.Dispose();
             _historyManager.Dispose();
+            _fileSystemMonitor.Dispose();
+            _processAttribution.Dispose();
             _lanCircuitBreaker?.Dispose();
-            lock (_watchers) { foreach (var w in _watchers) w.Dispose(); _watchers.Clear(); }
         }
     }
 }

@@ -3,6 +3,8 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using RansomGuard.Core.Helpers;
+using RansomGuard.Core.Constants;
+using RansomGuard.Core.Configuration;
 
 namespace RansomGuard.Services
 {
@@ -12,8 +14,8 @@ namespace RansomGuard.Services
     /// </summary>
     public static class WatchdogManager
     {
-        private const string WatchdogProcessName = "RGWorker";
-        private const string WatchdogTaskName = "RGWorkerTask";
+        private const string WatchdogProcessName = AppIdentifiers.WatchdogProcessName;
+        private const string WatchdogTaskName = AppIdentifiers.WatchdogTaskName;
 
         /// <summary>
         /// The main entry point for engaging protection. Ensures the Sentinel Service is running
@@ -46,7 +48,7 @@ namespace RansomGuard.Services
             // to the correct MSIX executable without needing a direct WindowsApps path.
             try
             {
-                var psi = new ProcessStartInfo("RGWorker.exe")
+                var psi = new ProcessStartInfo(AppIdentifiers.WatchdogProcessName + ".exe")
                 {
                     CreateNoWindow = true,
                     UseShellExecute = false,
@@ -91,11 +93,11 @@ namespace RansomGuard.Services
         {
             try
             {
-                using var sc = new System.ServiceProcess.ServiceController("RGService");
+                using var sc = new System.ServiceProcess.ServiceController(AppIdentifiers.ServiceProcessName);
                 if (sc.Status != System.ServiceProcess.ServiceControllerStatus.Running &&
                     sc.Status != System.ServiceProcess.ServiceControllerStatus.StartPending)
                 {
-                    var psi = new ProcessStartInfo("cmd.exe", "/c net start RGService")
+                    var psi = new ProcessStartInfo("cmd.exe", $"/c net start {AppIdentifiers.ServiceProcessName}")
                     {
                         Verb = "runas",
                         UseShellExecute = true,
@@ -121,7 +123,7 @@ namespace RansomGuard.Services
                 foreach (var p in Process.GetProcessesByName(WatchdogProcessName))
                 {
                     p.Kill();
-                    p.WaitForExit(3000);
+                    p.WaitForExit(AppConstants.Timers.ExternalProcessTimeoutMs);
                 }
             }
             catch (Exception ex)
@@ -146,7 +148,7 @@ namespace RansomGuard.Services
                 string? parentDir = Path.GetDirectoryName(appDir);
                 if (!string.IsNullOrEmpty(parentDir))
                 {
-                    string msixRootPath = Path.Combine(parentDir, "RGWorker.exe");
+                    string msixRootPath = Path.Combine(parentDir, AppIdentifiers.WatchdogProcessName + ".exe");
                     if (File.Exists(msixRootPath))
                     {
                         return msixRootPath;
@@ -155,7 +157,7 @@ namespace RansomGuard.Services
             }
 
             // Standard path: same directory as UI
-            string prodPath = Path.Combine(appDir, "RGWorker.exe");
+            string prodPath = Path.Combine(appDir, AppIdentifiers.WatchdogProcessName + ".exe");
             if (File.Exists(prodPath))
             {
                 return prodPath;
@@ -165,7 +167,7 @@ namespace RansomGuard.Services
             string? parentDir2 = Path.GetDirectoryName(appDir);
             if (!string.IsNullOrEmpty(parentDir2))
             {
-                string parentProdPath = Path.Combine(parentDir2, "RGWorker.exe");
+                string parentProdPath = Path.Combine(parentDir2, AppIdentifiers.WatchdogProcessName + ".exe");
                 if (File.Exists(parentProdPath))
                 {
                     return parentProdPath;
@@ -175,10 +177,10 @@ namespace RansomGuard.Services
             // Development fallbacks for both .artifacts and legacy project-local bin folders.
             string[] searchPaths =
             [
-                Path.GetFullPath(Path.Combine(appDir, @"..\..\..\RansomGuard.Watchdog\Debug\net8.0\RGWorker.exe")),
-                Path.GetFullPath(Path.Combine(appDir, @"..\..\..\RansomGuard.Watchdog\Release\net8.0\RGWorker.exe")),
-                Path.Combine(appDir, @"..\..\..\RansomGuard.Watchdog\bin\Debug\net8.0\RGWorker.exe"),
-                Path.Combine(appDir, @"..\..\..\RansomGuard.Watchdog\bin\Release\net8.0\RGWorker.exe")
+                Path.GetFullPath(Path.Combine(appDir, $@"..\..\..\RansomGuard.Watchdog\Debug\net8.0\{AppIdentifiers.WatchdogProcessName}.exe")),
+                Path.GetFullPath(Path.Combine(appDir, $@"..\..\..\RansomGuard.Watchdog\Release\net8.0\{AppIdentifiers.WatchdogProcessName}.exe")),
+                Path.Combine(appDir, $@"..\..\..\RansomGuard.Watchdog\bin\Debug\net8.0\{AppIdentifiers.WatchdogProcessName}.exe"),
+                Path.Combine(appDir, $@"..\..\..\RansomGuard.Watchdog\bin\Release\net8.0\{AppIdentifiers.WatchdogProcessName}.exe")
             ];
 
             foreach (var path in searchPaths)

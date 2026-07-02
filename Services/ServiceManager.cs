@@ -2,15 +2,16 @@ using System;
 using System.Diagnostics;
 using System.IO;
 using System.ServiceProcess;
+using RansomGuard.Core.Constants;
 
 namespace RansomGuard.Services
 {
     public class ServiceManager
     {
-        private const string ServiceName = "RGService";
-        private const string ServiceDisplayName = "RansomGuard Sentinel";
-        private const string TaskName = "RansomGuardSilentStart";
-        private const string WatchdogProcessName = "RGWorker";
+        private const string ServiceName = AppIdentifiers.ServiceProcessName;
+        private const string ServiceDisplayName = AppIdentifiers.ServiceDisplayName;
+        private const string TaskName = AppIdentifiers.UiStartupTaskName;
+        private const string WatchdogProcessName = AppIdentifiers.WatchdogProcessName;
 
         public static bool IsServiceInstalled()
         {
@@ -31,17 +32,17 @@ namespace RansomGuard.Services
             try
             {
                 // Install Windows Service
-                if (!RunCommand("sc", $"create {ServiceName} binPath= \"{serviceExePath}\" start= auto DisplayName= \"{ServiceDisplayName}\""))
+                if (!RunCommand(AppIdentifiers.ScExe, $"create {ServiceName} binPath= \"{serviceExePath}\" start= auto DisplayName= \"{ServiceDisplayName}\""))
                 {
                     throw new Exception("Failed to create service");
                 }
                 
-                if (!RunCommand("sc", $"description {ServiceName} \"Provides proactive ransomware protection and recovery shields.\""))
+                if (!RunCommand(AppIdentifiers.ScExe, $"description {ServiceName} \"Provides proactive ransomware protection and recovery shields.\""))
                 {
                     System.Diagnostics.Debug.WriteLine("Failed to set service description (non-critical)");
                 }
                 
-                if (!RunCommand("sc", $"start {ServiceName}"))
+                if (!RunCommand(AppIdentifiers.ScExe, $"start {ServiceName}"))
                 {
                     throw new Exception("Failed to start service");
                 }
@@ -52,7 +53,7 @@ namespace RansomGuard.Services
                 string dashboardPath = Process.GetCurrentProcess().MainModule?.FileName ?? "";
                 if (!string.IsNullOrEmpty(dashboardPath))
                 {
-                    if (!RunCommand("schtasks", $"/create /tn \"{TaskName}\" /tr \"\\\"{dashboardPath}\\\" --startup\" /sc onlogon /rl highest /f"))
+                    if (!RunCommand(AppIdentifiers.SchTasksExe, $"/create /tn \"{TaskName}\" /tr \"\\\"{dashboardPath}\\\" --startup\" /sc onlogon /rl highest /f"))
                     {
                         System.Diagnostics.Debug.WriteLine("Failed to create scheduled task (non-critical)");
                     }
@@ -129,7 +130,7 @@ namespace RansomGuard.Services
         public static void StopService()
         {
             StopWatchdog();
-            RunCommand("sc", $"stop {ServiceName}");
+            RunCommand(AppIdentifiers.ScExe, $"stop {ServiceName}");
         }
 
         public static void UninstallService()
@@ -143,13 +144,13 @@ namespace RansomGuard.Services
                 System.Threading.Thread.Sleep(1000);
                 
                 // Delete the service
-                if (!RunCommand("sc", $"delete {ServiceName}"))
+                if (!RunCommand(AppIdentifiers.ScExe, $"delete {ServiceName}"))
                 {
                     throw new Exception("Failed to delete service");
                 }
                 
                 // Remove scheduled task
-                RunCommand("schtasks", $"/delete /tn \"{TaskName}\" /f");
+                RunCommand(AppIdentifiers.SchTasksExe, $"/delete /tn \"{TaskName}\" /f");
             }
             catch (Exception ex)
             {

@@ -4,7 +4,7 @@
 
 #Requires -RunAsAdministrator
 
-$configPath = "C:\ProgramData\RansomGuard\config.json"
+$configPath = "C:\ProgramData\RGCoreEssentials\config.json"
 
 Write-Host "========================================" -ForegroundColor Cyan
 Write-Host "Fix RansomGuard Config Permissions" -ForegroundColor Cyan

@@ -6,9 +6,11 @@ using System.ComponentModel;
 using System.Windows.Threading;
 using System.IO;
 using System.Diagnostics;
+using System.Windows;
 using Microsoft.Win32;
 using RansomGuard.Services;
 using RansomGuard.Core.Services;
+using RansomGuard.Core.Interfaces;
 using RansomGuard.Core.Configuration;
 
 namespace RansomGuard.ViewModels
@@ -31,9 +33,18 @@ namespace RansomGuard.ViewModels
         private readonly DispatcherTimer _saveDebounceTimer;
         private bool _disposed;
         private bool _isInitialized;
+        private readonly ISystemMonitorService? _monitorService;
+
+        // Named handlers for proper unsubscription
+        private Action<bool>? _connectionStatusChangedHandler;
+        private System.Collections.Specialized.NotifyCollectionChangedEventHandler? _pathsCollectionChangedHandler;
+        private EventHandler? _saveDebounceTimerHandler;
 
         [ObservableProperty]
         private ObservableCollection<MonitoredPathItem> _monitoredPaths;
+
+        [ObservableProperty]
+        private bool _isServiceOperationInProgress;
 
         [ObservableProperty]
         [NotifyPropertyChangedFor(nameof(SensitivityLabel))]
@@ -76,18 +87,22 @@ namespace RansomGuard.ViewModels
             _ => "UNKNOWN"
         };
 
-        public SettingsViewModel()
+        public SettingsViewModel(ISystemMonitorService? monitorService = null)
         {
-            // Initialize debounce timer (500ms delay)
+            _monitorService = monitorService;
+
             _saveDebounceTimer = new DispatcherTimer
             {
                 Interval = TimeSpan.FromMilliseconds(AppConstants.Timers.SettingsDebounceMs)
             };
-            _saveDebounceTimer.Tick += (s, e) =>
+            // Initialize debounce timer — use named handler for proper unsubscription
+            _saveDebounceTimerHandler = (s, e) =>
             {
+                if (_disposed) return;
                 _saveDebounceTimer.Stop();
                 SaveConfigImmediate();
             };
+            _saveDebounceTimer.Tick += _saveDebounceTimerHandler;
 
             _monitoredPaths = new ObservableCollection<MonitoredPathItem>();
             LoadMonitoredPaths();
@@ -102,14 +117,31 @@ namespace RansomGuard.ViewModels
             LanSharedSecret = ConfigurationService.Instance.LanSharedSecret;
             IsServiceInstalled = ServiceManager.IsServiceInstalled();
 
-            // Handle collection changes with debouncing
-            _monitoredPaths.CollectionChanged += (s, e) =>
+            // Subscribe to service connection changes using named handler for proper unsubscription
+            if (_monitorService != null)
+            {
+                _connectionStatusChangedHandler = (isConnected) =>
+                {
+                    Application.Current.Dispatcher.Invoke(() =>
+                    {
+                        if (!isConnected)
+                            IsRealTimeProtectionEnabled = false;
+                        else
+                            IsRealTimeProtectionEnabled = ConfigurationService.Instance.RealTimeProtection;
+                    });
+                };
+                _monitorService.ConnectionStatusChanged += _connectionStatusChangedHandler;
+            }
+
+            // Handle collection changes with debouncing — named handler for proper unsubscription
+            _pathsCollectionChangedHandler = (s, e) =>
             {
                 OnPropertyChanged(nameof(StandardProtectedPaths));
                 OnPropertyChanged(nameof(UserAddedProtectedPaths));
                 OnPropertyChanged(nameof(HasUserAddedProtectedPaths));
                 SaveConfig();
             };
+            _monitoredPaths.CollectionChanged += _pathsCollectionChangedHandler;
         }
 
         partial void OnSensitivityLevelChanged(int value)
@@ -120,17 +152,6 @@ namespace RansomGuard.ViewModels
 
         partial void OnIsLanCircuitBreakerEnabledChanged(bool value)
         {
-            if (value)
-            {
-                System.Windows.MessageBox.Show(
-                    "LAN Discovery has been enabled.\n\n" +
-                    "The protection service owns Windows Firewall setup and will verify the UDP rule when it starts. " +
-                    "If the service is not installed or cannot run elevated, configure UDP port 47700 with the admin setup script.",
-                    "LAN Discovery",
-                    System.Windows.MessageBoxButton.OK,
-                    System.Windows.MessageBoxImage.Information);
-            }
-            
             SaveConfig();
         }
         partial void OnLanSharedSecretChanged(string value) => SaveConfig();
@@ -175,39 +196,35 @@ namespace RansomGuard.ViewModels
         {
             _isInitialized = false;
             var config = ConfigurationService.Instance;
+            var configPaths = config.MonitoredPaths ?? new List<string>();
 
-            // Robust check: If we don't have ANY standard folders (Documents, Desktop, etc.), 
-            // we should try to discover them, regardless of what fallbacks are present.
-            bool hasAtLeastOneStandardFolder = config.MonitoredPaths.Any(p => ConfigurationService.IsStandardProtectedFolder(p));
+            bool hasAtLeastOneStandardFolder = configPaths.Any(p => ConfigurationService.IsStandardProtectedFolder(p));
             
             if (!config.HasAutoPopulated && !hasAtLeastOneStandardFolder)
             {
                 config.PopulateDefaultFolders();
+                configPaths = config.MonitoredPaths ?? new List<string>();
                 
-                // If we found something, mark as officially populated
-                if (config.MonitoredPaths.Any(p => ConfigurationService.IsStandardProtectedFolder(p)))
+                if (configPaths.Any(p => ConfigurationService.IsStandardProtectedFolder(p)))
                 {
                     config.HasAutoPopulated = true;
                     
-                    // Cleanup: Remove the fallback App folder if we now have real folders.
                     var baseDir = AppDomain.CurrentDomain.BaseDirectory.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-                    var fallbackPath = config.MonitoredPaths.FirstOrDefault(p => 
-                        p.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar).Equals(baseDir, StringComparison.OrdinalIgnoreCase));
+                    var fallbackPath = configPaths.FirstOrDefault(p => 
+                        p.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
+                         .Equals(baseDir, StringComparison.OrdinalIgnoreCase));
                     
-                    if (fallbackPath != null && config.MonitoredPaths.Count > 1)
-                    {
-                        config.MonitoredPaths.Remove(fallbackPath);
-                    }
+                    if (fallbackPath != null && configPaths.Count > 1)
+                        config.MonitoredPaths?.Remove(fallbackPath);
                 }
                 
                 config.Save();
             }
 
             MonitoredPaths.Clear();
-            foreach (var path in config.MonitoredPaths)
-            {
+            foreach (var path in configPaths)
                 MonitoredPaths.Add(new MonitoredPathItem(path));
-            }
+
             _isInitialized = true;
         }
 
@@ -299,12 +316,17 @@ namespace RansomGuard.ViewModels
         }
 
         [RelayCommand]
-        private void InstallService()
+        private async Task InstallService()
         {
+            if (IsServiceOperationInProgress) return;
+            
             try
             {
+                IsServiceOperationInProgress = true;
+
                 // Check if service is already installed
-                if (ServiceManager.IsServiceInstalled())
+                bool isInstalled = await Task.Run(() => ServiceManager.IsServiceInstalled());
+                if (isInstalled)
                 {
                     System.Windows.MessageBox.Show(
                         "The RansomGuard Protection Service is already installed and running.\n\nYour system is protected!",
@@ -344,7 +366,7 @@ namespace RansomGuard.ViewModels
                     }
                 }
                 
-                ServiceManager.InstallService(servicePath);
+                await Task.Run(() => ServiceManager.InstallService(servicePath));
                 IsServiceInstalled = true; // Update UI
                 System.Windows.MessageBox.Show("RansomGuard Protection Service has been successfully installed and started.", "Service Installation", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Information);
             }
@@ -352,15 +374,24 @@ namespace RansomGuard.ViewModels
             {
                 System.Windows.MessageBox.Show($"Failed to install the background service: {ex.Message}", "Service Error", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Warning);
             }
+            finally
+            {
+                IsServiceOperationInProgress = false;
+            }
         }
 
         [RelayCommand]
-        private void UninstallService()
+        private async Task UninstallService()
         {
+            if (IsServiceOperationInProgress) return;
+
             try
             {
+                IsServiceOperationInProgress = true;
+
                 // Check if service is installed
-                if (!ServiceManager.IsServiceInstalled())
+                bool isInstalled = await Task.Run(() => ServiceManager.IsServiceInstalled());
+                if (!isInstalled)
                 {
                     System.Windows.MessageBox.Show(
                         "The RansomGuard Protection Service is not installed.",
@@ -382,12 +413,17 @@ namespace RansomGuard.ViewModels
                     return;
                 }
                 
-                ServiceManager.UninstallService();
+                await Task.Run(() => ServiceManager.UninstallService());
+                IsServiceInstalled = false; // Update UI
                 System.Windows.MessageBox.Show("RansomGuard Protection Service has been successfully uninstalled.", "Service Uninstalled", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Information);
             }
             catch (System.Exception ex)
             {
                 System.Windows.MessageBox.Show($"Failed to uninstall the background service: {ex.Message}", "Service Error", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Warning);
+            }
+            finally
+            {
+                IsServiceOperationInProgress = false;
             }
         }
 
@@ -400,9 +436,27 @@ namespace RansomGuard.ViewModels
             if (_saveDebounceTimer != null)
             {
                 _saveDebounceTimer.Stop();
+                if (_saveDebounceTimerHandler != null)
+                {
+                    _saveDebounceTimer.Tick -= _saveDebounceTimerHandler;
+                    _saveDebounceTimerHandler = null;
+                }
                 
                 // Flush any pending save
                 SaveConfigImmediate();
+            }
+
+            // Unsubscribe from events
+            if (_monitorService != null && _connectionStatusChangedHandler != null)
+            {
+                _monitorService.ConnectionStatusChanged -= _connectionStatusChangedHandler;
+                _connectionStatusChangedHandler = null;
+            }
+
+            if (MonitoredPaths != null && _pathsCollectionChangedHandler != null)
+            {
+                MonitoredPaths.CollectionChanged -= _pathsCollectionChangedHandler;
+                _pathsCollectionChangedHandler = null;
             }
         }
     }

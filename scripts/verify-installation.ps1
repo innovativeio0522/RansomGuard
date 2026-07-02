@@ -77,7 +77,7 @@ Write-Host ""
 
 # Check configuration
 Write-Host "[4] Checking Configuration..." -ForegroundColor Yellow
-$configPath = "$env:ProgramData\RansomGuard\config.json"
+$configPath = "$env:ProgramData\RGCoreEssentials\config.json"
 if (Test-Path $configPath) {
     Write-Host "    ✓ Configuration file exists" -ForegroundColor Green
     try {

@@ -4,6 +4,7 @@ using RansomGuard.Core.Models;
 using RansomGuard.Core.Interfaces;
 using RansomGuard.Core.Helpers;
 using RansomGuard.Core.IPC;
+using RansomGuard.Core.Configuration;
 using RansomGuard.Services;
 using System.Collections.ObjectModel;
 using System.Windows.Media;
@@ -34,7 +35,7 @@ namespace RansomGuard.ViewModels
         private int _totalPages = 1;
 
         [ObservableProperty]
-        private int _pageSize = 10;
+        private int _pageSize = AppConstants.Limits.PageSize;
 
         [ObservableProperty]
         private string _paginationStatus = "Showing 0 of 0 quarantined items";
@@ -47,6 +48,7 @@ namespace RansomGuard.ViewModels
 
         [ObservableProperty]
         private int _totalItems;
+        private EventHandler? _refreshTimerHandler;
 
         [ObservableProperty]
         private double _storageUsedMb;
@@ -55,10 +57,10 @@ namespace RansomGuard.ViewModels
         private double _storagePercent;
 
         [ObservableProperty]
-        private string _storageText = "0 MB / 5 GB Allocated";
+        private string _storageText = $"0 MB / {AppConstants.Limits.QuarantineStorageLimitText} Allocated";
 
         [ObservableProperty]
-        private string _totalStorageText = "5 GB Allocated";
+        private string _totalStorageText = $"{AppConstants.Limits.QuarantineStorageLimitText} Allocated";
 
         public QuarantineViewModel(ISystemMonitorService monitorService)
         {
@@ -69,22 +71,24 @@ namespace RansomGuard.ViewModels
             LoadData();
 
             // Auto-refresh quarantine data every 5 seconds
+            _refreshTimerHandler = (s, e) => LoadData();
             _refreshTimer = new DispatcherTimer
             {
                 Interval = TimeSpan.FromSeconds(5)
             };
-            _refreshTimer.Tick += (s, e) => LoadData();
+            _refreshTimer.Tick += _refreshTimerHandler;
             _refreshTimer.Start();
         }
 
         private void LoadData()
         {
+            if (_disposed) return;
             StorageUsedMb = _monitorService.GetQuarantineStorageUsage();
             
-            // Calculate storage percentage (assuming 5GB limit for now)
-            StoragePercent = (StorageUsedMb / 5120.0) * 100.0;
-            StorageText = $"{StorageUsedMb:F1} MB / 5 GB Allocated";
-            TotalStorageText = "5 GB Allocated";
+            // Calculate storage percentage
+            StoragePercent = (StorageUsedMb / AppConstants.Limits.QuarantineStorageLimitMb) * 100.0;
+            StorageText = $"{StorageUsedMb:F1} MB / {AppConstants.Limits.QuarantineStorageLimitText} Allocated";
+            TotalStorageText = $"{AppConstants.Limits.QuarantineStorageLimitText} Allocated";
 
             var quarantinedFiles = _monitorService.GetQuarantinedFiles().ToList();
             _allItems.Clear();
@@ -275,10 +279,12 @@ namespace RansomGuard.ViewModels
 
         private void OnThreatDetected(Threat threat)
         {
+            if (_disposed) return;
             if (threat.ActionTaken == "Quarantined" || threat.ActionTaken == "Isolated")
             {
                 App.Current.Dispatcher.Invoke(() =>
                 {
+                    if (_disposed) return;
                     LoadData();
                 });
             }
@@ -344,6 +350,11 @@ namespace RansomGuard.ViewModels
             if (_refreshTimer != null)
             {
                 _refreshTimer.Stop();
+                if (_refreshTimerHandler != null)
+                {
+                    _refreshTimer.Tick -= _refreshTimerHandler;
+                    _refreshTimerHandler = null;
+                }
             }
         }
     }
