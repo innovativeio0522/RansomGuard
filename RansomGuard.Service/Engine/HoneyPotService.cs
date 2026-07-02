@@ -13,7 +13,6 @@ namespace RansomGuard.Service.Engine
     public class HoneyPotService : IDisposable
     {
         private readonly SentinelEngine _engine;
-        private readonly List<FileSystemWatcher> _baitWatchers = new();
         private const string BaitFolderName = AppIdentifiers.HoneypotMarker;
         private const string BaitFileName = AppIdentifiers.HoneypotFileName;
 
@@ -57,18 +56,6 @@ namespace RansomGuard.Service.Engine
                             File.WriteAllText(filePath, "This is a Sentinel protection file. DO NOT DELETE.");
                             File.SetAttributes(filePath, FileAttributes.Hidden | FileAttributes.System);
                         }
-
-                        var watcher = new FileSystemWatcher(baitPath)
-                        {
-                            NotifyFilter = NotifyFilters.FileName | NotifyFilters.LastWrite | NotifyFilters.Security,
-                            EnableRaisingEvents = true
-                        };
-
-                        watcher.Changed += (s, e) => HandleBaitHit(e.FullPath);
-                        watcher.Deleted += (s, e) => HandleBaitHit(e.FullPath);
-                        watcher.Renamed += (s, e) => HandleBaitHit(e.FullPath);
-
-                        _baitWatchers.Add(watcher);
                     }
                     catch (Exception ex)
                     {
@@ -80,35 +67,10 @@ namespace RansomGuard.Service.Engine
             }
         }
 
-        private void HandleBaitHit(string path)
-        {
-            try
-            {
-                _engine.ReportThreat(path, "HONEY POT TRIPWIRE TRIGGERED", 
-                    "An unauthorized process attempted to access or modify a hidden Sentinel bait file.", 
-                    "Unknown", 0, ThreatSeverity.High);
-            }
-            catch (Exception ex)
-            {
-                FileLogger.LogError(AppIdentifiers.SentinelEngineLogFile, "[HoneyPot] Error reporting bait hit", ex);
-            }
-        }
-
         private void CleanupBaits()
         {
             try
             {
-                foreach (var watcher in _baitWatchers)
-                {
-                    try
-                    {
-                        watcher.EnableRaisingEvents = false;
-                        watcher.Dispose();
-                    }
-                    catch { }
-                }
-                _baitWatchers.Clear();
-
                 var targets = GetDefaultBaitLocations();
                 foreach (var path in targets)
                 {

@@ -60,6 +60,7 @@ namespace RansomGuard.Service.Engine
         private readonly ConcurrentDictionary<string, byte> _activeAnalyses = new();
         private readonly CancellationTokenSource _cts = new();
         private Task? _processorTask;
+        private bool _isEtwActive;
 
         private record FileEvent(string Path, string Action, int ProcessId = 0, string ProcessName = "Unknown");
 
@@ -154,7 +155,16 @@ namespace RansomGuard.Service.Engine
             if (_etwMonitor != null)
             {
                 _etwMonitor.FileEventDetected += (e) => OnFileChanged(e.Path, e.Action, e.ProcessId, e.ProcessName);
-                _etwMonitor.Start();
+                try
+                {
+                    _etwMonitor.Start();
+                    _isEtwActive = true;
+                }
+                catch (Exception ex)
+                {
+                    FileLogger.LogError(AppIdentifiers.SentinelEngineLogFile, $"[SENTINEL] Failed to start ETW Monitor: {ex.Message}");
+                    _isEtwActive = false;
+                }
             }
             
             // Run cleanup timer
@@ -300,7 +310,32 @@ namespace RansomGuard.Service.Engine
                     ("ProcessId", providedProcessId),
                     ("ProcessName", providedProcessName));
 
-                if (path.Contains("!$RansomGuard_Bait", StringComparison.OrdinalIgnoreCase)) return;
+                if (path.Contains("!$RansomGuard_Bait", StringComparison.OrdinalIgnoreCase))
+                {
+                    // Honeypot bait file hit detected!
+                    // 1. Check if the process is whitelisted (safe system/admin/backup processes)
+                    if (IsWhitelistedHoneypotProcess(providedProcessName))
+                    {
+                        return; // Ignore safe process activity
+                    }
+
+                    // 2. Prevent duplicate alerts from the fallback FileSystemWatcher when ETW is active
+                    if (providedProcessName == "Unknown" && _isEtwActive)
+                    {
+                        return; // Ignore FileSystemWatcher event since ETW will capture it with full process name
+                    }
+
+                    // 3. Report the threat
+                    ReportThreat(
+                        path, 
+                        "HONEY POT TRIPWIRE TRIGGERED", 
+                        $"An unauthorized process ({providedProcessName}) attempted to access or modify a hidden Sentinel bait file.", 
+                        providedProcessName, 
+                        providedProcessId, 
+                        ThreatSeverity.High
+                    );
+                    return;
+                }
                 
                 // Deduplicate at the path level
                 if (!_activeAnalyses.TryAdd(path, 0)) return;
@@ -837,6 +872,38 @@ namespace RansomGuard.Service.Engine
 #pragma warning restore CS4014
         }
 
+        private static readonly string[] WhitelistedHoneypotProcesses = new[]
+        {
+            "explorer.exe",
+            "searchindexer.exe",
+            "msmpeng.exe",
+            "onedrive.exe",
+            "rgservice.exe",
+            "ransomguard.service.exe",
+            "rgworker.exe",
+            "ransomguard.watchdog.exe",
+            "ransomguard.exe",
+            "rgui.exe",
+            "system",
+            "lsass.exe",
+            "svchost.exe",
+            "msiexec.exe",
+            "devenv.exe",
+            "dotnet.exe"
+        };
+
+        private bool IsWhitelistedHoneypotProcess(string processName)
+        {
+            if (string.IsNullOrEmpty(processName)) return false;
+            
+            var name = processName.ToLowerInvariant();
+            
+            // Check exact match or suffix (e.g. "onedrive.exe" or "onedrive")
+            return WhitelistedHoneypotProcesses.Any(p => 
+                name == p || 
+                name == Path.GetFileNameWithoutExtension(p));
+        }
+
         public async Task ClearActivityHistory()
         {
             await _historyManager.ClearHistory().ConfigureAwait(false);
@@ -856,6 +923,12 @@ namespace RansomGuard.Service.Engine
             _fileSystemMonitor.Dispose();
             _processAttribution.Dispose();
             _lanCircuitBreaker?.Dispose();
+            
+            if (_etwMonitor != null)
+            {
+                try { _etwMonitor.Stop(); } catch { }
+                _isEtwActive = false;
+            }
         }
     }
 }

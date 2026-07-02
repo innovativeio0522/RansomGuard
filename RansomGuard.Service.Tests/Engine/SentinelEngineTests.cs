@@ -34,6 +34,7 @@ namespace RansomGuard.Tests.Engine
             _mockQuarantine = new Mock<IQuarantineService>();
 
             ConfigurationService.Instance.IsTestingMode = true;
+            ConfigurationService.Instance.RealTimeProtection = true;
 
             _engine = new SentinelEngine(
                 _mockTelemetry.Object,
