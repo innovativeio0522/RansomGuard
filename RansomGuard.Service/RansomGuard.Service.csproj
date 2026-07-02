@@ -6,6 +6,7 @@
     <AssemblyName>RGService</AssemblyName>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <!-- Force reload of project dependencies -->
     <UserSecretsId>dotnet-RansomGuard.Service-25ecbde7-0e86-4454-9cec-cd8cd12b2507</UserSecretsId>
   </PropertyGroup>
   

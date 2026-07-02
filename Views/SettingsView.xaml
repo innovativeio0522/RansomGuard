@@ -316,10 +316,10 @@
                             <StackPanel Visibility="{Binding IsLanCircuitBreakerEnabled, Converter={StaticResource BooleanToVisibilityConverter}}">
                                 <TextBlock Text="Shared Authentication Secret" FontSize="14" FontWeight="Bold" Foreground="{StaticResource OnSurfaceBrush}"/>
                                 <TextBlock Text="Used for HMAC signing of alerts. All nodes must use the same secret to trust each other. Leave empty for open trust (not recommended)." FontSize="12" Foreground="{StaticResource OnSurfaceVariantBrush}" Opacity="0.7" Margin="0,4,0,12" TextWrapping="Wrap"/>
-                                <TextBox Text="{Binding LanSharedSecret, UpdateSourceTrigger=PropertyChanged}" 
-                                         Padding="12" 
-                                         FontSize="13" 
-                                         FontFamily="Consolas"/>
+                                <PasswordBox x:Name="LanSharedSecretBox"
+                                             Padding="12" 
+                                             FontSize="13" 
+                                             FontFamily="Consolas"/>
                             </StackPanel>
                         </StackPanel>
                     </Border>

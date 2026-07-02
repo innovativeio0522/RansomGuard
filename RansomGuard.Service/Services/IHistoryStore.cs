@@ -11,5 +11,6 @@ namespace RansomGuard.Service.Services
         Task SaveThreatAsync(Threat threat);
         Task<List<Threat>> GetActiveThreatsAsync();
         Task UpdateThreatStatusAsync(string path, string status);
+        Task ClearActivitiesAsync();
     }
 }

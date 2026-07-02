@@ -5,6 +5,7 @@ using System.Linq;
 using System.Security;
 using System.Threading.Tasks;
 using RansomGuard.Core.Helpers;
+using RansomGuard.Core.Services;
 using RansomGuard.Service.Services;
 
 namespace RansomGuard.Service.Engine
@@ -46,29 +47,57 @@ namespace RansomGuard.Service.Engine
         /// </remarks>
         public async Task QuarantineFile(string filePath)
         {
-            await Task.Run(async () =>
+            using (StructuredLogger.BeginOperation("QuarantineFile"))
             {
-                try
+                StructuredLogger.LogInfo("Quarantine operation started",
+                    ("FilePath", filePath));
+                
+                await Task.Run(async () =>
                 {
-                    if (!File.Exists(filePath)) return;
+                    try
+                    {
+                        if (!File.Exists(filePath))
+                        {
+                            StructuredLogger.LogWarning("Quarantine skipped - file not found",
+                                ("FilePath", filePath));
+                            return;
+                        }
 
-                    string quarantineDir = _quarantinePath;
-                    Directory.CreateDirectory(quarantineDir);
+                        // SECURITY: Validate path before quarantine to prevent brinking the system
+                        if (!IsSafePath(filePath))
+                        {
+                            StructuredLogger.LogWarning("Quarantine blocked - critical system path protected",
+                                ("FilePath", filePath));
+                            return;
+                        }
 
-                    string dest    = Path.Combine(quarantineDir, Path.GetFileName(filePath) + ".quarantine");
-                    string metaDest = dest + ".metadata";
+                        string quarantineDir = _quarantinePath;
+                        Directory.CreateDirectory(quarantineDir);
 
-                    string metadata = $"OriginalPath={filePath}\nQuarantinedAt={DateTime.Now:O}\nFileSize={new FileInfo(filePath).Length}";
-                    File.WriteAllText(metaDest, metadata);
-                    File.Move(filePath, dest, overwrite: true);
+                        string dest    = Path.Combine(quarantineDir, Path.GetFileName(filePath) + ".quarantine");
+                        string metaDest = dest + ".metadata";
 
-                    await _historyStore.UpdateThreatStatusAsync(filePath, "Quarantined").ConfigureAwait(false);
-                }
-                catch (Exception ex)
-                {
-                    System.Diagnostics.Debug.WriteLine($"[QuarantineService] QuarantineFile error: {ex.Message}");
-                }
-            });
+                        var fileInfo = new FileInfo(filePath);
+                        string metadata = $"OriginalPath={filePath}\nQuarantinedAt={DateTime.Now:O}\nFileSize={fileInfo.Length}";
+                        File.WriteAllText(metaDest, metadata);
+                        File.Move(filePath, dest, overwrite: true);
+
+                        await _historyStore.UpdateThreatStatusAsync(filePath, "Quarantined").ConfigureAwait(false);
+                        
+                        StructuredLogger.LogInfo("File quarantined successfully",
+                            ("FilePath", filePath),
+                            ("QuarantinePath", dest),
+                            ("FileSizeBytes", fileInfo.Length));
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"[QuarantineService] QuarantineFile error: {ex.Message}");
+                        StructuredLogger.LogError("Quarantine operation failed", ex,
+                            ("FilePath", filePath));
+                        throw;
+                    }
+                });
+            }
         }
 
         /// <summary>
@@ -87,51 +116,77 @@ namespace RansomGuard.Service.Engine
         /// </remarks>
         public async Task RestoreQuarantinedFile(string quarantinePath)
         {
-            await Task.Run(async () =>
+            using (StructuredLogger.BeginOperation("RestoreQuarantinedFile"))
             {
-                try
+                StructuredLogger.LogInfo("Restore operation started",
+                    ("QuarantinePath", quarantinePath));
+                
+                await Task.Run(async () =>
                 {
-                    if (!File.Exists(quarantinePath)) return;
-
-                    string metaPath    = quarantinePath + ".metadata";
-                    string originalPath = string.Empty;
-
-                    if (File.Exists(metaPath))
+                    try
                     {
-                        foreach (var line in File.ReadAllLines(metaPath))
+                        if (!File.Exists(quarantinePath))
                         {
-                            if (line.StartsWith("OriginalPath="))
-                                originalPath = line.Substring("OriginalPath=".Length);
+                            StructuredLogger.LogWarning("Restore skipped - quarantine file not found",
+                                ("QuarantinePath", quarantinePath));
+                            return;
                         }
+
+                        string metaPath    = quarantinePath + ".metadata";
+                        string originalPath = string.Empty;
+
+                        if (File.Exists(metaPath))
+                        {
+                            foreach (var line in File.ReadAllLines(metaPath))
+                            {
+                                if (line.StartsWith("OriginalPath="))
+                                    originalPath = line.Substring("OriginalPath=".Length);
+                            }
+                        }
+
+                        if (string.IsNullOrEmpty(originalPath) || originalPath == "Unknown Path")
+                        {
+                            StructuredLogger.LogError("Restore failed - original path not found in metadata",
+                                null,
+                                ("QuarantinePath", quarantinePath));
+                            throw new InvalidOperationException("Original path not found in metadata.");
+                        }
+
+                        // Validate path before restoration to prevent path traversal attacks
+                        if (!IsSafePath(originalPath))
+                        {
+                            System.Diagnostics.Debug.WriteLine($"[QuarantineService] Invalid restore path blocked: {originalPath}");
+                            StructuredLogger.LogError("Restore blocked - invalid path",
+                                null,
+                                ("QuarantinePath", quarantinePath),
+                                ("OriginalPath", originalPath),
+                                ("Reason", "Security validation failed"));
+                            throw new SecurityException($"Restoration to path '{originalPath}' is not allowed for security reasons.");
+                        }
+
+                        string? destDir = Path.GetDirectoryName(originalPath);
+                        if (!string.IsNullOrEmpty(destDir)) Directory.CreateDirectory(destDir);
+
+                        File.Move(quarantinePath, originalPath, overwrite: false);
+                        if (File.Exists(metaPath)) File.Delete(metaPath);
+
+                        // Update threat status in database
+                        await _historyStore.UpdateThreatStatusAsync(originalPath, "Restored").ConfigureAwait(false);
+
+                        System.Diagnostics.Debug.WriteLine($"[QuarantineService] Restored: {originalPath}");
+                        StructuredLogger.LogInfo("File restored successfully",
+                            ("QuarantinePath", quarantinePath),
+                            ("OriginalPath", originalPath));
                     }
-
-                    if (string.IsNullOrEmpty(originalPath) || originalPath == "Unknown Path")
-                        throw new InvalidOperationException("Original path not found in metadata.");
-
-                    // Validate path before restoration to prevent path traversal attacks
-                    if (!IsValidRestorePath(originalPath))
+                    catch (Exception ex)
                     {
-                        System.Diagnostics.Debug.WriteLine($"[QuarantineService] Invalid restore path blocked: {originalPath}");
-                        throw new SecurityException($"Restoration to path '{originalPath}' is not allowed for security reasons.");
+                        System.Diagnostics.Debug.WriteLine($"[QuarantineService] RestoreQuarantinedFile error: {ex.Message}");
+                        StructuredLogger.LogError("Restore operation failed", ex,
+                            ("QuarantinePath", quarantinePath));
+                        throw;
                     }
-
-                    string? destDir = Path.GetDirectoryName(originalPath);
-                    if (!string.IsNullOrEmpty(destDir)) Directory.CreateDirectory(destDir);
-
-                    File.Move(quarantinePath, originalPath, overwrite: false);
-                    if (File.Exists(metaPath)) File.Delete(metaPath);
-
-                    // Update threat status in database
-                    await _historyStore.UpdateThreatStatusAsync(originalPath, "Restored").ConfigureAwait(false);
-
-                    System.Diagnostics.Debug.WriteLine($"[QuarantineService] Restored: {originalPath}");
-                }
-                catch (Exception ex)
-                {
-                    System.Diagnostics.Debug.WriteLine($"[QuarantineService] RestoreQuarantinedFile error: {ex.Message}");
-                    throw;
-                }
-            });
+                });
+            }
         }
 
         /// <summary>
@@ -150,7 +205,7 @@ namespace RansomGuard.Service.Engine
         /// - Blocks paths containing suspicious patterns
         /// Conservative approach: blocks path if any validation step fails.
         /// </remarks>
-        private bool IsValidRestorePath(string path)
+        private bool IsSafePath(string path)
         {
             if (string.IsNullOrEmpty(path) || path == "Unknown Path")
                 return false;
@@ -205,7 +260,9 @@ namespace RansomGuard.Service.Engine
                     }
                 }
                 
-                // Block restoration to system directories
+                // Block restoration to protected system directories only.
+                // We do NOT restrict to UserProfile — users may legitimately monitor
+                // additional drives (e.g. D:\Work\) and must be able to restore files from them.
                 string[] blockedPaths = new[]
                 {
                     Environment.GetFolderPath(Environment.SpecialFolder.Windows),
@@ -223,24 +280,22 @@ namespace RansomGuard.Service.Engine
                 // Check if path starts with any blocked directory
                 foreach (var blockedPath in blockedPaths)
                 {
-                    if (!string.IsNullOrEmpty(blockedPath) && 
-                        fullPath.StartsWith(blockedPath, StringComparison.OrdinalIgnoreCase))
+                    if (string.IsNullOrEmpty(blockedPath)) continue;
+
+                    // Ensure we check for directory boundary to avoid blocking "C:\WindowsSecurity"
+                    string blockedWithSep = blockedPath.EndsWith(Path.DirectorySeparatorChar) || blockedPath.EndsWith(Path.AltDirectorySeparatorChar)
+                        ? blockedPath 
+                        : blockedPath + Path.DirectorySeparatorChar;
+
+                    if (fullPath.Equals(blockedPath, StringComparison.OrdinalIgnoreCase) || 
+                        fullPath.StartsWith(blockedWithSep, StringComparison.OrdinalIgnoreCase))
                     {
                         System.Diagnostics.Debug.WriteLine($"[QuarantineService] Path blocked (system directory): {fullPath}");
                         return false;
                     }
                 }
 
-                // Only allow restoration to user directories
-                string userProfile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-                if (!string.IsNullOrEmpty(userProfile) && 
-                    !fullPath.StartsWith(userProfile, StringComparison.OrdinalIgnoreCase))
-                {
-                    System.Diagnostics.Debug.WriteLine($"[QuarantineService] Path blocked (not in user profile): {fullPath}");
-                    return false;
-                }
-
-                // Additional check: Ensure path doesn't contain suspicious patterns
+                // Additional check: ensure path doesn't contain traversal patterns
                 string normalizedPath = fullPath.Replace('/', '\\');
                 if (normalizedPath.Contains("..\\") || normalizedPath.Contains(".."))
                 {

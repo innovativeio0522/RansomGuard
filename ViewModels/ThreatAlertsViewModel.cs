@@ -13,8 +13,11 @@ namespace RansomGuard.ViewModels
     {
         private readonly ISystemMonitorService _monitorService;
         private List<Threat> _allThreats = new();
-        private readonly object _threatsLock = new(); // Thread-safe access to _allThreats
+        private readonly object _threatsLock = new();
+        private const int MaxThreats = AppConstants.Limits.MaxThreats;
+        private const string EmptyAlertsText = "No alerts";
         private bool _disposed;
+        private System.Windows.Threading.DispatcherTimer _refreshTimer;
 
         [ObservableProperty]
         private int _criticalThreatsCount;
@@ -35,7 +38,7 @@ namespace RansomGuard.ViewModels
         private int _selectedDateRangeIndex = 0;
 
         [ObservableProperty]
-        private string _paginationText = "No alerts";
+        private string _paginationText = EmptyAlertsText;
 
         [ObservableProperty]
         private bool _hasPrevious = false;
@@ -47,11 +50,11 @@ namespace RansomGuard.ViewModels
         private string _searchQuery = string.Empty;
 
         private int _currentPage = 0;
-        private const int PageSize = 20;
+        private const int PageSize = AppConstants.Limits.PageSize;
 
         public ObservableCollection<Threat> Threats { get; } = new();
 
-        private System.Windows.Threading.DispatcherTimer _refreshTimer;
+        private EventHandler? _refreshTimerHandler;
 
         public ThreatAlertsViewModel(ISystemMonitorService monitorService)
         {
@@ -62,23 +65,28 @@ namespace RansomGuard.ViewModels
 
             LoadThreats();
 
-            // Set up an auto-refresh timer so if you quarantine something on the Dashboard,
-            // this view automatically reflects it.
+            // Set up an auto-refresh timer — use named handler so it can be unsubscribed in Dispose
+            _refreshTimerHandler = (s, e) => LoadThreats();
             _refreshTimer = new System.Windows.Threading.DispatcherTimer
             {
                 Interval = TimeSpan.FromMilliseconds(AppConstants.Timers.ThreatAlertsRefreshMs)
             };
-            _refreshTimer.Tick += (s, e) => LoadThreats();
+            _refreshTimer.Tick += _refreshTimerHandler;
             _refreshTimer.Start();
         }
 
         private void LoadThreats()
         {
-            if (_disposed) return; // Check if disposed
+            if (_disposed) return;
             
+            var fresh = _monitorService.GetRecentThreats()?.ToList() ?? new List<Threat>();
+
             lock (_threatsLock)
             {
-                _allThreats = _monitorService.GetRecentThreats().ToList();
+                // Enforce cap — keep only the most recent MaxThreats entries
+                _allThreats = fresh.Count > MaxThreats
+                    ? fresh.Take(MaxThreats).ToList()
+                    : fresh;
             }
             RefreshCounts();
             ApplyFilters();
@@ -241,10 +249,13 @@ namespace RansomGuard.ViewModels
                     // Remove existing entry for this path (if any) to ensure the latest event is shown
                     var existing = _allThreats.FirstOrDefault(t => string.Equals(t.Path, threat.Path, StringComparison.OrdinalIgnoreCase));
                     if (existing != null)
-                    {
                         _allThreats.Remove(existing);
-                    }
+
                     _allThreats.Insert(0, threat);
+
+                    // Enforce cap
+                    if (_allThreats.Count > MaxThreats)
+                        _allThreats.RemoveAt(_allThreats.Count - 1);
                 }
                 // Always re-filter — an existing threat may have changed status (e.g. Quarantined from Dashboard)
                 RefreshCounts();
@@ -257,11 +268,15 @@ namespace RansomGuard.ViewModels
             if (_disposed) return;
             _disposed = true;
 
-            // Stop and dispose timer
+            // Stop and dispose timer using named handler for proper unsubscription
             if (_refreshTimer != null)
             {
                 _refreshTimer.Stop();
-                _refreshTimer.Tick -= (s, e) => LoadThreats();
+                if (_refreshTimerHandler != null)
+                {
+                    _refreshTimer.Tick -= _refreshTimerHandler;
+                    _refreshTimerHandler = null;
+                }
                 _refreshTimer = null!;
             }
 

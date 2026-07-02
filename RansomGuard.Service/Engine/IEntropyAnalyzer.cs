@@ -10,5 +10,6 @@ namespace RansomGuard.Service.Engine
         bool ShouldSkipDirectory(string path);
         bool IsSuspiciousRenamePattern(string action);
         double CalculateShannonEntropy(string path);
+        bool IsExtensionMismatch(string path);
     }
 }

@@ -5,6 +5,7 @@ using RansomGuard.Service.Services;
 using RansomGuard.Core.Services;
 using RansomGuard.Core.IPC;
 using RansomGuard.Core.Helpers;
+using RansomGuard.Core.Constants;
 using System.Security.AccessControl;
 using System.Security.Principal;
 
@@ -17,14 +18,17 @@ public class Worker : BackgroundService
     private HistoryManager? _historyManager;
     private HoneyPotService? _honeyPot;
     private VssShieldService? _vssShield;
+    private EtwMonitorService? _etwMonitor;
     private ActiveResponseService? _activeResponse;
     private LanCircuitBreaker? _lanCircuitBreaker;
     private NamedPipeServer? _pipeServer;
     private readonly ILogger<Worker> _logger;
+    private readonly IServiceProvider _serviceProvider;
 
-    public Worker(ILogger<Worker> logger)
+    public Worker(ILogger<Worker> logger, IServiceProvider serviceProvider)
     {
         _logger = logger;
+        _serviceProvider = serviceProvider;
     }
 
     private void HandleCriticalThreat(RansomGuard.Core.Models.Threat threat)
@@ -54,35 +58,40 @@ public class Worker : BackgroundService
             catch (Exception ex) { _logger.LogWarning("Could not set folder permissions: {msg}", ex.Message); }
 
             LogToBootFile("Initializing services...");
-            // 1. Initialize decoupled services
-            var historyStore = new HistoryStore();
-            _historyManager = new HistoryManager(historyStore);
-            _telemetryService = new TelemetryService();
+            // Resolve services from DI
+            _historyManager = _serviceProvider.GetRequiredService<HistoryManager>();
+            _telemetryService = (TelemetryService)_serviceProvider.GetRequiredService<ITelemetryService>();
+            var entropyAnalyzer = _serviceProvider.GetRequiredService<EntropyAnalysisService>();
+            var processClassifier = _serviceProvider.GetRequiredService<ProcessIdentityService>();
+            var quarantine = _serviceProvider.GetRequiredService<QuarantineService>();
+            _lanCircuitBreaker = _serviceProvider.GetRequiredService<LanCircuitBreaker>();
+            _etwMonitor = _serviceProvider.GetRequiredService<EtwMonitorService>();
 
-            // 2. Initialize analyzer/identity logic
-            var entropyAnalyzer = new EntropyAnalysisService();
-            var authenticodeVerifier = new AuthenticodeVerifier();
-            var processClassifier = new ProcessIdentityService(authenticodeVerifier);
-            var quarantine = new QuarantineService(historyStore);
-
-            // 3a. Initialize LAN Circuit Breaker
-            _lanCircuitBreaker = new LanCircuitBreaker();
-
-            // 3b. Initialize core engine with injected services
+            // 3c. Initialize core engine with resolved services
             _engine = new SentinelEngine(
                 _telemetryService, 
                 _historyManager, 
                 entropyAnalyzer, 
                 processClassifier, 
                 quarantine,
-                _lanCircuitBreaker);
+                _lanCircuitBreaker,
+                _etwMonitor);
 
             // Wire LAN Circuit Breaker events
             _lanCircuitBreaker.CircuitBreakReceived += (threatInfo) =>
             {
                 _logger.LogCritical("[LAN] CIRCUIT BREAK received from peer: {info}", threatInfo);
-                FileLogger.Log("sentinel_engine.log", $"[LAN] Executing local critical response due to remote circuit break: {threatInfo}");
-                _engine.ExecuteCriticalResponse();
+                FileLogger.Log(AppIdentifiers.SentinelEngineLogFile, $"[LAN] Executing local critical response due to remote circuit break: {threatInfo}");
+                
+                // Trigger critical response by reporting a critical threat
+                _engine.ReportThreat(
+                    "NETWORK_ALERT", 
+                    "LAN Circuit Break Received", 
+                    $"Critical threat detected on network peer: {threatInfo}",
+                    "LAN Circuit Breaker",
+                    0,
+                    RansomGuard.Core.Models.ThreatSeverity.Critical,
+                    "Network Alert");
             };
 
             _lanCircuitBreaker.PeerListChanged += (update) =>
@@ -92,7 +101,7 @@ public class Worker : BackgroundService
 
             _activeResponse = new ActiveResponseService();
             _honeyPot = new HoneyPotService(_engine);
-            _vssShield = new VssShieldService(_engine);
+            _vssShield = new VssShieldService(_engine, _etwMonitor);
             
             // 4. Initialize communication layer
             _pipeServer = new NamedPipeServer(_engine, _telemetryService);
@@ -119,9 +128,19 @@ public class Worker : BackgroundService
             LogToBootFile("All services started successfully.");
             _logger.LogInformation("All proactive shields engaged. Telemetry and Security engines are online.");
 
+            int perfLogTick = 0;
             while (!stoppingToken.IsCancellationRequested)
             {
                 await Task.Delay(1000, stoppingToken).ConfigureAwait(false);
+
+                // Log performance snapshot every 60 seconds
+                if (++perfLogTick >= 60)
+                {
+                    perfLogTick = 0;
+                    var snap = RansomGuard.Core.Services.PerformanceMonitor.Instance.GetSnapshot();
+                    _logger.LogInformation("[PERF] {snapshot}", snap.ToString());
+                    FileLogger.Log(AppIdentifiers.SentinelEngineLogFile, $"[PERF] {snap}");
+                }
             }
         }
         catch (OperationCanceledException)
@@ -145,6 +164,7 @@ public class Worker : BackgroundService
                 _lanCircuitBreaker?.Stop();
                 _pipeServer?.Stop();
                 _honeyPot?.Stop();
+                _etwMonitor?.Stop();
             }
             catch (Exception ex)
             {
@@ -159,6 +179,7 @@ public class Worker : BackgroundService
                 _historyManager?.Dispose();
                 _lanCircuitBreaker?.Dispose();
                 _honeyPot?.Dispose();
+                _etwMonitor?.Dispose();
                 (_vssShield as IDisposable)?.Dispose();
                 (_activeResponse as IDisposable)?.Dispose();
                 (_pipeServer as IDisposable)?.Dispose();

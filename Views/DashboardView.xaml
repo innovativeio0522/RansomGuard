@@ -79,12 +79,12 @@
                         <StackPanel Margin="10,8">
                             <TextBlock Text="PROTECTION STATUS" Style="{StaticResource TextLabel}" FontSize="8"/>
                             <StackPanel Orientation="Horizontal" Margin="0,4,0,0" Height="26">
-                                <TextBlock Text="REAL-TIME ACTIVE" FontSize="16" FontWeight="Black" 
-                                          Foreground="{StaticResource SecondaryBrush}" VerticalAlignment="Center"/>
+                                <TextBlock Text="{Binding ProtectionStatusText}" FontSize="16" FontWeight="Black" 
+                                          Foreground="{Binding ProtectionStatusColor}" VerticalAlignment="Center"/>
                             </StackPanel>
                             <Grid Margin="0,6,0,0">
-                                <TextBlock Text="MONITORING ACTIVE" Style="{StaticResource TextStatusSafe}" FontWeight="Bold" VerticalAlignment="Center" FontSize="8"/>
-                                <Ellipse Width="8" Height="8" Fill="{StaticResource SecondaryBrush}" HorizontalAlignment="Right" VerticalAlignment="Center">
+                                <TextBlock Text="{Binding MonitoringStatusText}" Style="{StaticResource TextStatusSafe}" FontWeight="Bold" VerticalAlignment="Center" FontSize="8"/>
+                                <Ellipse Width="8" Height="8" Fill="{Binding ProtectionStatusColor}" HorizontalAlignment="Right" VerticalAlignment="Center">
                                     <Ellipse.Triggers>
                                         <EventTrigger RoutedEvent="Loaded">
                                             <BeginStoryboard>

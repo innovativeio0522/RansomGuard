@@ -4,7 +4,8 @@ using RansomGuard.Core.Models;
 using RansomGuard.Core.Interfaces;
 using RansomGuard.Core.Services;
 using RansomGuard.Core.Configuration;
-using RansomGuard.Services;
+using RansomGuard.Core.IPC;
+using RansomGuard.Core.Constants;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -17,10 +18,9 @@ namespace RansomGuard.ViewModels
 {
     public partial class FileActivityViewModel : ViewModelBase, IDisposable
     {
-        private const string AllVolumesLabel = "ALL VOLUMES";
         private const int MaxRecentActivities = 150;
         private const int MaxBufferSize = 1000; // Maximum buffer size to prevent unbounded growth
-        private static readonly IReadOnlyDictionary<string, string> KnownFolderNames = CreateKnownFolderNames();
+        private static readonly Dictionary<string, string> KnownFolderNames = CreateKnownFolderNames();
         
         [ObservableProperty]
         private int _monitoredPathsCount;
@@ -29,9 +29,11 @@ namespace RansomGuard.ViewModels
         private DispatcherTimer? _bufferTimer;
         private readonly ConcurrentQueue<FileActivity> _activityBuffer = new();
         private bool _disposed;
+        private EventHandler? _bufferTimerHandler;
+        private Action<TelemetryData>? _telemetryUpdatedHandler;
 
-        public ObservableCollection<FileActivity> RecentActivities { get; } = new();
-        private List<FileActivity> _allRecentActivities = new();
+        public ObservableCollection<FileActivity> RecentActivities { get; } = [];
+        private readonly List<FileActivity> _allRecentActivities = [];
 
         [ObservableProperty] private string _searchQuery = string.Empty;
         [ObservableProperty] private string _eventsPerMin = "0";
@@ -42,13 +44,13 @@ namespace RansomGuard.ViewModels
         [ObservableProperty] private string _riskFilter = "ALL";
         [ObservableProperty] private bool _hasRecentActivity = true;
 
-        public ObservableCollection<PathFilterOption> MonitoredPaths { get; } = new() { PathFilterOption.AllVolumes };
+        public ObservableCollection<PathFilterOption> MonitoredPaths { get; } = [PathFilterOption.AllVolumes];
 
         // Histogram data for entropy distribution (7 buckets)
-        public ObservableCollection<double> EntropyDistribution { get; } = new() { 0, 0, 0, 0, 0, 0, 0 }; 
+        public ObservableCollection<double> EntropyDistribution { get; } = [0, 0, 0, 0, 0, 0, 0];
 
         // Top I/O nodes
-        public ObservableCollection<IoProcessNode> IoIntensiveNodes { get; } = new();
+        public ObservableCollection<IoProcessNode> IoIntensiveNodes { get; } = [];
 
         private DateTime _lastMetricUpdate = DateTime.MinValue;
 
@@ -73,13 +75,14 @@ namespace RansomGuard.ViewModels
             // Subscribe to live updates
             _monitorService.FileActivityDetected += OnFileActivityDetected;
 
+            _bufferTimerHandler = (s, e) => ProcessBuffer();
             _bufferTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(AppConstants.Timers.ActivityBufferMs) };
-            _bufferTimer.Tick += (s, e) => ProcessBuffer();
+            _bufferTimer.Tick += _bufferTimerHandler;
             _bufferTimer.Start();
 
             // Handle connection changes to reload data when service becomes available
             _monitorService.ConnectionStatusChanged += OnConnectionStatusChanged;
-            _monitorService.TelemetryUpdated += (tele) => {
+            _telemetryUpdatedHandler = (tele) => {
                 App.Current.Dispatcher.Invoke(() => {
                     IsRealTimeProtectionEnabled = tele.IsRealTimeProtectionEnabled;
                     MonitoredPathsCount = tele.MonitoredFilesCount;
@@ -91,6 +94,7 @@ namespace RansomGuard.ViewModels
                     }
                 });
             };
+            _monitorService.TelemetryUpdated += _telemetryUpdatedHandler;
         }
 
 
@@ -98,24 +102,43 @@ namespace RansomGuard.ViewModels
         {
             if (_disposed) return; // Check if disposed
             
-            if (isConnected)
+            if (!isConnected)
             {
-                // Snapshots (FileActivitySnapshot, ThreatDetectedSnapshot) are sent by the
-                // server immediately after the handshake and arrive as individual IPC packets.
-                // We must wait for them to be processed before calling Refresh(), otherwise
-                // GetRecentFileActivities() returns an empty list.
-                await Task.Delay(2000).ConfigureAwait(false);
-                
-                if (_disposed) return; // Check again after delay
-                
-                System.Windows.Application.Current.Dispatcher.Invoke(() => 
+                System.Windows.Application.Current.Dispatcher.Invoke(() =>
                 {
-                    if (!_disposed) // Check in dispatcher
+                    if (!_disposed)
                     {
-                        Refresh();
+                        IsRealTimeProtectionEnabled = false;
+                        MonitoredPathsCount = 0;
                     }
                 });
+                return;
             }
+
+            // Snapshots (FileActivitySnapshot, ThreatDetectedSnapshot) are sent by the
+            // server immediately after the handshake and arrive as individual IPC packets.
+            // We must wait for them to be processed before calling Refresh(), otherwise
+            // GetRecentFileActivities() returns an empty list.
+            await Task.Delay(2000).ConfigureAwait(false);
+            
+            if (_disposed) return; // Check again after delay
+            
+            System.Windows.Application.Current.Dispatcher.Invoke(() => 
+            {
+                if (!_disposed) // Check in dispatcher
+                {
+                    Refresh();
+                }
+            });
+        }
+
+        [RelayCommand]
+        public async Task ClearLogs()
+        {
+            await _monitorService.ClearActivityHistory();
+            _allRecentActivities.Clear();
+            RecentActivities.Clear();
+            HasRecentActivity = false;
         }
 
         [RelayCommand]
@@ -157,11 +180,11 @@ namespace RansomGuard.ViewModels
         {
             if (_activityBuffer.IsEmpty && (DateTime.Now - _lastMetricUpdate).TotalSeconds < 2) return;
 
-            var batch = new List<FileActivity>();
+            List<FileActivity> batch = [];
             while (_activityBuffer.TryDequeue(out var item))
                 batch.Add(item);
 
-            var uniqueNewItems = new List<FileActivity>();
+            List<FileActivity> uniqueNewItems = [];
             foreach (var item in batch)
             {
                 // Verify against the total history AND what we've already picked in this batch
@@ -252,7 +275,7 @@ namespace RansomGuard.ViewModels
                 else if (RiskFilter == "HIGH") matchRisk = a.IsSuspicious;
 
                 return matchSearch && matchAction && matchPath && matchRisk;
-            }).ToList();
+            }).OrderByDescending(a => a.Timestamp).ToList();
 
             RecentActivities.Clear();
             foreach (var a in filtered) RecentActivities.Add(a);
@@ -275,7 +298,7 @@ namespace RansomGuard.ViewModels
             var buckets = new double[7];
             foreach (var a in _allRecentActivities)
             {
-                int idx = Math.Min((int)(a.Entropy), 6);
+                int idx = Math.Min((int)a.Entropy, 6);
                 buckets[idx]++;
             }
             
@@ -285,7 +308,7 @@ namespace RansomGuard.ViewModels
                 for (int i = 0; i < 7; i++)
                 {
                     // Scale to 20 to 100 height for UI
-                    EntropyDistribution[i] = 20 + (buckets[i] / max) * 75;
+                    EntropyDistribution[i] = 20 + buckets[i] / max * 75;
                 }
             }
 
@@ -310,7 +333,7 @@ namespace RansomGuard.ViewModels
         private void TogglePause() => IsPaused = !IsPaused;
 
         [RelayCommand]
-        private void ExportCsv()
+        private static void ExportCsv()
         {
             // Implementation...
         }
@@ -333,7 +356,7 @@ namespace RansomGuard.ViewModels
 
         private static List<PathFilterOption> BuildPathFilterOptions(IEnumerable<string>? paths)
         {
-            var options = new List<PathFilterOption> { PathFilterOption.AllVolumes };
+            List<PathFilterOption> options = [PathFilterOption.AllVolumes];
             var seenPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
             if (paths == null)
@@ -395,7 +418,7 @@ namespace RansomGuard.ViewModels
             return string.Equals(NormalizePath(left), NormalizePath(right), StringComparison.OrdinalIgnoreCase);
         }
 
-        private static IReadOnlyDictionary<string, string> CreateKnownFolderNames()
+        private static Dictionary<string, string> CreateKnownFolderNames()
         {
             var folders = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
@@ -424,7 +447,7 @@ namespace RansomGuard.ViewModels
         }
 
         private static void AddKnownFolder(
-            IDictionary<string, string> folders,
+            Dictionary<string, string> folders,
             Environment.SpecialFolder specialFolder,
             string displayName)
         {
@@ -440,11 +463,15 @@ namespace RansomGuard.ViewModels
             if (_disposed) return;
             _disposed = true;
 
-            // Stop and dispose buffer timer
+            // Stop and dispose buffer timer using stored handler for correct unsubscription
             if (_bufferTimer != null)
             {
                 _bufferTimer.Stop();
-                _bufferTimer.Tick -= (s, e) => ProcessBuffer();
+                if (_bufferTimerHandler != null)
+                {
+                    _bufferTimer.Tick -= _bufferTimerHandler;
+                    _bufferTimerHandler = null;
+                }
                 _bufferTimer = null;
             }
 
@@ -452,7 +479,14 @@ namespace RansomGuard.ViewModels
             {
                 _monitorService.FileActivityDetected -= OnFileActivityDetected;
                 _monitorService.ConnectionStatusChanged -= OnConnectionStatusChanged;
+                if (_telemetryUpdatedHandler != null)
+                {
+                    _monitorService.TelemetryUpdated -= _telemetryUpdatedHandler;
+                    _telemetryUpdatedHandler = null;
+                }
             }
+
+            GC.SuppressFinalize(this);
         }
     }
 
@@ -463,20 +497,14 @@ namespace RansomGuard.ViewModels
         public double VolumeMb { get; set; }
     }
 
-    public class PathFilterOption
+    public class PathFilterOption(string displayName, string path, string? toolTip = null)
     {
-        public static PathFilterOption AllVolumes { get; } = new("ALL VOLUMES", string.Empty, "Show activity across all monitored drives and protected folders.");
+        public static PathFilterOption AllVolumes { get; } =
+            new PathFilterOption("ALL VOLUMES", string.Empty, "Show activity across all monitored drives and protected folders.");
 
-        public PathFilterOption(string displayName, string path, string? toolTip = null)
-        {
-            DisplayName = displayName;
-            Path = path;
-            ToolTip = toolTip ?? (string.IsNullOrWhiteSpace(path) ? displayName : path);
-        }
-
-        public string DisplayName { get; }
-        public string Path { get; }
-        public string ToolTip { get; }
+        public string DisplayName { get; } = displayName;
+        public string Path { get; } = path;
+        public string ToolTip { get; } = toolTip ?? (string.IsNullOrWhiteSpace(path) ? displayName : path);
         public bool IsAllVolumes => string.IsNullOrWhiteSpace(Path);
     }
 }

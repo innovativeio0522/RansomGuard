@@ -9,6 +9,7 @@ namespace RansomGuard.Views
     public partial class ShieldAlertWindow : Window
     {
         public bool Result { get; private set; }
+        public bool TimedOut { get; private set; }
         private readonly DispatcherTimer _timer;
         private int _secondsRemaining = 5;
         private const int TickFrequencyMs = 100;
@@ -49,8 +50,7 @@ namespace RansomGuard.Views
             if (_totalTicks <= 0)
             {
                 _timer.Stop();
-                Result = true; // Auto-mitigate on timeout
-                this.DialogResult = true;
+                TimedOut = true;
                 this.Close();
             }
         }

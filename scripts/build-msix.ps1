@@ -5,10 +5,12 @@ param (
 )
 
 if ($CleanData) {
-    $dataDir = "$env:ProgramData\RansomGuard"
-    if (Test-Path $dataDir) {
-        Write-Host "Cleaning application data at $dataDir..." -ForegroundColor Yellow
-        Remove-Item -Path $dataDir -Recurse -Force
+    foreach ($dirName in @("RansomGuard", "RGCoreEssentials")) {
+        $dataDir = "$env:ProgramData\$dirName"
+        if (Test-Path $dataDir) {
+            Write-Host "Cleaning application data at $dataDir..." -ForegroundColor Yellow
+            Remove-Item -Path $dataDir -Recurse -Force
+        }
     }
 }
 
@@ -26,9 +28,11 @@ Stop-Process -Name "RGUI" -Force -ErrorAction SilentlyContinue
 Stop-Process -Name "RGWorker" -Force -ErrorAction SilentlyContinue
 
 Write-Host "Cleaning stale configuration and database..." -ForegroundColor Yellow
-$dataDir = "$env:ProgramData\RansomGuard"
-if (Test-Path $dataDir) {
-    Remove-Item -Path $dataDir -Recurse -Force -ErrorAction SilentlyContinue
+foreach ($dirName in @("RansomGuard", "RGCoreEssentials")) {
+    $dataDir = "$env:ProgramData\$dirName"
+    if (Test-Path $dataDir) {
+        Remove-Item -Path $dataDir -Recurse -Force -ErrorAction SilentlyContinue
+    }
 }
 
 # 1. Publish Watchdog Project
@@ -55,7 +59,8 @@ Write-Host "Syncing Watchdog into Service folder..." -ForegroundColor Yellow
 Copy-Item -Path "$watchdogPublishDir\*" -Destination $servicePublishDir -Force
 
 Write-Host "Building MSIX Package ($Configuration|$Platform)..." -ForegroundColor Cyan
-msbuild RansomGuard.Package\RansomGuard.Package.wapproj /p:Configuration=$Configuration /p:Platform=$Platform /p:AppxBundle=Always /p:AppxBundlePlatforms="$Platform" /p:UapAppxPackageBuildMode=StoreUpload /restore
+$certPassword = if ($env:RANSOMGUARD_CERT_PASSWORD) { $env:RANSOMGUARD_CERT_PASSWORD } else { "RansomGuardDev123!" }
+msbuild RansomGuard.Package\RansomGuard.Package.wapproj /p:Configuration=$Configuration /p:Platform=$Platform /p:AppxBundle=Always /p:AppxBundlePlatforms="$Platform" /p:UapAppxPackageBuildMode=StoreUpload /p:PackageCertificatePassword=$certPassword /restore
 
 if ($LASTEXITCODE -eq 0) {
     Write-Host "`nSuccessfully built the MSIX package!" -ForegroundColor Green

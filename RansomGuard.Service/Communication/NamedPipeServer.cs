@@ -13,6 +13,8 @@ using RansomGuard.Core.Interfaces;
 using RansomGuard.Core.Models;
 using RansomGuard.Core.Helpers;
 using RansomGuard.Core.Configuration;
+using RansomGuard.Core.Constants;
+using System.Text;
 using RansomGuard.Service.Engine;
 
 namespace RansomGuard.Service.Communication
@@ -32,6 +34,7 @@ namespace RansomGuard.Service.Communication
             public Task ProcessorTask { get; set; } = Task.CompletedTask;
             public bool IsHandshaked { get; set; }
             public DateTime LastHeartbeat { get; set; } = DateTime.Now;
+            public DateTime LastRequestTime { get; set; } = DateTime.MinValue;
 
             public ClientContext(StreamWriter writer)
             {
@@ -40,12 +43,14 @@ namespace RansomGuard.Service.Communication
         }
 
         private readonly ConcurrentDictionary<Guid, ClientContext> _clients = new();
+        private readonly object _clientsLock = new();
+        private const int MaxClients = 10; // Match the pipe's maxNumberOfServerInstances
 
-        public NamedPipeServer(ISystemMonitorService monitorService, ITelemetryService telemetryService, string pipeName = "SentinelGuardPipeV2")
+        public NamedPipeServer(ISystemMonitorService monitorService, ITelemetryService telemetryService, string? pipeName = null)
         {
             _monitorService = monitorService;
             _telemetryService = telemetryService;
-            _pipeName = pipeName;
+            _pipeName = pipeName ?? AppIdentifiers.PipeName;
         }
 
         public void Start()
@@ -96,14 +101,21 @@ namespace RansomGuard.Service.Communication
             while (!token.IsCancellationRequested)
             {
                 var now = DateTime.Now;
-                foreach (var client in _clients.Values)
+                // Snapshot the keys first — avoids enumerating while HandleClient may be adding/removing
+                var clientIds = _clients.Keys.ToArray();
+                foreach (var id in clientIds)
                 {
+                    if (!_clients.TryGetValue(id, out var client)) continue;
+
                     if ((now - client.LastHeartbeat).TotalSeconds > AppConstants.Ipc.ClientHeartbeatTimeoutSeconds)
                     {
                         System.Diagnostics.Debug.WriteLine($"[IPC] Client {client.Id} timed out. Removing.");
-                        client.MessageQueue.CompleteAdding();
+                        // Mark queue as complete first so ProcessOutgoingMessages exits cleanly
+                        if (!client.MessageQueue.IsAddingCompleted)
+                            client.MessageQueue.CompleteAdding();
                         try { client.Writer.Dispose(); } catch { }
-                        _clients.TryRemove(client.Id, out _);
+                        // Only remove if HandleClient hasn't already removed it
+                        _clients.TryRemove(id, out _);
                     }
                 }
                 await Task.Delay(AppConstants.Timers.HeartbeatMonitorMs, token).ConfigureAwait(false);
@@ -154,16 +166,16 @@ namespace RansomGuard.Service.Communication
                 NamedPipeServerStream? clientPipe = null;
                 try
                 {
-                    FileLogger.Log("ipc.log", $"[IPC Server] Creating pipe: {_pipeName}");
+                    FileLogger.Log(AppIdentifiers.IpcLogFile, $"[IPC Server] Creating pipe: {_pipeName}");
                     var pipeSecurity = CreatePipeSecurity();
                     
                     pipeServer = NamedPipeServerStreamAcl.Create(_pipeName, PipeDirection.InOut, 10, PipeTransmissionMode.Byte, PipeOptions.Asynchronous, 4096, 4096, pipeSecurity);
                     
-                    FileLogger.Log("ipc.log", "[IPC Server] Pipe created with restricted authenticated-user access");
+                    FileLogger.Log(AppIdentifiers.IpcLogFile, "[IPC Server] Pipe created with restricted authenticated-user access");
 
-                    FileLogger.Log("ipc.log", "[IPC Server] Waiting for connection...");
+                    FileLogger.Log(AppIdentifiers.IpcLogFile, "[IPC Server] Waiting for connection...");
                     await pipeServer.WaitForConnectionAsync(token).ConfigureAwait(false);
-                    FileLogger.Log("ipc.log", "[IPC Server] Client connected!");
+                    FileLogger.Log(AppIdentifiers.IpcLogFile, "[IPC Server] Client connected!");
                     
                     // Transfer ownership to clientPipe
                     clientPipe = pipeServer;
@@ -178,19 +190,25 @@ namespace RansomGuard.Service.Communication
                         {
                             // In .NET 8, we can get the client PID from the PipeSecurity or via impersonation
                             // For now, let's just log that a new connection is established
-                            FileLogger.Log("ipc_connections.log", $"[NamedPipeServer] New connection established. Active clients: {_clients.Count}");
+                            FileLogger.Log(AppIdentifiers.IpcConnectionsLogFile, $"[NamedPipeServer] New connection established. Active clients: {_clients.Count}");
                         }
                         catch { }
                         try { await HandleClient(capturedPipe, token).ConfigureAwait(false); }
                         catch (Exception ex) { 
-                            FileLogger.LogError("ipc.log", "[IPC Server] HandleClient error", ex);
+                            FileLogger.LogError(AppIdentifiers.IpcLogFile, "[IPC Server] HandleClient error", ex);
                         }
                         finally { capturedPipe.Dispose(); }
-                    }, token);
+                    }, token).ContinueWith(task =>
+                    {
+                        if (task.IsFaulted && task.Exception != null)
+                        {
+                            FileLogger.LogError(AppIdentifiers.IpcLogFile, "[IPC Server] Client handler task failed", task.Exception);
+                        }
+                    }, TaskScheduler.Default);
                 }
                 catch (Exception ex) 
                 { 
-                    FileLogger.LogError("ipc.log", "[IPC Server] EXCEPTION in ListenLoop", ex);
+                    FileLogger.LogError(AppIdentifiers.IpcLogFile, "[IPC Server] EXCEPTION in ListenLoop", ex);
                     
                     // Cleanup: dispose whichever pipe still has ownership
                     pipeServer?.Dispose();
@@ -207,30 +225,57 @@ namespace RansomGuard.Service.Communication
             using var writer = new StreamWriter(pipe) { AutoFlush = true };
 
             var context = new ClientContext(writer);
-            context.ProcessorTask = Task.Run(() => ProcessOutgoingMessages(context, token));
-            _clients[context.Id] = context;
+            context.ProcessorTask = Task.Run(() => ProcessOutgoingMessagesAsync(context, token), token);
 
-            FileLogger.Log("ipc.log", $"[IPC Server] Client connected. ID: {context.Id}");
+            lock (_clientsLock)
+            {
+                if (_clients.Count >= MaxClients)
+                {
+                    FileLogger.LogWarning(AppIdentifiers.IpcLogFile, $"[IPC Server] Max client limit ({MaxClients}) reached. Rejecting new connection.");
+                    return;
+                }
+
+                _clients[context.Id] = context;
+            }
+
+            FileLogger.Log(AppIdentifiers.IpcLogFile, $"[IPC Server] Client connected. ID: {context.Id}. Active clients: {_clients.Count}");
 
             try
             {
                 while (pipe.IsConnected && !token.IsCancellationRequested)
                 {
-                    var line = await reader.ReadLineAsync(token).ConfigureAwait(false);
+                    var line = await ReadLimitedLineAsync(reader, AppConstants.Ipc.MaxIpcPayloadSizeBytes + 1024, token).ConfigureAwait(false);
                     if (line == null) 
                     {
-                        FileLogger.Log("ipc.log", $"[IPC Server] Client {context.Id} disconnected (EOF).");
+                        FileLogger.Log(AppIdentifiers.IpcLogFile, $"[IPC Server] Client {context.Id} disconnected (EOF).");
                         break;
                     }
 
-                    FileLogger.Log("ipc.log", $"[IPC Server] Received from {context.Id}: {line.Substring(0, Math.Min(line.Length, 100))}");
+                    // SECURITY: Validate payload size
+                    if (line.Length > AppConstants.Ipc.MaxIpcPayloadSizeBytes)
+                    {
+                        FileLogger.LogWarning(AppIdentifiers.IpcLogFile, $"[IPC Server] Rejecting oversized payload ({line.Length} bytes) from client {context.Id}");
+                        EnqueueMessage(context, MessageType.Acknowledge, "ERROR: PAYLOAD_TOO_LARGE");
+                        continue;
+                    }
+
+                    // SECURITY: Implement basic request throttling
+                    var now = DateTime.Now;
+                    if ((now - context.LastRequestTime).TotalMilliseconds < AppConstants.Ipc.IpcRequestThrottleMs)
+                    {
+                        // Too many requests — silent ignore or error? Let's ignore for now to avoid filling pipe
+                        continue;
+                    }
+                    context.LastRequestTime = now;
+
+                    FileLogger.Log(AppIdentifiers.IpcLogFile, $"[IPC Server] Received from {context.Id}: {line.Substring(0, Math.Min(line.Length, 100))}");
 
                     try
                     {
                         var packet = JsonSerializer.Deserialize<IpcPacket>(line);
                         if (packet == null) 
                         {
-                            FileLogger.LogWarning("ipc.log", $"[IPC Server] Failed to deserialize packet from client {context.Id}");
+                            FileLogger.LogWarning(AppIdentifiers.IpcLogFile, $"[IPC Server] Failed to deserialize packet from client {context.Id}");
                             continue;
                         }
 
@@ -238,18 +283,27 @@ namespace RansomGuard.Service.Communication
 
                         if (packet.Type == MessageType.HandshakeRequest)
                         {
-                            FileLogger.Log("ipc.log", $"[IPC Server] Handshake received from client {context.Id}");
+                            FileLogger.Log(AppIdentifiers.IpcLogFile, $"[IPC Server] Handshake received from client {context.Id}");
                             context.IsHandshaked = true;
                             EnqueueMessage(context, MessageType.HandshakeResponse, "READY");
                             
                             // Send Snapshots AFTER handshake
-                            foreach (var activity in _monitorService.GetRecentFileActivities())
-                                EnqueueMessage(context, MessageType.FileActivitySnapshot, activity);
+                            try
+                            {
+                                foreach (var activity in _monitorService.GetRecentFileActivities() ?? Enumerable.Empty<FileActivity>())
+                                    EnqueueMessage(context, MessageType.FileActivitySnapshot, activity);
 
-                            foreach (var threat in _monitorService.GetRecentThreats())
-                                EnqueueMessage(context, MessageType.ThreatDetectedSnapshot, threat);
+                                foreach (var threat in _monitorService.GetRecentThreats() ?? Enumerable.Empty<Threat>())
+                                    EnqueueMessage(context, MessageType.ThreatDetectedSnapshot, threat);
 
-                            EnqueueMessage(context, MessageType.TelemetryUpdate, _monitorService.GetTelemetry());
+                                var telemetryData = _monitorService.GetTelemetry();
+                                if (telemetryData != null)
+                                    EnqueueMessage(context, MessageType.TelemetryUpdate, telemetryData);
+                            }
+                            catch (Exception ex)
+                            {
+                                FileLogger.LogError(AppIdentifiers.IpcLogFile, $"[IPC Server] Failed to send initial snapshots to client {context.Id}", ex);
+                            }
                         }
                         else if (packet.Type == MessageType.Heartbeat)
                         {
@@ -257,191 +311,224 @@ namespace RansomGuard.Service.Communication
                         }
                         else if (packet.Type == MessageType.CommandRequest)
                         {
-                            var request = JsonSerializer.Deserialize<CommandRequest>(packet.Payload);
-                            // ACK the command immediately
-                            EnqueueMessage(context, MessageType.Acknowledge, packet.SequenceId);
-                            await HandleCommand(request, writer).ConfigureAwait(false);
+                            try
+                            {
+                                var request = JsonSerializer.Deserialize<CommandRequest>(packet.Payload);
+                                if (request != null)
+                                {
+                                    FileLogger.Log(AppIdentifiers.IpcLogFile, $"[IPC Server] Command received from client {context.Id}: {request.Command}");
+                                    // ACK the command immediately
+                                    EnqueueMessage(context, MessageType.Acknowledge, packet.SequenceId);
+                                    _ = HandleCommandAsync(context, request);
+                                }
+                            }
+                            catch (Exception ex)
+                            {
+                                FileLogger.LogError(AppIdentifiers.IpcLogFile, $"[IPC Server] Failed to process command from client {context.Id}", ex);
+                            }
                         }
                     }
                     catch (JsonException ex)
                     {
-                        FileLogger.LogError("ipc.log", $"[IPC Server] JSON deserialization error from client {context.Id}", ex);
+                        FileLogger.LogError(AppIdentifiers.IpcLogFile, $"[IPC Server] JSON deserialization error from client {context.Id}", ex);
                     }
                     catch (Exception ex)
                     {
-                        FileLogger.LogError("ipc.log", $"[IPC Server] Packet processing error from client {context.Id}", ex);
+                        FileLogger.LogError(AppIdentifiers.IpcLogFile, $"[IPC Server] Packet processing error from client {context.Id}", ex);
                     }
                 }
             }
             catch (IOException ex)
             {
-                FileLogger.LogError("ipc.log", $"[IPC Server] IO error with client {context.Id}", ex);
+                FileLogger.LogError(AppIdentifiers.IpcLogFile, $"[IPC Server] IO error with client {context.Id}", ex);
             }
             catch (OperationCanceledException)
             {
-                FileLogger.Log("ipc.log", $"[IPC Server] Client {context.Id} operation cancelled");
+                FileLogger.Log(AppIdentifiers.IpcLogFile, $"[IPC Server] Client {context.Id} operation cancelled");
             }
             catch (Exception ex)
             {
-                FileLogger.LogError("ipc.log", $"[IPC Server] Unexpected error with client {context.Id}", ex);
+                FileLogger.LogError(AppIdentifiers.IpcLogFile, $"[IPC Server] Unexpected error with client {context.Id}", ex);
             }
             finally
             {
                 context.MessageQueue.CompleteAdding();
                 _clients.TryRemove(context.Id, out _);
-                FileLogger.Log("ipc.log", $"[IPC Server] Client {context.Id} disconnected and cleaned up");
+                FileLogger.Log(AppIdentifiers.IpcLogFile, $"[IPC Server] Client {context.Id} disconnected and cleaned up");
             }
         }
 
-        private void ProcessOutgoingMessages(ClientContext context, CancellationToken token)
+        private async Task ProcessOutgoingMessagesAsync(ClientContext context, CancellationToken token)
         {
             try
             {
-                foreach (var message in context.MessageQueue.GetConsumingEnumerable(token))
+                while (!token.IsCancellationRequested && !context.MessageQueue.IsCompleted)
                 {
-                    try
+                    if (context.MessageQueue.TryTake(out string? message, 100, token))
                     {
-                        context.Writer.WriteLine(message);
-                    }
-                    catch (Exception ex)
-                    {
-                        FileLogger.LogWarning("ipc.log", $"[IPC Server] Write error for client {context.Id}. Disconnecting. {ex.Message}");
-                        try { context.Writer.Dispose(); } catch { }
-                        break;
+                        if (!await TryWriteWithRetryAsync(context, message, maxRetries: 3).ConfigureAwait(false))
+                        {
+                            FileLogger.LogWarning(AppIdentifiers.IpcLogFile, $"[IPC Server] Failed to write message to client {context.Id} after retries. Disconnecting.");
+                            try { context.Writer.Dispose(); } catch { }
+                            break;
+                        }
                     }
                 }
             }
-            catch { }
+            catch (OperationCanceledException) { }
+            catch (Exception ex)
+            {
+                FileLogger.LogError(AppIdentifiers.IpcLogFile, $"[IPC Server] Error in message processing for client {context.Id}", ex);
+            }
         }
 
-        private async Task HandleCommand(CommandRequest? request, StreamWriter writer)
+        /// <summary>
+        /// Attempts to write a message to the client with retry logic.
+        /// </summary>
+        private async Task<bool> TryWriteWithRetryAsync(ClientContext context, string message, int maxRetries = 3)
         {
-            if (request == null) 
+            var sw = System.Diagnostics.Stopwatch.StartNew();
+            bool succeeded = false;
+
+            for (int attempt = 0; attempt < maxRetries; attempt++)
             {
-                FileLogger.LogWarning("ipc.log", "[IPC Server] HandleCommand received null request");
-                return;
+                try
+                {
+                    await context.Writer.WriteLineAsync(message).ConfigureAwait(false);
+                    await context.Writer.FlushAsync().ConfigureAwait(false);
+                    succeeded = true;
+                    break;
+                }
+                catch (IOException ex) when (attempt < maxRetries - 1)
+                {
+                    int delayMs = 100 * (int)Math.Pow(2, attempt);
+                    FileLogger.LogWarning(AppIdentifiers.IpcLogFile, $"[IPC Server] Write attempt {attempt + 1} failed for client {context.Id}: {ex.Message}. Retrying in {delayMs}ms...");
+                    await Task.Delay(delayMs).ConfigureAwait(false);
+                }
+                catch (ObjectDisposedException)
+                {
+                    FileLogger.LogWarning(AppIdentifiers.IpcLogFile, $"[IPC Server] Writer disposed for client {context.Id}. Cannot retry.");
+                    break;
+                }
+                catch (Exception ex)
+                {
+                    FileLogger.LogError(AppIdentifiers.IpcLogFile, $"[IPC Server] Unexpected write error for client {context.Id}", ex);
+                    break;
+                }
             }
 
-            // Validate arguments for commands that require them
+            sw.Stop();
+            RansomGuard.Core.Services.PerformanceMonitor.Instance.RecordIpcWrite(sw.Elapsed.TotalMilliseconds, succeeded);
+
+            if (!succeeded)
+                FileLogger.LogError(AppIdentifiers.IpcLogFile, $"[IPC Server] All {maxRetries} write attempts failed for client {context.Id}");
+
+            return succeeded;
+        }
+
+        /// <summary>
+        /// Validates a command request for security and correctness.
+        /// </summary>
+        private bool ValidateCommandRequest(CommandRequest request)
+        {
+            // Check if command requires arguments
             bool requiresArguments = request.Command != CommandType.UpdatePaths && 
                                     request.Command != CommandType.ClearSafeFiles;
             
             if (requiresArguments && string.IsNullOrWhiteSpace(request.Arguments))
             {
-                FileLogger.LogWarning("ipc.log", $"[IPC Server] Command {request.Command} requires arguments but none provided");
-                return;
+                FileLogger.LogWarning(AppIdentifiers.IpcLogFile, $"[IPC Server] Command {request.Command} requires arguments but none provided");
+                return false;
             }
+
+            // Validate file path arguments
+            if (request.Command == CommandType.QuarantineFile || 
+                request.Command == CommandType.RestoreFile || 
+                request.Command == CommandType.DeleteFile)
+            {
+                if (!ValidateFilePath(request.Arguments))
+                {
+                    FileLogger.LogWarning(AppIdentifiers.IpcLogFile, $"[IPC Server] Invalid file path for {request.Command}: {request.Arguments}");
+                    return false;
+                }
+            }
+
+            // Validate process ID for KillProcess
+            if (request.Command == CommandType.KillProcess)
+            {
+                if (!int.TryParse(request.Arguments, out int pid) || pid <= 0)
+                {
+                    FileLogger.LogWarning(AppIdentifiers.IpcLogFile, $"[IPC Server] Invalid process ID: {request.Arguments}");
+                    return false;
+                }
+            }
+
+            // Validate process name for whitelist operations
+            if (request.Command == CommandType.WhitelistProcess || 
+                request.Command == CommandType.RemoveWhitelist)
+            {
+                if (string.IsNullOrWhiteSpace(request.Arguments) || 
+                    request.Arguments.Length > 260 || // MAX_PATH
+                    request.Arguments.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0)
+                {
+                    FileLogger.LogWarning(AppIdentifiers.IpcLogFile, $"[IPC Server] Invalid process name: {request.Arguments}");
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        /// <summary>
+        /// Validates a file path for security (prevents path traversal, validates format).
+        /// </summary>
+        private bool ValidateFilePath(string? path)
+        {
+            if (string.IsNullOrWhiteSpace(path))
+                return false;
 
             try
             {
-                switch (request.Command)
+                // Check if path is rooted (absolute)
+                if (!Path.IsPathRooted(path))
                 {
-                    case CommandType.KillProcess:
-                        if (int.TryParse(request.Arguments, out int pid))
-                        {
-                            await _monitorService.KillProcess(pid).ConfigureAwait(false);
-                            FileLogger.Log("ipc.log", $"[IPC Server] Killed process PID: {pid}");
-                        }
-                        else
-                        {
-                            FileLogger.LogWarning("ipc.log", $"[IPC Server] Invalid PID argument: {request.Arguments}");
-                        }
-                        break;
-
-                    case CommandType.QuarantineFile:
-                        if (!string.IsNullOrEmpty(request.Arguments))
-                        {
-                            await _monitorService.QuarantineFile(request.Arguments).ConfigureAwait(false);
-                            var updatedThreats = _monitorService.GetRecentThreats().Where(t => string.Equals(t.Path, request.Arguments, StringComparison.OrdinalIgnoreCase));
-                            foreach (var t in updatedThreats) ReliableBroadcast(MessageType.ThreatDetected, t);
-                            FileLogger.Log("ipc.log", $"[IPC Server] Quarantined file: {request.Arguments}");
-                        }
-                        break;
-
-                    case CommandType.UpdatePaths:
-                        _monitorService.InitializeWatchers();
-                        FileLogger.Log("ipc.log", "[IPC Server] Updated monitored paths");
-                        break;
-
-                    case CommandType.RestoreFile:
-                        if (!string.IsNullOrEmpty(request.Arguments))
-                        {
-                            await _monitorService.RestoreQuarantinedFile(request.Arguments).ConfigureAwait(false);
-                            FileLogger.Log("ipc.log", $"[IPC Server] Restored file: {request.Arguments}");
-                        }
-                        break;
-
-                    case CommandType.DeleteFile:
-                        if (!string.IsNullOrEmpty(request.Arguments))
-                        {
-                            await _monitorService.DeleteQuarantinedFile(request.Arguments).ConfigureAwait(false);
-                            FileLogger.Log("ipc.log", $"[IPC Server] Deleted quarantined file: {request.Arguments}");
-                        }
-                        break;
-
-                    case CommandType.ClearSafeFiles:
-                        await _monitorService.ClearSafeFiles().ConfigureAwait(false);
-                        FileLogger.Log("ipc.log", "[IPC Server] Cleared safe files");
-                        break;
-
-                    case CommandType.WhitelistProcess:
-                        if (!string.IsNullOrEmpty(request.Arguments))
-                        {
-                            await _monitorService.WhitelistProcess(request.Arguments).ConfigureAwait(false);
-                            FileLogger.Log("ipc.log", $"[IPC Server] Whitelisted process: {request.Arguments}");
-                        }
-                        break;
-
-                    case CommandType.RemoveWhitelist:
-                        if (!string.IsNullOrEmpty(request.Arguments))
-                        {
-                            await _monitorService.RemoveWhitelist(request.Arguments).ConfigureAwait(false);
-                            FileLogger.Log("ipc.log", $"[IPC Server] Removed whitelist: {request.Arguments}");
-                        }
-                        break;
-                    case CommandType.MitigateThreat:
-                        if (!string.IsNullOrEmpty(request.Arguments))
-                        {
-                            await _monitorService.MitigateThreat(request.Arguments).ConfigureAwait(false);
-                            FileLogger.Log("ipc.log", $"[IPC Server] Mitigated threat ID: {request.Arguments}");
-                        }
-                        break;
-                    
-                    case CommandType.HandleMassEncryption:
-                        if (!string.IsNullOrEmpty(request.Arguments))
-                        {
-                            try
-                            {
-                                var payload = System.Text.Json.JsonSerializer.Deserialize<MassEncryptionPayload>(request.Arguments);
-                                if (payload != null)
-                                {
-                                    await _monitorService.HandleMassEncryptionResponse(
-                                        payload.ProcessId, 
-                                        payload.ProcessName, 
-                                        payload.FilesToQuarantine).ConfigureAwait(false);
-                                    FileLogger.Log("ipc.log", $"[IPC Server] Handled mass encryption response for process: {payload.ProcessName} (PID: {payload.ProcessId})");
-                                }
-                            }
-                            catch (Exception ex)
-                            {
-                                FileLogger.LogError("ipc.log", "[IPC Server] Failed to deserialize mass encryption payload", ex);
-                            }
-                        }
-                        break;
-
-                    default:
-                        FileLogger.LogWarning("ipc.log", $"[IPC Server] Unknown command type: {request.Command}");
-                        break;
+                    FileLogger.LogWarning(AppIdentifiers.IpcLogFile, $"[IPC Server] Path is not rooted: {path}");
+                    return false;
                 }
+
+                // Get canonical path to prevent traversal attacks
+                string fullPath = Path.GetFullPath(path);
+                
+                // Ensure the canonical path matches the input (prevents ../ attacks)
+                if (!string.Equals(fullPath, path, StringComparison.OrdinalIgnoreCase))
+                {
+                    FileLogger.LogWarning(AppIdentifiers.IpcLogFile, $"[IPC Server] Path traversal detected: {path} -> {fullPath}");
+                    return false;
+                }
+
+                // Check path length
+                if (path.Length > 260) // MAX_PATH on Windows
+                {
+                    FileLogger.LogWarning(AppIdentifiers.IpcLogFile, $"[IPC Server] Path too long: {path.Length} characters");
+                    return false;
+                }
+
+                return true;
             }
             catch (Exception ex)
             {
-                FileLogger.LogError("ipc.log", $"[IPC Server] Error executing command {request.Command}", ex);
+                FileLogger.LogWarning(AppIdentifiers.IpcLogFile, $"[IPC Server] Path validation error: {ex.Message}");
+                return false;
             }
         }
 
+
+
         private class MassEncryptionPayload
         {
+            public string ThreatId { get; set; } = string.Empty;
+            public bool ShouldMitigate { get; set; }
+            public bool IsUserInitiated { get; set; }
             public int ProcessId { get; set; }
             public string ProcessName { get; set; } = string.Empty;
             public List<string> FilesToQuarantine { get; set; } = new();
@@ -454,32 +541,31 @@ namespace RansomGuard.Service.Communication
             var packet = new IpcPacket { Type = type, Payload = JsonSerializer.Serialize(data) };
             var json = JsonSerializer.Serialize(packet);
 
-            foreach (var ctx in _clients.Values)
+            // Snapshot values to avoid issues if a client disconnects mid-broadcast
+            foreach (var ctx in _clients.Values.ToArray())
             {
                 if (!ctx.IsHandshaked && type != MessageType.HandshakeResponse) continue;
 
                 if (!ctx.MessageQueue.IsAddingCompleted)
                 {
-                    // CRITICAL: If this is a threat, or if dropOldest is requested, 
-                    // and we are over the high water mark, make room by dropping the oldest message.
-                    if ((dropOldest || type == MessageType.ThreatDetected) && 
-                        ctx.MessageQueue.Count >= AppConstants.Ipc.MessageQueueHighWaterMark)
+                    lock (ctx.MessageQueue)
                     {
-                        // Drop oldest to avoid blocking the broadcast loop
-                        ctx.MessageQueue.TryTake(out _);
-                    }
-
-                    if (!ctx.MessageQueue.TryAdd(json))
-                    {
-                        // If it's a threat and we still failed to add (rare with the logic above), 
-                        // log a severe error.
-                        if (type == MessageType.ThreatDetected)
+                        if ((dropOldest || type == MessageType.ThreatDetected) && 
+                            ctx.MessageQueue.Count >= AppConstants.Ipc.MessageQueueHighWaterMark)
                         {
-                            FileLogger.LogError("ipc.log", $"[IPC Server] CRITICAL FAILURE: Could not enqueue THREAT ALERT to client {ctx.Id}.");
+                            ctx.MessageQueue.TryTake(out _);
                         }
-                        else
+
+                        if (!ctx.MessageQueue.TryAdd(json))
                         {
-                            FileLogger.LogWarning("ipc.log", $"[IPC Server] Failed to enqueue message of type {type} to client {ctx.Id}. Queue full.");
+                            if (type == MessageType.ThreatDetected)
+                            {
+                                FileLogger.LogError(AppIdentifiers.IpcLogFile, $"[IPC Server] CRITICAL FAILURE: Could not enqueue THREAT ALERT to client {ctx.Id}.");
+                            }
+                            else
+                            {
+                                FileLogger.LogWarning(AppIdentifiers.IpcLogFile, $"[IPC Server] Failed to enqueue message of type {type} to client {ctx.Id}. Queue full.");
+                            }
                         }
                     }
                 }
@@ -490,6 +576,158 @@ namespace RansomGuard.Service.Communication
         {
             var packet = new IpcPacket { Type = type, Payload = JsonSerializer.Serialize(data) };
             context.MessageQueue.TryAdd(JsonSerializer.Serialize(packet));
+        }
+
+        /// <summary>
+        /// Validates and dispatches a command from a connected client.
+        /// All commands go through ValidateCommandRequest() before execution.
+        /// </summary>
+        private async Task HandleCommandAsync(ClientContext context, CommandRequest request)
+        {
+            // SECURITY: Validate all command requests before execution
+            if (!ValidateCommandRequest(request))
+            {
+                FileLogger.LogWarning(AppIdentifiers.IpcLogFile, $"[IPC Server] Rejected invalid command from client {context.Id}: {request.Command}");
+                return;
+            }
+
+            try
+            {
+                switch (request.Command)
+                {
+                    case CommandType.KillProcess:
+                        if (int.TryParse(request.Arguments, out int pid))
+                        {
+                            await _monitorService.KillProcess(pid).ConfigureAwait(false);
+                            FileLogger.Log(AppIdentifiers.IpcLogFile, $"[IPC Server] Killed process PID: {pid}");
+                        }
+                        break;
+
+                    case CommandType.QuarantineFile:
+                        if (!string.IsNullOrEmpty(request.Arguments))
+                        {
+                            await _monitorService.QuarantineFile(request.Arguments).ConfigureAwait(false);
+                            var updatedThreats = _monitorService.GetRecentThreats()
+                                .Where(t => string.Equals(t.Path, request.Arguments, StringComparison.OrdinalIgnoreCase));
+                            foreach (var t in updatedThreats) ReliableBroadcast(MessageType.ThreatDetected, t);
+                            FileLogger.Log(AppIdentifiers.IpcLogFile, $"[IPC Server] Quarantined file: {request.Arguments}");
+                        }
+                        break;
+
+                    case CommandType.UpdatePaths:
+                        _monitorService.InitializeWatchers();
+                        FileLogger.Log(AppIdentifiers.IpcLogFile, "[IPC Server] Updated monitored paths");
+                        break;
+
+                    case CommandType.RestoreFile:
+                        if (!string.IsNullOrEmpty(request.Arguments))
+                        {
+                            await _monitorService.RestoreQuarantinedFile(request.Arguments).ConfigureAwait(false);
+                            FileLogger.Log(AppIdentifiers.IpcLogFile, $"[IPC Server] Restored file: {request.Arguments}");
+                        }
+                        break;
+
+                    case CommandType.DeleteFile:
+                        if (!string.IsNullOrEmpty(request.Arguments))
+                        {
+                            await _monitorService.DeleteQuarantinedFile(request.Arguments).ConfigureAwait(false);
+                            FileLogger.Log(AppIdentifiers.IpcLogFile, $"[IPC Server] Deleted quarantined file: {request.Arguments}");
+                        }
+                        break;
+
+                    case CommandType.ClearSafeFiles:
+                        await _monitorService.ClearSafeFiles().ConfigureAwait(false);
+                        FileLogger.Log(AppIdentifiers.IpcLogFile, "[IPC Server] Cleared safe files");
+                        break;
+
+                    case CommandType.WhitelistProcess:
+                        if (!string.IsNullOrEmpty(request.Arguments))
+                        {
+                            await _monitorService.WhitelistProcess(request.Arguments).ConfigureAwait(false);
+                            FileLogger.Log(AppIdentifiers.IpcLogFile, $"[IPC Server] Whitelisted process: {request.Arguments}");
+                        }
+                        break;
+
+                    case CommandType.RemoveWhitelist:
+                        if (!string.IsNullOrEmpty(request.Arguments))
+                        {
+                            await _monitorService.RemoveWhitelist(request.Arguments).ConfigureAwait(false);
+                            FileLogger.Log(AppIdentifiers.IpcLogFile, $"[IPC Server] Removed whitelist: {request.Arguments}");
+                        }
+                        break;
+
+                    case CommandType.MitigateThreat:
+                        if (!string.IsNullOrEmpty(request.Arguments))
+                        {
+                            await _monitorService.MitigateThreat(request.Arguments).ConfigureAwait(false);
+                            FileLogger.Log(AppIdentifiers.IpcLogFile, $"[IPC Server] Mitigated threat ID: {request.Arguments}");
+                        }
+                        break;
+
+                    case CommandType.HandleMassEncryption:
+                        if (!string.IsNullOrEmpty(request.Arguments))
+                        {
+                            try
+                            {
+                                var payload = JsonSerializer.Deserialize<MassEncryptionPayload>(request.Arguments);
+                                if (payload != null)
+                                {
+                                    await _monitorService.HandleMassEncryptionResponse(
+                                        payload.ThreatId,
+                                        payload.ShouldMitigate,
+                                        payload.IsUserInitiated,
+                                        payload.ProcessId,
+                                        payload.ProcessName,
+                                        payload.FilesToQuarantine).ConfigureAwait(false);
+                                    FileLogger.Log(AppIdentifiers.IpcLogFile, $"[IPC Server] Handled mass encryption response for process: {payload.ProcessName} (PID: {payload.ProcessId})");
+                                }
+                            }
+                            catch (Exception ex)
+                            {
+                                FileLogger.LogError(AppIdentifiers.IpcLogFile, "[IPC Server] Failed to deserialize mass encryption payload", ex);
+                            }
+                        }
+                        break;
+
+                    case CommandType.ClearHistory:
+                        await _monitorService.ClearActivityHistory().ConfigureAwait(false);
+                        FileLogger.Log(AppIdentifiers.IpcLogFile, "[IPC Server] Activity history cleared");
+                        break;
+
+                    default:
+                        FileLogger.LogWarning(AppIdentifiers.IpcLogFile, $"[IPC Server] Unknown command type: {request.Command}");
+                        break;
+                }
+            }
+            catch (Exception ex)
+            {
+                FileLogger.LogError(AppIdentifiers.IpcLogFile, $"[IPC Server] Error executing command {request.Command} from client {context.Id}", ex);
+            }
+        }
+
+        /// <summary>
+        /// Reads a line from the stream with a maximum length to prevent DoS via infinite line buffering.
+        /// </summary>
+        private async Task<string?> ReadLimitedLineAsync(StreamReader reader, int maxLength, CancellationToken token)
+        {
+            var sb = new StringBuilder();
+            var buffer = new char[1];
+            
+            while (sb.Length < maxLength)
+            {
+                int read = await reader.ReadAsync(buffer, 0, 1).ConfigureAwait(false);
+                if (read == 0) return sb.Length > 0 ? sb.ToString() : null;
+                
+                char c = buffer[0];
+                if (c == '\n') return sb.ToString().TrimEnd('\r');
+                
+                sb.Append(c);
+            }
+
+            FileLogger.LogWarning(AppIdentifiers.IpcLogFile, $"[IPC Server] Rejected line exceeding maximum length of {maxLength} characters.");
+            // Drain the rest of the line to keep the stream synchronized? 
+            // For IPC, it's safer to just disconnect the abusive client.
+            throw new InvalidOperationException($"Line length limit ({maxLength}) exceeded.");
         }
     }
 }

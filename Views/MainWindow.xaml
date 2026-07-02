@@ -223,7 +223,7 @@
         </Grid.Style>
         <Grid.ColumnDefinitions>
             <!-- Left Sidebar: collapsible -->
-            <ColumnDefinition x:Name="SidebarColumn" Width="180"/>
+            <ColumnDefinition x:Name="SidebarColumn" Width="240"/>
             <!-- Main Content Area -->
             <ColumnDefinition Width="*"/>
         </Grid.ColumnDefinitions>
@@ -268,16 +268,14 @@
                         <!-- Title text (hidden when collapsed) -->
                         <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="10,0,0,0"
                                     Visibility="{Binding IsSidebarCollapsed, Converter={StaticResource BooleanToVisibilityConverter}, ConverterParameter=Inverse}">
-                            <TextBlock Text="RESOURCE MONITOR" Foreground="{StaticResource PrimaryBrush}" 
-                                       FontWeight="Black" FontSize="13"/>
-                            <TextBlock Text="DIAGNOSTIC MODULE" Foreground="{StaticResource OnSurfaceVariantBrush}" 
-                                       FontSize="7" FontWeight="Bold" Opacity="0.5" Margin="0,2,0,0"/>
+                            <TextBlock Text="RG CORE ESSENTIALS" Foreground="{StaticResource PrimaryBrush}" 
+                                       FontWeight="Black" FontSize="12" VerticalAlignment="Center"/>
                         </StackPanel>
 
                         <!-- Toggle button (hidden when collapsed) -->
-                        <Button Grid.Column="2" Command="{Binding ToggleSidebarCommand}"
-                                Background="Transparent" BorderThickness="0" Cursor="Hand"
-                                Width="26" Height="26" Padding="0" VerticalAlignment="Center"
+                        <Button Grid.Column="2" Style="{StaticResource GhostIconButton}" 
+                                Command="{Binding ToggleSidebarCommand}"
+                                Width="26" Height="26" Padding="4" VerticalAlignment="Center"
                                 Visibility="{Binding IsSidebarCollapsed, Converter={StaticResource BooleanToVisibilityConverter}, ConverterParameter=Inverse}">
                             <Viewbox Width="13" Height="13">
                                 <Path Data="M3 18H21V16H3V18ZM3 13H21V11H3V13ZM3 6V8H21V6H3Z" Fill="{StaticResource OnSurfaceVariantBrush}"/>
@@ -285,9 +283,9 @@
                         </Button>
 
                         <!-- Expand button (visible only when collapsed, overlays icon column) -->
-                        <Button Grid.Column="0" Command="{Binding ToggleSidebarCommand}"
-                                Background="Transparent" BorderThickness="0" Cursor="Hand"
-                                Width="26" Height="26" Padding="0" VerticalAlignment="Bottom" Margin="0,0,0,4"
+                        <Button Grid.Column="0" Style="{StaticResource GhostIconButton}" 
+                                Command="{Binding ToggleSidebarCommand}"
+                                Width="26" Height="26" Padding="4" VerticalAlignment="Bottom" Margin="0,0,0,4"
                                 Visibility="{Binding IsSidebarCollapsed, Converter={StaticResource BooleanToVisibilityConverter}}">
                             <Viewbox Width="13" Height="13">
                                 <Path Data="M3 18H21V16H3V18ZM3 13H21V11H3V13ZM3 6V8H21V6H3Z" Fill="{StaticResource OnSurfaceVariantBrush}"/>

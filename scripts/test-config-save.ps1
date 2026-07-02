@@ -1,7 +1,7 @@
 #!/usr/bin/env pwsh
 # Test script to manually enable watchdog in config
 
-$configPath = "C:\ProgramData\RansomGuard\config.json"
+$configPath = "C:\ProgramData\RGCoreEssentials\config.json"
 
 Write-Host "Testing config save..." -ForegroundColor Cyan
 Write-Host ""

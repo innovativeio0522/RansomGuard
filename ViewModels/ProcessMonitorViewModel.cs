@@ -17,6 +17,7 @@ namespace RansomGuard.ViewModels
         private readonly ISystemMonitorService _monitorService;
         private readonly DispatcherTimer _refreshTimer;
         private readonly Action _processListUpdatedHandler;
+        private EventHandler? _refreshTimerHandler;
         private bool _disposed;
 
         private List<ProcessInfo> _allProcesses = new();
@@ -62,11 +63,12 @@ namespace RansomGuard.ViewModels
             LoadData();
 
             // Auto-refresh process list every 3 seconds
+            _refreshTimerHandler = (s, e) => LoadData();
             _refreshTimer = new DispatcherTimer
             {
                 Interval = TimeSpan.FromSeconds(AppConstants.Timers.ProcessMonitorRefreshSeconds)
             };
-            _refreshTimer.Tick += (s, e) => LoadData();
+            _refreshTimer.Tick += _refreshTimerHandler;
             _refreshTimer.Start();
 
             // Store handler reference for proper cleanup
@@ -354,6 +356,12 @@ namespace RansomGuard.ViewModels
             if (_disposed) return;
             _disposed = true;
             
+            // Unsubscribe timer tick using stored handler reference to prevent delegate leak
+            if (_refreshTimerHandler != null)
+            {
+                _refreshTimer.Tick -= _refreshTimerHandler;
+                _refreshTimerHandler = null;
+            }
             _refreshTimer.Stop();
             
             // Unsubscribe from event to prevent memory leak

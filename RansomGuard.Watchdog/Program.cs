@@ -1,11 +1,13 @@
 using System;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
 using System.ServiceProcess;
 using System.Text.Json;
 using System.Threading;
+using System.Threading.Tasks;
 using RansomGuard.Core.Helpers;
 
 namespace RansomGuard.Watchdog
@@ -20,12 +22,16 @@ namespace RansomGuard.Watchdog
         private static partial bool ShowWindow(IntPtr hWnd, int nCmdShow);
 
         const int SW_HIDE = 0;
-        const string ServiceName = "RGService";
+        private const string ServiceName = RansomGuard.Core.Constants.AppIdentifiers.ServiceName;
         private static readonly string ConfigPath = Path.Combine(
             PathConfiguration.GetConfigDirectory(),
-            "config.json");
+            RansomGuard.Core.Constants.AppIdentifiers.ConfigFileName);
 
-        static void Main(string[] args)
+        private static int _serviceFailureCount = 0;
+        private static int _uiFailureCount = 0;
+        private const int MaxBackoffMinutes = 30;
+
+        static async Task Main(string[] args)
         {
             // Stealth mode: Hide the console window
             var handle = GetConsoleWindow();
@@ -36,7 +42,34 @@ namespace RansomGuard.Watchdog
             LogToFile($"Base directory: {AppDomain.CurrentDomain.BaseDirectory}");
             LogToFile($"Config path: {ConfigPath}");
 
-            while (true)
+            // Create cancellation token for graceful shutdown
+            using var cts = new CancellationTokenSource();
+            
+            // Handle Ctrl+C for graceful shutdown
+            Console.CancelKeyPress += (s, e) =>
+            {
+                e.Cancel = true;
+                cts.Cancel();
+            };
+
+            try
+            {
+                await RunWatchdogLoopAsync(cts.Token);
+            }
+            catch (OperationCanceledException)
+            {
+                LogToFile("[Watchdog] Shutdown requested");
+            }
+            catch (Exception ex)
+            {
+                LogToFile($"[Watchdog] Fatal error: {ex.Message}");
+                LogToFile($"[Watchdog] Stack trace: {ex.StackTrace}");
+            }
+        }
+
+        static async Task RunWatchdogLoopAsync(CancellationToken cancellationToken)
+        {
+            while (!cancellationToken.IsCancellationRequested)
             {
                 try
                 {
@@ -49,9 +82,9 @@ namespace RansomGuard.Watchdog
                     }
 
 #pragma warning disable CA1416 // Validate platform compatibility - RansomGuard is Windows-only
-                    CheckServiceStatus();
+                    await CheckServiceStatusWithBackoffAsync(cancellationToken);
 #pragma warning restore CA1416
-                    CheckUIStatus();
+                    await CheckUIStatusWithBackoffAsync(cancellationToken);
                 }
                 catch (Exception ex)
                 {
@@ -59,183 +92,190 @@ namespace RansomGuard.Watchdog
                     LogToFile($"[Watchdog] Stack trace: {ex.StackTrace}");
                 }
 
-                Thread.Sleep(5000); // Check every 5 seconds
-            }
-        }
-
-        static void LogToFile(string message)
-        {
-            try
-            {
-                string logDir = Path.Combine(PathConfiguration.GetConfigDirectory(), "Logs");
-                if (!Directory.Exists(logDir)) Directory.CreateDirectory(logDir);
-                string logPath = Path.Combine(logDir, "watchdog.log");
-                File.AppendAllText(logPath, $"{DateTime.Now}: {message}\n");
-            }
-            catch { }
-            Debug.WriteLine(message);
-        }
-
-        /// <summary>
-        /// Reads WatchdogEnabled from config.json. Defaults to true if file is missing or unreadable.
-        /// </summary>
-        static bool IsWatchdogEnabled()
-        {
-            try
-            {
-                if (!File.Exists(ConfigPath)) return true;
-                string json = File.ReadAllText(ConfigPath);
-                using var doc = JsonDocument.Parse(json);
-                if (doc.RootElement.TryGetProperty("WatchdogEnabled", out var prop))
-                    return prop.GetBoolean();
-                return true; // Default: enabled
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"[Watchdog] IsWatchdogEnabled failed: {ex.Message}");
-                return true;
-            }
-        }
-
-        static void CheckUIStatus()
-        {
-            var processes = Process.GetProcessesByName("RGUI");
-            if (processes.Length == 0)
-            {
-                try
-                {
-                    string appDir = AppDomain.CurrentDomain.BaseDirectory;
-                    string appPath = Path.Combine(appDir, "RGUI.exe");
-
-                    LogToFile($"[Watchdog] UI not running. Searching for RGUI.exe in: {appDir}");
-
-                    // Fallback to subfolder
-                    if (!File.Exists(appPath))
-                    {
-                        string subPath = Path.Combine(appDir, "RansomGuard", "RGUI.exe");
-                        LogToFile($"[Watchdog] Checking subfolder: {subPath}");
-                        if (File.Exists(subPath)) appPath = subPath;
-                    }
-
-                    // Fallback to parent folder
-                    if (!File.Exists(appPath))
-                    {
-                        string? parentDir = Path.GetDirectoryName(appDir.TrimEnd(Path.DirectorySeparatorChar));
-                        if (parentDir != null)
-                        {
-                            string parentPath = Path.Combine(parentDir, "RGUI.exe");
-                            LogToFile($"[Watchdog] Checking parent folder: {parentPath}");
-                            if (File.Exists(parentPath)) appPath = parentPath;
-                        }
-                    }
-
-                    // Development fallback paths
-                    if (!File.Exists(appPath))
-                    {
-                        string[] devPaths = new[]
-                        {
-                            Path.GetFullPath(Path.Combine(appDir, @"..\..\..\RansomGuard\Debug\net8.0-windows\RGUI.exe")),
-                            Path.GetFullPath(Path.Combine(appDir, @"..\..\..\RansomGuard\Release\net8.0-windows\RGUI.exe")),
-                            Path.GetFullPath(Path.Combine(appDir, @"..\..\..\..\bin\Debug\net8.0-windows\RGUI.exe")),
-                            Path.GetFullPath(Path.Combine(appDir, @"..\..\..\bin\Debug\net8.0-windows\RGUI.exe")),
-                            Path.GetFullPath(Path.Combine(appDir, @"..\..\bin\Debug\net8.0-windows\RGUI.exe")),
-                            Path.GetFullPath(Path.Combine(appDir, @"..\..\..\..\bin\Release\net8.0-windows\RGUI.exe")),
-                            Path.GetFullPath(Path.Combine(appDir, @"..\..\..\bin\Release\net8.0-windows\RGUI.exe"))
-                        };
-
-                        foreach (var devPath in devPaths)
-                        {
-                            if (File.Exists(devPath))
-                            {
-                                appPath = devPath;
-                                LogToFile($"[Watchdog] Found UI at development path: {appPath}");
-                                break;
-                            }
-                        }
-                    }
-                    else
-                    {
-                        LogToFile($"[Watchdog] Found UI at production path: {appPath}");
-                    }
-
-                    if (File.Exists(appPath))
-                    {
-                        LogToFile($"[Watchdog] UI not running. Found at: {appPath}");
-                        
-                        // Try launching via Execution Alias first (more robust for MSIX)
-                        // Using 'cmd /c start' can sometimes help bypass integrity level issues
-                        try 
-                        {
-                            LogToFile("[Watchdog] Attempting restart via Alias: RGUI.exe");
-                            ProcessStartInfo psiAlias = new("cmd.exe", "/c start RGUI.exe --startup")
-                            {
-                                CreateNoWindow = true,
-                                UseShellExecute = true
-                            };
-                            Process.Start(psiAlias);
-                            LogToFile("[Watchdog] Alias launch command sent.");
-                            
-                            // Give it a moment to start
-                            Thread.Sleep(2000);
-                            if (Process.GetProcessesByName("RGUI").Any())
-                            {
-                                LogToFile("[Watchdog] UI successfully restarted via Alias.");
-                                return;
-                            }
-                        }
-                        catch (Exception aliasEx)
-                        {
-                            LogToFile($"[Watchdog] Alias launch failed: {aliasEx.Message}");
-                        }
-
-                        // Fallback to direct EXE with ShellExecute
-                        try
-                        {
-                            LogToFile($"[Watchdog] Attempting restart via direct EXE: {appPath}");
-                            ProcessStartInfo psi = new(appPath, "--startup")
-                            {
-                                UseShellExecute = true,
-                                WorkingDirectory = Path.GetDirectoryName(appPath)
-                            };
-                            var process = Process.Start(psi);
-                            if (process != null)
-                            {
-                                LogToFile($"[Watchdog] UI restarted via direct EXE (PID: {process.Id})");
-                            }
-                        }
-                        catch (Exception exeEx)
-                        {
-                            LogToFile($"[Watchdog] Direct EXE launch failed: {exeEx.Message}");
-                        }
-                    }
-                    else
-                    {
-                        LogToFile($"[Watchdog] RGUI.exe not found. Searched in: {appDir}");
-                    }
-                }
-                catch (Exception ex)
-                {
-                    LogToFile($"[Watchdog] UI restart error: {ex.Message}");
-                    LogToFile($"[Watchdog] Stack trace: {ex.StackTrace}");
-                }
+                // Base wait asynchronously for 5 seconds before next check
+                await Task.Delay(5000, cancellationToken);
             }
         }
 
         [SupportedOSPlatform("windows")]
-        static void CheckServiceStatus()
+        static async Task CheckServiceStatusWithBackoffAsync(CancellationToken cancellationToken)
+        {
+            if (_serviceFailureCount > 0)
+            {
+                int delayMs = (int)Math.Min(Math.Pow(2, _serviceFailureCount) * 1000, MaxBackoffMinutes * 60 * 1000);
+                LogToFile($"[Watchdog] Service in backoff. Waiting {delayMs/1000}s before next attempt.");
+                await Task.Delay(delayMs, cancellationToken);
+            }
+
+            bool wasStarted = await CheckServiceStatusAsync(cancellationToken);
+            if (wasStarted)
+            {
+                _serviceFailureCount = 0; // Reset on success
+            }
+            else
+            {
+                _serviceFailureCount++;
+            }
+        }
+
+        static async Task CheckUIStatusWithBackoffAsync(CancellationToken cancellationToken)
+        {
+            if (_uiFailureCount > 0)
+            {
+                int delayMs = (int)Math.Min(Math.Pow(2, _uiFailureCount) * 1000, MaxBackoffMinutes * 60 * 1000);
+                LogToFile($"[Watchdog] UI in backoff. Waiting {delayMs/1000}s before next attempt.");
+                await Task.Delay(delayMs, cancellationToken);
+            }
+
+            bool wasStarted = await CheckUIStatusAsync(cancellationToken);
+            if (wasStarted)
+            {
+                _uiFailureCount = 0; // Reset on success
+            }
+            else
+            {
+                _uiFailureCount++;
+            }
+        }
+
+        static async Task<bool> CheckUIStatusAsync(CancellationToken cancellationToken)
+        {
+            var processes = Process.GetProcessesByName(RansomGuard.Core.Constants.AppIdentifiers.UiProcessName);
+            if (processes.Length > 0) return true; // Healthy
+
+            try
+            {
+                string appDir = AppDomain.CurrentDomain.BaseDirectory;
+                string appPath = Path.Combine(appDir, "RGUI.exe");
+
+                LogToFile($"[Watchdog] UI not running. Searching for RGUI.exe in: {appDir}");
+
+                // Fallback to subfolder
+                if (!File.Exists(appPath))
+                {
+                    string subPath = Path.Combine(appDir, "RansomGuard", "RGUI.exe");
+                    LogToFile($"[Watchdog] Checking subfolder: {subPath}");
+                    if (File.Exists(subPath)) appPath = subPath;
+                }
+
+                // Fallback to parent folder
+                if (!File.Exists(appPath))
+                {
+                    string? parentDir = Path.GetDirectoryName(appDir.TrimEnd(Path.DirectorySeparatorChar));
+                    if (parentDir != null)
+                    {
+                        string parentPath = Path.Combine(parentDir, "RGUI.exe");
+                        LogToFile($"[Watchdog] Checking parent folder: {parentPath}");
+                        if (File.Exists(parentPath)) appPath = parentPath;
+                    }
+                }
+
+                // Development fallback paths
+                if (!File.Exists(appPath))
+                {
+                    string[] devPaths = new[]
+                    {
+                        Path.GetFullPath(Path.Combine(appDir, @"..\..\..\RansomGuard\Debug\net8.0-windows\RGUI.exe")),
+                        Path.GetFullPath(Path.Combine(appDir, @"..\..\..\RansomGuard\Release\net8.0-windows\RGUI.exe")),
+                        Path.GetFullPath(Path.Combine(appDir, @"..\..\..\..\bin\Debug\net8.0-windows\RGUI.exe")),
+                        Path.GetFullPath(Path.Combine(appDir, @"..\..\..\bin\Debug\net8.0-windows\RGUI.exe")),
+                        Path.GetFullPath(Path.Combine(appDir, @"..\..\bin\Debug\net8.0-windows\RGUI.exe")),
+                        Path.GetFullPath(Path.Combine(appDir, @"..\..\..\..\bin\Release\net8.0-windows\RGUI.exe")),
+                        Path.GetFullPath(Path.Combine(appDir, @"..\..\..\bin\Release\net8.0-windows\RGUI.exe"))
+                    };
+
+                    foreach (var devPath in devPaths)
+                    {
+                        if (File.Exists(devPath))
+                        {
+                            appPath = devPath;
+                            LogToFile($"[Watchdog] Found UI at development path: {appPath}");
+                            break;
+                        }
+                    }
+                }
+                else
+                {
+                    LogToFile($"[Watchdog] Found UI at production path: {appPath}");
+                }
+
+                if (File.Exists(appPath))
+                {
+                    LogToFile($"[Watchdog] UI not running. Found at: {appPath}");
+                    
+                    try 
+                    {
+                        LogToFile("[Watchdog] Attempting restart via Alias: RGUI.exe");
+                        ProcessStartInfo psiAlias = new("cmd.exe", "/c start RGUI.exe --startup")
+                        {
+                            CreateNoWindow = true,
+                            UseShellExecute = true
+                        };
+                        Process.Start(psiAlias);
+                        LogToFile("[Watchdog] Alias launch command sent.");
+                        
+                        await Task.Delay(2000, cancellationToken);
+                        if (Process.GetProcessesByName(RansomGuard.Core.Constants.AppIdentifiers.UiProcessName).Any())
+                        {
+                            LogToFile("[Watchdog] UI successfully restarted via Alias.");
+                            return true;
+                        }
+                    }
+                    catch (Exception aliasEx)
+                    {
+                        LogToFile($"[Watchdog] Alias launch failed: {aliasEx.Message}");
+                    }
+
+                    try
+                    {
+                        LogToFile($"[Watchdog] Attempting restart via direct EXE: {appPath}");
+                        ProcessStartInfo psi = new(appPath, "--startup")
+                        {
+                            UseShellExecute = true,
+                            WorkingDirectory = Path.GetDirectoryName(appPath)
+                        };
+                        var process = Process.Start(psi);
+                        if (process != null)
+                        {
+                            LogToFile($"[Watchdog] UI restarted via direct EXE (PID: {process.Id})");
+                            return true;
+                        }
+                    }
+                    catch (Exception exeEx)
+                    {
+                        LogToFile($"[Watchdog] Direct EXE launch failed: {exeEx.Message}");
+                    }
+                }
+                else
+                {
+                    LogToFile($"[Watchdog] RGUI.exe not found. Searched in: {appDir}");
+                }
+            }
+            catch (Exception ex)
+            {
+                LogToFile($"[Watchdog] UI restart error: {ex.Message}");
+                LogToFile($"[Watchdog] Stack trace: {ex.StackTrace}");
+            }
+            return false;
+        }
+
+        [SupportedOSPlatform("windows")]
+        static async Task<bool> CheckServiceStatusAsync(CancellationToken cancellationToken)
         {
             try
             {
-#pragma warning disable CA1416 // Validate platform compatibility - RansomGuard is Windows-only
+#pragma warning disable CA1416
                 using ServiceController sc = new(ServiceName);
                 try
                 {
                     LogToFile($"[Watchdog] Checking service '{ServiceName}' status: {sc.Status}");
                     
+                    if (sc.Status == ServiceControllerStatus.Running) return true;
+
                     if (sc.Status == ServiceControllerStatus.Stopped || sc.Status == ServiceControllerStatus.StopPending)
                     {
                         LogToFile($"[Watchdog] Service is {sc.Status}. Attempting to start...");
-                        Thread.Sleep(1000);
+                        await Task.Delay(1000, cancellationToken);
                         sc.Refresh();
 
                         if (sc.Status == ServiceControllerStatus.Stopped)
@@ -244,6 +284,7 @@ namespace RansomGuard.Watchdog
                             sc.Start();
                             sc.WaitForStatus(ServiceControllerStatus.Running, TimeSpan.FromSeconds(10));
                             LogToFile("[Watchdog] Service started successfully");
+                            return true;
                         }
                     }
                 }
@@ -253,19 +294,49 @@ namespace RansomGuard.Watchdog
                 }
                 catch (System.ComponentModel.Win32Exception ex)
                 {
-                    // Access denied - expected when running without elevation in MSIX
-                    // The service is auto-start via SCM, so it will recover on its own
-#pragma warning restore CA1416
-                    LogToFile($"[Watchdog] Cannot control service (no admin rights, SCM will handle): {ex.Message}");
+                    LogToFile($"[Watchdog] Cannot control service (SCM will handle): {ex.Message}");
                 }
                 catch (System.ServiceProcess.TimeoutException ex)
                 {
                     LogToFile($"[Watchdog] Service start timeout: {ex.Message}");
                 }
+#pragma warning restore CA1416
             }
             catch (Exception ex)
             {
                 LogToFile($"[Watchdog] Service check error: {ex.Message}");
+            }
+            return false;
+        }
+
+        static void LogToFile(string message)
+        {
+            try
+            {
+                string logDir = Path.Combine(PathConfiguration.GetConfigDirectory(), "Logs");
+                if (!Directory.Exists(logDir)) Directory.CreateDirectory(logDir);
+                string logPath = Path.Combine(logDir, RansomGuard.Core.Constants.AppIdentifiers.WatchdogLogFile);
+                File.AppendAllText(logPath, $"{DateTime.Now}: {message}\n");
+            }
+            catch { }
+            Debug.WriteLine(message);
+        }
+
+        static bool IsWatchdogEnabled()
+        {
+            try
+            {
+                if (!File.Exists(ConfigPath)) return true;
+                string json = File.ReadAllText(ConfigPath);
+                using var doc = JsonDocument.Parse(json);
+                if (doc.RootElement.TryGetProperty("WatchdogEnabled", out var prop))
+                    return prop.GetBoolean();
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[Watchdog] IsWatchdogEnabled failed: {ex.Message}");
+                return true;
             }
         }
     }

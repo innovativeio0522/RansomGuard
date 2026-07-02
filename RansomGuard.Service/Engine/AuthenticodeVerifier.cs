@@ -122,7 +122,7 @@ namespace RansomGuard.Service.Engine
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[AuthenticodeVerifier] Error verifying {filePath}: {ex.Message}");
+                RansomGuard.Core.Helpers.FileLogger.LogError("authenticode.log", $"[AuthenticodeVerifier] Error verifying {filePath}", ex);
                 return false;
             }
         }

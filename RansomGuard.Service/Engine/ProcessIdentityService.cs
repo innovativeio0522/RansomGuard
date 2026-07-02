@@ -1,6 +1,12 @@
 using System;
 using System.Diagnostics;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
+using System.IO;
+using System.Text.Json;
+using System.Linq;
 using RansomGuard.Core.Services;
+using RansomGuard.Core.Helpers;
 
 namespace RansomGuard.Service.Engine
 {
@@ -19,13 +25,92 @@ namespace RansomGuard.Service.Engine
     internal class ProcessIdentityService : IProcessIdentityClassifier
     {
         private readonly IAuthenticodeVerifier _verifier;
-        private readonly System.Collections.Concurrent.ConcurrentDictionary<string, (bool IsTrusted, string Status, DateTime Expires)> _signatureCache = new();
+        private readonly ConcurrentDictionary<string, SignatureCacheEntry> _signatureCache = new();
         private const int Windows11BuildNumber = 20348;
         private const int CacheExpirationHours = 24;
+        private readonly object _saveLock = new();
+
+        private class SignatureCacheEntry
+        {
+            public bool IsTrusted { get; set; }
+            public string Status { get; set; } = string.Empty;
+            public DateTime Expires { get; set; }
+        }
 
         public ProcessIdentityService(IAuthenticodeVerifier? verifier = null)
         {
             _verifier = verifier ?? new AuthenticodeVerifier();
+            LoadCache();
+        }
+
+        private void LoadCache()
+        {
+            try
+            {
+                string cachePath = PathConfiguration.SignatureCachePath;
+                if (File.Exists(cachePath))
+                {
+                    string json = File.ReadAllText(cachePath);
+                    var data = JsonSerializer.Deserialize<Dictionary<string, SignatureCacheEntry>>(json);
+                    if (data != null)
+                    {
+                        foreach (var kvp in data)
+                        {
+                            if (kvp.Value.Expires > DateTime.Now)
+                            {
+                                _signatureCache[kvp.Key] = kvp.Value;
+                            }
+                        }
+                        Debug.WriteLine($"[ProcessIdentity] Loaded {_signatureCache.Count} valid signature cache entries.");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[ProcessIdentity] Failed to load signature cache: {ex.Message}");
+            }
+        }
+
+        private void SaveCache()
+        {
+            lock (_saveLock)
+            {
+                try
+                {
+                    string cachePath = PathConfiguration.SignatureCachePath;
+                    string? directory = Path.GetDirectoryName(cachePath);
+                    if (directory != null && !Directory.Exists(directory))
+                    {
+                        Directory.CreateDirectory(directory);
+                    }
+
+                    // Only save non-expired entries
+                    var dataToSave = _signatureCache
+                        .Where(kvp => kvp.Value.Expires > DateTime.Now)
+                        .ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
+
+                    string json = JsonSerializer.Serialize(dataToSave, new JsonSerializerOptions { WriteIndented = true });
+                    File.WriteAllText(cachePath, json);
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"[ProcessIdentity] Failed to save signature cache: {ex.Message}");
+                }
+            }
+        }
+
+        private void UpdateCache(string path, bool isTrusted, string status)
+        {
+            var entry = new SignatureCacheEntry
+            {
+                IsTrusted = isTrusted,
+                Status = status,
+                Expires = DateTime.Now.AddHours(CacheExpirationHours)
+            };
+            _signatureCache[path] = entry;
+            
+            // Save asynchronously to avoid blocking the main identification flow
+            System.Threading.Tasks.Task.Run(() => SaveCache());
         }
 
         /// <summary>
@@ -88,7 +173,7 @@ namespace RansomGuard.Service.Engine
                         if (_verifier.IsMicrosoftSigned(path))
                         {
                             var result = (true, "OS Component (Verified)");
-                            _signatureCache[path] = (result.Item1, result.Item2, DateTime.Now.AddHours(CacheExpirationHours));
+                            UpdateCache(path, result.Item1, result.Item2);
                             return result;
                         }
 
@@ -97,7 +182,7 @@ namespace RansomGuard.Service.Engine
                         if (!string.IsNullOrEmpty(publisher) && publisher != "Unsigned")
                         {
                             var result = (true, "Trusted Application");
-                            _signatureCache[path] = (result.Item1, result.Item2, DateTime.Now.AddHours(CacheExpirationHours));
+                            UpdateCache(path, result.Item1, result.Item2);
                             return result;
                         }
                         // ------------------------------------------------

@@ -21,15 +21,19 @@ namespace RansomGuard.ViewModels
 {
     public partial class DashboardViewModel : ViewModelBase, IDisposable
     {
-        private const int MaxDashboardActivities = 10;
-        private const int MaxBufferSize = 1000; // Maximum buffer size to prevent unbounded growth
-        private int _baselineRiskScore = 8;
-        private const int MinutesThresholdForRecent = 60;
+        private const int MaxDashboardActivities = AppConstants.Limits.MaxActivityHistory / 10; // Top 10 for dashboard
+        private const int MaxBufferSize = AppConstants.Limits.MaxBufferSize;
+        private const int MaxActiveAlerts = AppConstants.Limits.MaxActiveAlerts;
+        private int _baselineRiskScore = AppConstants.Limits.BaselineRiskScore;
+        private const int MinutesThresholdForRecent = AppConstants.Limits.MinutesThresholdForRecent;
         
         private readonly ISystemMonitorService _monitorService;
         private DispatcherTimer? _telemetryTimer;
         private DispatcherTimer? _activityBufferTimer;
         private readonly ConcurrentQueue<FileActivity> _activityBuffer = new();
+        private System.Collections.Specialized.NotifyCollectionChangedEventHandler? _alertsCollectionChangedHandler;
+        private EventHandler? _telemetryTimerHandler;
+        private EventHandler? _activityBufferTimerHandler;
         private bool _disposed;
 
         // Set by MainViewModel so the dashboard can trigger navigation
@@ -110,6 +114,15 @@ namespace RansomGuard.ViewModels
         [ObservableProperty]
         private string _behavioralStatus = "STABLE";
 
+        [ObservableProperty]
+        private string _protectionStatusText = "REAL-TIME ACTIVE";
+
+        [ObservableProperty]
+        private System.Windows.Media.Brush _protectionStatusColor;
+
+        [ObservableProperty]
+        private string _monitoringStatusText = "MONITORING ACTIVE";
+
 
 
         // Computed: ring stroke offset — circumference ~283, offset = 283*(1 - score/100)
@@ -127,39 +140,52 @@ namespace RansomGuard.ViewModels
         {
             _monitorService = monitorService;
             
+            // Initialize protection status color
+            var secBrush = Application.Current?.Resources["SecondaryBrush"] as System.Windows.Media.Brush;
+            ProtectionStatusColor = secBrush ?? System.Windows.Media.Brushes.Green;
+            
+            // Check initial connection status and update UI accordingly
+            if (!_monitorService.IsConnected)
+            {
+                ProtectionStatusText = "PROTECTION DISABLED";
+                var warnBrush = Application.Current?.Resources["WarningBrush"] as System.Windows.Media.Brush;
+                ProtectionStatusColor = warnBrush ?? System.Windows.Media.Brushes.Orange;
+                MonitoringStatusText = "SERVICE OFFLINE";
+            }
+            
             // Delay LoadData to ensure UI is fully initialized
-            Application.Current.Dispatcher.BeginInvoke(new Action(() => LoadData()), System.Windows.Threading.DispatcherPriority.Loaded);
+            Application.Current?.Dispatcher.BeginInvoke(new Action(() => LoadData()), System.Windows.Threading.DispatcherPriority.Loaded);
 
             // Subscribe to live updates
             _monitorService.FileActivityDetected += OnFileActivityDetected;
             _monitorService.ThreatDetected += OnThreatDetected;
+            _monitorService.ConnectionStatusChanged += OnConnectionStatusChanged;
 
 
-            // Notify NewAlertsText when collection changes
-            ActiveAlerts.CollectionChanged += (s, e) => OnPropertyChanged(nameof(NewAlertsText));
+            // Notify NewAlertsText when collection changes — store handler for later unsubscription
+            _alertsCollectionChangedHandler = (s, e) => OnPropertyChanged(nameof(NewAlertsText));
+            ActiveAlerts.CollectionChanged += _alertsCollectionChangedHandler;
 
             // Setup telemetry polling (every 2 seconds)
+            _telemetryTimerHandler = (s, e) => UpdateTelemetry();
             _telemetryTimer = new DispatcherTimer
             {
                 Interval = TimeSpan.FromMilliseconds(AppConstants.Timers.DashboardTelemetryMs)
             };
-            _telemetryTimer.Tick += (s, e) => UpdateTelemetry();
+            _telemetryTimer.Tick += _telemetryTimerHandler;
             _telemetryTimer.Start();
 
             // Setup activity buffer timer (every 500ms) for UI throttling
+            _activityBufferTimerHandler = (s, e) => ProcessActivityBuffer();
             _activityBufferTimer = new DispatcherTimer
             {
                 Interval = TimeSpan.FromMilliseconds(AppConstants.Timers.ActivityBufferMs)
             };
-            _activityBufferTimer.Tick += (s, e) => ProcessActivityBuffer();
+            _activityBufferTimer.Tick += _activityBufferTimerHandler;
             _activityBufferTimer.Start();
 
             // Subscribe to configuration changes for instant UI refresh
-            ConfigurationService.Instance.PathsChanged += () => {
-                Application.Current.Dispatcher.Invoke(() => {
-                    FilesMonitoredCount = _monitorService.GetMonitoredFilesCount().ToString("N0");
-                });
-            };
+            ConfigurationService.Instance.PathsChanged += OnPathsChanged;
 
             InitializeBaselineScore();
 
@@ -168,6 +194,7 @@ namespace RansomGuard.ViewModels
 
         private void OnLanPeerListUpdated(LanPeerListUpdate update)
         {
+            if (_disposed) return;
             Application.Current.Dispatcher.Invoke(() =>
             {
                 LanPeers.Clear();
@@ -183,6 +210,28 @@ namespace RansomGuard.ViewModels
                 {
                     IsPanicModeEngaged = true;
                     // Trigger some UI alert maybe?
+                }
+            });
+        }
+
+        private void OnConnectionStatusChanged(bool isConnected)
+        {
+            if (_disposed) return;
+            Application.Current?.Dispatcher.Invoke(() =>
+            {
+                if (!isConnected)
+                {
+                    ProtectionStatusText = "PROTECTION DISABLED";
+                    var warnBrush = Application.Current?.Resources["WarningBrush"] as System.Windows.Media.Brush;
+                    ProtectionStatusColor = warnBrush ?? System.Windows.Media.Brushes.Orange;
+                    MonitoringStatusText = "SERVICE OFFLINE";
+                }
+                else
+                {
+                    ProtectionStatusText = "REAL-TIME ACTIVE";
+                    var secBrush = Application.Current?.Resources["SecondaryBrush"] as System.Windows.Media.Brush;
+                    ProtectionStatusColor = secBrush ?? System.Windows.Media.Brushes.Green;
+                    MonitoringStatusText = "MONITORING ACTIVE";
                 }
             });
         }
@@ -257,36 +306,70 @@ namespace RansomGuard.ViewModels
                     .ToList();
 
                 // Marshal collection modifications to UI thread
-                Application.Current.Dispatcher.Invoke(() => {
-                    // Remove resolved threats
-                    var toRemove = ActiveAlerts.Where(a => !freshActive.Any(f => f.Path == a.Path)).ToList();
-                    foreach (var r in toRemove) ActiveAlerts.Remove(r);
+                try
+                {
+                    Application.Current.Dispatcher.Invoke(() => {
+                        // Remove resolved threats
+                        var toRemove = ActiveAlerts.Where(a => !freshActive.Any(f => f.Path == a.Path)).ToList();
+                        foreach (var r in toRemove) ActiveAlerts.Remove(r);
 
-                    // Add new threats
-                    foreach (var f in freshActive)
-                    {
-                        if (!ActiveAlerts.Any(a => a.Path == f.Path))
+                        // Add new threats (respecting cap)
+                        foreach (var f in freshActive)
                         {
-                            ActiveAlerts.Insert(0, f);
+                            if (!ActiveAlerts.Any(a => a.Path == f.Path))
+                            {
+                                if (ActiveAlerts.Count >= MaxActiveAlerts)
+                                    ActiveAlerts.RemoveAt(ActiveAlerts.Count - 1);
+                                ActiveAlerts.Insert(0, f);
+                            }
                         }
-                    }
-                    
-                    ActiveAlertsCount = ActiveAlerts.Count;
-                });
+                        
+                        ActiveAlertsCount = ActiveAlerts.Count;
+                    });
+                }
+                catch (Exception ex)
+                {
+                    FileLogger.LogError("ui_error.log", "[DashboardViewModel] Collection reconciliation error", ex);
+                }
 
                 var activities = _monitorService.GetRecentFileActivities()?.ToList() ?? new List<FileActivity>();
                 RecentActivities.Clear();
-                foreach (var activity in activities)
+
+                var consolidated = new List<FileActivity>();
+                foreach (var activity in activities.OrderByDescending(a => a.Timestamp))
                 {
-                    if (activity != null)
+                    if (activity == null) continue;
+
+                    if (!string.IsNullOrWhiteSpace(SearchQuery) &&
+                        !activity.FilePath.Contains(SearchQuery, StringComparison.OrdinalIgnoreCase) &&
+                        !activity.ProcessName.Contains(SearchQuery, StringComparison.OrdinalIgnoreCase))
                     {
-                        if (string.IsNullOrWhiteSpace(SearchQuery) || 
-                            activity.FilePath.Contains(SearchQuery, StringComparison.OrdinalIgnoreCase) ||
-                            activity.ProcessName.Contains(SearchQuery, StringComparison.OrdinalIgnoreCase))
-                        {
-                            RecentActivities.Add(activity);
-                        }
+                        continue;
                     }
+
+                    var existing = consolidated.FirstOrDefault(c =>
+                        c.FilePath.Equals(activity.FilePath, StringComparison.OrdinalIgnoreCase) &&
+                        Math.Abs((c.Timestamp - activity.Timestamp).TotalSeconds) < 2);
+
+                    if (existing != null)
+                    {
+                        if (activity.Action == "CHANGED" && existing.Action == "CREATED")
+                        {
+                            int idx = consolidated.IndexOf(existing);
+                            if (idx >= 0)
+                            {
+                                consolidated[idx] = activity;
+                            }
+                        }
+                        continue;
+                    }
+
+                    consolidated.Add(activity);
+                }
+
+                foreach (var activity in consolidated.Take(MaxDashboardActivities))
+                {
+                    RecentActivities.Add(activity);
                 }
 
                 UpdateTelemetry();
@@ -310,21 +393,49 @@ namespace RansomGuard.ViewModels
                 batch.Add(activity);
             }
 
+            var sortedBatch = batch.OrderByDescending(b => b.Timestamp).ToList();
             var uniqueNewItems = new List<FileActivity>();
-            foreach (var item in batch)
-            {
-                // Verify against what's already in the UI AND what we've already accepted from this batch
-                bool isDuplicateInHistory = RecentActivities.Any(r => 
-                    r.Id == item.Id || 
-                    (r.FilePath == item.FilePath && Math.Abs((r.Timestamp - item.Timestamp).TotalSeconds) < 2));
-                
-                bool isDuplicateInBatch = uniqueNewItems.Any(u => 
-                    u.FilePath == item.FilePath && Math.Abs((u.Timestamp - item.Timestamp).TotalSeconds) < 2);
 
-                if (!isDuplicateInHistory && !isDuplicateInBatch)
+            foreach (var item in sortedBatch)
+            {
+                // 1. Check against history (UI collection)
+                var existingInHistory = RecentActivities.FirstOrDefault(r =>
+                    r.Id == item.Id ||
+                    (r.FilePath.Equals(item.FilePath, StringComparison.OrdinalIgnoreCase) &&
+                     Math.Abs((r.Timestamp - item.Timestamp).TotalSeconds) < 2));
+
+                if (existingInHistory != null)
                 {
-                    uniqueNewItems.Add(item);
+                    if (item.Action == "CHANGED" && existingInHistory.Action == "CREATED")
+                    {
+                        int index = RecentActivities.IndexOf(existingInHistory);
+                        if (index >= 0)
+                        {
+                            RecentActivities[index] = item;
+                        }
+                    }
+                    continue;
                 }
+
+                // 2. Check against what we've already accepted in this batch
+                var existingInBatch = uniqueNewItems.FirstOrDefault(u =>
+                    u.FilePath.Equals(item.FilePath, StringComparison.OrdinalIgnoreCase) &&
+                    Math.Abs((u.Timestamp - item.Timestamp).TotalSeconds) < 2);
+
+                if (existingInBatch != null)
+                {
+                    if (item.Action == "CHANGED" && existingInBatch.Action == "CREATED")
+                    {
+                        int batchIndex = uniqueNewItems.IndexOf(existingInBatch);
+                        if (batchIndex >= 0)
+                        {
+                            uniqueNewItems[batchIndex] = item;
+                        }
+                    }
+                    continue;
+                }
+
+                uniqueNewItems.Add(item);
             }
 
             if (uniqueNewItems.Count == 0) return;
@@ -341,6 +452,7 @@ namespace RansomGuard.ViewModels
 
         private void UpdateTelemetry()
         {
+            if (_disposed) return;
 
             var telemetry = _monitorService.GetTelemetry();
             CpuUsagePercent = telemetry.CpuUsage;
@@ -447,6 +559,10 @@ namespace RansomGuard.ViewModels
                     // New threat — add it if still active
                     if (threat.ActionTaken == "Detected" || threat.ActionTaken == "Awaiting Confirmation" || threat.ActionTaken == "Active")
                     {
+                        // Enforce cap — drop oldest if at limit
+                        if (ActiveAlerts.Count >= MaxActiveAlerts)
+                            ActiveAlerts.RemoveAt(ActiveAlerts.Count - 1);
+
                         ActiveAlerts.Insert(0, threat);
                         ActiveAlertsCount++;
                         UpdateRiskScore();
@@ -527,7 +643,11 @@ namespace RansomGuard.ViewModels
             if (_telemetryTimer != null)
             {
                 _telemetryTimer.Stop();
-                _telemetryTimer.Tick -= (s, e) => UpdateTelemetry();
+                if (_telemetryTimerHandler != null)
+                {
+                    _telemetryTimer.Tick -= _telemetryTimerHandler;
+                    _telemetryTimerHandler = null;
+                }
                 _telemetryTimer = null;
             }
             
@@ -535,8 +655,19 @@ namespace RansomGuard.ViewModels
             if (_activityBufferTimer != null)
             {
                 _activityBufferTimer.Stop();
-                _activityBufferTimer.Tick -= (s, e) => ProcessActivityBuffer();
+                if (_activityBufferTimerHandler != null)
+                {
+                    _activityBufferTimer.Tick -= _activityBufferTimerHandler;
+                    _activityBufferTimerHandler = null;
+                }
                 _activityBufferTimer = null;
+            }
+
+            // Unsubscribe from collection changed
+            if (_alertsCollectionChangedHandler != null)
+            {
+                ActiveAlerts.CollectionChanged -= _alertsCollectionChangedHandler;
+                _alertsCollectionChangedHandler = null;
             }
 
             // Unsubscribe from events
@@ -544,8 +675,20 @@ namespace RansomGuard.ViewModels
             {
                 _monitorService.FileActivityDetected -= OnFileActivityDetected;
                 _monitorService.ThreatDetected -= OnThreatDetected;
-
+                _monitorService.ConnectionStatusChanged -= OnConnectionStatusChanged;
+                _monitorService.LanPeerListUpdated -= OnLanPeerListUpdated;
             }
+            
+            // Unsubscribe from configuration changes
+            ConfigurationService.Instance.PathsChanged -= OnPathsChanged;
+        }
+        
+        private void OnPathsChanged()
+        {
+            if (_disposed) return;
+            Application.Current.Dispatcher.Invoke(() => {
+                FilesMonitoredCount = _monitorService.GetMonitoredFilesCount().ToString("N0");
+            });
         }
     }
 }
