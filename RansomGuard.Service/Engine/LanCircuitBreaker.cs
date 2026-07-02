@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Linq;
 using System.Net;
+using System.Net.NetworkInformation;
 using System.Net.Sockets;
 using System.Security.Cryptography;
 using System.Text;
@@ -162,16 +164,26 @@ namespace RansomGuard.Service.Engine
                 var json = JsonSerializer.Serialize(packet);
                 var bytes = Encoding.UTF8.GetBytes(json);
                 var port = ConfigurationService.Instance.LanBroadcastPort;
-                var endpoint = new IPEndPoint(IPAddress.Broadcast, port);
+                var endpoints = GetBroadcastEndpoints(port);
 
                 // Send 3 times for reliability (UDP is unreliable)
                 for (int i = 0; i < 3; i++)
                 {
-                    await _udpClient.SendAsync(bytes, bytes.Length, endpoint).ConfigureAwait(false);
+                    foreach (var endpoint in endpoints)
+                    {
+                        try
+                        {
+                            await _udpClient.SendAsync(bytes, bytes.Length, endpoint).ConfigureAwait(false);
+                        }
+                        catch
+                        {
+                            // Suppress errors for specific endpoints to ensure other endpoints get sent
+                        }
+                    }
                     if (i < 2) await Task.Delay(50).ConfigureAwait(false);
                 }
 
-                FileLogger.Log(AppIdentifiers.SentinelEngineLogFile, $"[LAN] CIRCUIT_BREAK broadcast sent! Threat: {threatInfo}");
+                FileLogger.Log(AppIdentifiers.SentinelEngineLogFile, $"[LAN] CIRCUIT_BREAK broadcast sent to {endpoints.Count} endpoints! Threat: {threatInfo}");
                 NotifyPeerListChanged();
             }
             catch (Exception ex)
@@ -206,9 +218,19 @@ namespace RansomGuard.Service.Engine
                     var json = JsonSerializer.Serialize(packet);
                     var bytes = Encoding.UTF8.GetBytes(json);
                     var port = ConfigurationService.Instance.LanBroadcastPort;
-                    var endpoint = new IPEndPoint(IPAddress.Broadcast, port);
+                    var endpoints = GetBroadcastEndpoints(port);
 
-                    _udpClient?.Send(bytes, bytes.Length, endpoint);
+                    foreach (var endpoint in endpoints)
+                    {
+                        try
+                        {
+                            _udpClient?.Send(bytes, bytes.Length, endpoint);
+                        }
+                        catch
+                        {
+                            // Suppress errors for specific endpoints to ensure other endpoints get sent
+                        }
+                    }
                 }
                 catch (OperationCanceledException) { break; }
                 catch (ObjectDisposedException) { break; }
@@ -464,6 +486,58 @@ namespace RansomGuard.Service.Engine
             _beaconTask = null;
             _listenerTask = null;
             _cleanupTask = null;
+        }
+
+        private static List<IPEndPoint> GetBroadcastEndpoints(int port)
+        {
+            var endpoints = new List<IPEndPoint>();
+            try
+            {
+                foreach (var ni in NetworkInterface.GetAllNetworkInterfaces())
+                {
+                    if (ni.OperationalStatus != OperationalStatus.Up)
+                        continue;
+
+                    if (ni.NetworkInterfaceType == NetworkInterfaceType.Loopback ||
+                        ni.NetworkInterfaceType == NetworkInterfaceType.Tunnel)
+                        continue;
+
+                    var ipProps = ni.GetIPProperties();
+                    foreach (var unicast in ipProps.UnicastAddresses)
+                    {
+                        if (unicast.Address.AddressFamily == AddressFamily.InterNetwork)
+                        {
+                            var ip = unicast.Address;
+                            var mask = unicast.IPv4Mask;
+                            if (mask != null)
+                            {
+                                var ipBytes = ip.GetAddressBytes();
+                                var maskBytes = mask.GetAddressBytes();
+                                if (ipBytes.Length == maskBytes.Length)
+                                {
+                                    var broadcastBytes = new byte[ipBytes.Length];
+                                    for (int i = 0; i < ipBytes.Length; i++)
+                                    {
+                                        broadcastBytes[i] = (byte)(ipBytes[i] | ~maskBytes[i]);
+                                    }
+                                    var broadcastIp = new IPAddress(broadcastBytes);
+                                    endpoints.Add(new IPEndPoint(broadcastIp, port));
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                FileLogger.LogError(AppIdentifiers.SentinelEngineLogFile, $"[LAN] Error getting broadcast endpoints: {ex.Message}");
+            }
+
+            // Always include global broadcast as fallback
+            endpoints.Add(new IPEndPoint(IPAddress.Broadcast, port));
+
+            // De-duplicate endpoints by string representation
+            return endpoints.GroupBy(e => e.ToString()).Select(g => g.First()).ToList();
         }
 
         private static string GetMachineId()
