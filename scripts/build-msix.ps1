@@ -4,6 +4,8 @@ param (
     [switch]$CleanData
 )
 
+$env:BUILD_MSIX = "true"
+
 if ($CleanData) {
     foreach ($dirName in @("RansomGuard", "RGCoreEssentials")) {
         $dataDir = "$env:ProgramData\$dirName"
@@ -37,12 +39,12 @@ foreach ($dirName in @("RansomGuard", "RGCoreEssentials")) {
 
 # 1. Publish Watchdog Project
 Write-Host "Publishing RansomGuard Watchdog..." -ForegroundColor Cyan
-$watchdogPublishDir = "RansomGuard.Watchdog\bin\$Configuration\net8.0\win-$Platform\publish\"
+$watchdogPublishDir = "RansomGuard.Watchdog\bin\$Configuration\net8.0\win-$Platform\publish"
 dotnet publish RansomGuard.Watchdog\RansomGuard.Watchdog.csproj -c $Configuration -r win-$Platform --self-contained true -o $watchdogPublishDir
 
 # 2. Publish Main UI Project
 Write-Host "Publishing RansomGuard UI..." -ForegroundColor Cyan
-$uiPublishDir = "bin\$Platform\$Configuration\net8.0-windows\win-$Platform\publish\"
+$uiPublishDir = "bin\$Platform\$Configuration\net8.0-windows\win-$Platform\publish"
 dotnet publish RansomGuard.csproj -c $Configuration -r win-$Platform --self-contained true -o $uiPublishDir
 
 # Sync Watchdog into UI folder
@@ -51,7 +53,7 @@ Copy-Item -Path "$watchdogPublishDir\*" -Destination $uiPublishDir -Force
 
 # 3. Publish Service Project
 Write-Host "Publishing RansomGuard Service..." -ForegroundColor Cyan
-$servicePublishDir = "RansomGuard.Service\bin\$Platform\$Configuration\net8.0-windows\win-$Platform\msixpublish\"
+$servicePublishDir = "RansomGuard.Service\bin\$Platform\$Configuration\net8.0-windows\win-$Platform\msixpublish"
 dotnet publish RansomGuard.Service\RansomGuard.Service.csproj -c $Configuration -r win-$Platform --self-contained true -o $servicePublishDir
 
 # Sync Watchdog into Service folder

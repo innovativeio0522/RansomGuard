@@ -111,7 +111,11 @@ foreach ($dbPath in $dbPaths) {
 Write-Host "`n[6/7] Finding latest installation package..." -ForegroundColor Yellow
 $packageRoot = Join-Path $PSScriptRoot "RansomGuard.Package\AppPackages"
 if (-not (Test-Path $packageRoot)) {
-    Write-Error "Could not find RansomGuard.Package\AppPackages directory. Please build the package first!"
+    $packageRoot = Join-Path $PSScriptRoot "AppPackages"
+}
+if (-not (Test-Path $packageRoot)) {
+    Write-Host "ERROR: Could not find AppPackages directory (checked in RansomGuard.Package\AppPackages and AppPackages)." -ForegroundColor Red
+    Write-Host "Please build the package first using scripts\build-package.ps1!" -ForegroundColor Red
     Read-Host "`nPress Enter to exit"
     exit 1
 }
@@ -125,7 +129,8 @@ $installFolders = Get-ChildItem -Path $packageRoot -Recurse -Filter "Add-AppDevP
                   Sort-Object LastWriteTime -Descending
 
 if ($null -eq $installFolders -or $installFolders.Count -eq 0) {
-    Write-Error "No sideloading packages found. Ensure you run build-package.ps1 or build-and-run.bat first."
+    Write-Host "ERROR: No sideloading packages found." -ForegroundColor Red
+    Write-Host "Ensure you run build-package.ps1 first to generate the MSIX package." -ForegroundColor Red
     Read-Host "`nPress Enter to exit"
     exit 1
 }
@@ -157,7 +162,7 @@ if (-not $bundleFiles) {
 }
 
 if (-not $bundleFiles) {
-    Write-Error "No .msixbundle or .msix package file found in $($latestFolder.FullName)."
+    Write-Host "ERROR: No .msixbundle or .msix package file found in $($latestFolder.FullName)." -ForegroundColor Red
     Read-Host "`nPress Enter to exit"
     exit 1
 }
@@ -170,9 +175,14 @@ try {
 } catch {
     Write-Host "  Direct Add-AppxPackage failed: $_" -ForegroundColor Yellow
     Write-Host "  Falling back to running Add-AppDevPackage.ps1..." -ForegroundColor Yellow
-    Set-Location $latestFolder.FullName
-    & ".\Add-AppDevPackage.ps1" -Force
-    Set-Location $PSScriptRoot
+    try {
+        Set-Location $latestFolder.FullName
+        & ".\Add-AppDevPackage.ps1"
+    } catch {
+        Write-Host "ERROR: Failed to run Add-AppDevPackage.ps1: $_" -ForegroundColor Red
+    } finally {
+        Set-Location $PSScriptRoot
+    }
 }
 
 # 7. Post-Installation Launch
@@ -187,6 +197,9 @@ if ($service) {
 
 # Launch GUI using PackageFamilyName
 $pkg = Get-AppxPackage -Name "RGCoreEssentials" -ErrorAction SilentlyContinue
+if ($null -eq $pkg) {
+    $pkg = Get-AppxPackage -Name "*RansomGuard*" -ErrorAction SilentlyContinue | Select-Object -First 1
+}
 if ($pkg) {
     $familyName = $pkg.PackageFamilyName
     Write-Host "  Launching GUI app (FamilyName: $familyName)..." -ForegroundColor Cyan

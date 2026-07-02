@@ -20,3 +20,9 @@ if '%errorlevel%' NEQ '0' (
     CD /D "%~dp0"
 
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0reinstall-ransomguard.ps1"
+if %errorlevel% neq 0 (
+    echo.
+    echo ERROR: Reinstallation failed with exit code %errorlevel%.
+    pause
+    exit /b %errorlevel%
+)

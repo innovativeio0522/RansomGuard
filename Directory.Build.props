@@ -1,5 +1,5 @@
 <Project>
-  <PropertyGroup Condition="'$(MSBuildProjectExtension)' != '.wapproj' and '$(BuildingInsideVisualStudio)' != 'true'">
+  <PropertyGroup Condition="'$(MSBuildProjectExtension)' != '.wapproj' and '$(BuildingInsideVisualStudio)' != 'true' and '$(BUILD_MSIX)' != 'true'">
     <!-- Keep normal CLI builds away from stale project-local bin/obj folders. -->
     <RepositoryArtifactsRoot Condition="'$(RepositoryArtifactsRoot)' == ''">$(MSBuildThisFileDirectory).artifacts\</RepositoryArtifactsRoot>
     <BaseIntermediateOutputPath Condition="'$(BaseIntermediateOutputPath)' == ''">$(RepositoryArtifactsRoot)obj\$(MSBuildProjectName)\</BaseIntermediateOutputPath>
