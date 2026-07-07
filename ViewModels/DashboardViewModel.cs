@@ -597,6 +597,9 @@ namespace RansomGuard.ViewModels
         private void ViewAllLogs() => NavigationRequested?.Invoke("ThreatAlerts");
 
         [RelayCommand]
+        private void ViewFileActivity() => NavigationRequested?.Invoke("FileActivity");
+
+        [RelayCommand]
         private void IgnoreAlert(Threat threat)
         {
             if (threat == null) return;
