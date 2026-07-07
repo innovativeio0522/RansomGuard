@@ -40,6 +40,15 @@ namespace RansomGuard.ViewModels
 
         [ObservableProperty]
         private string _memoryUsageText = "MEM: --GB";
+
+        [ObservableProperty]
+        private string _systemName = Environment.MachineName;
+
+        [ObservableProperty]
+        private string _systemBadgeInitials = GetSystemBadgeInitials(Environment.MachineName);
+
+        [ObservableProperty]
+        private string _systemIdentityStatus = "Checking Service";
         
         [ObservableProperty]
         private string _searchText = string.Empty;
@@ -60,6 +69,17 @@ namespace RansomGuard.ViewModels
         private bool _disposed;
         private bool _gracePeriodExpired = false;
         private bool _isShowingMassEncryptionPrompt = false;
+
+        private static string GetSystemBadgeInitials(string machineName)
+        {
+            var initials = new string(machineName
+                .Where(char.IsLetterOrDigit)
+                .Take(2)
+                .Select(char.ToUpperInvariant)
+                .ToArray());
+
+            return string.IsNullOrWhiteSpace(initials) ? "PC" : initials;
+        }
 
         // View instances to preserve state
         private readonly DashboardViewModel _dashboardVM = null!;
@@ -84,6 +104,7 @@ namespace RansomGuard.ViewModels
             {
                 // Initialize Services
                 _monitorService = monitorService;
+                SystemIdentityStatus = _monitorService.IsConnected ? "Protected System" : "Checking Service";
                 
                 // Start with IsServiceConnected = true to avoid showing banner during initial connection
                 IsServiceConnected = true;
@@ -186,6 +207,11 @@ namespace RansomGuard.ViewModels
         }
         
         partial void OnSearchTextChanged(string value) => UpdateCurrentViewSearch();
+
+        partial void OnIsServiceConnectedChanged(bool value)
+        {
+            SystemIdentityStatus = value ? "Protected System" : "Service Offline";
+        }
 
         private void UpdateStatusBarTelemetry()
         {

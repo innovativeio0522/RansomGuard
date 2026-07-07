@@ -436,15 +436,15 @@
                         <!-- Avatar -->
                         <Border Grid.Column="0" Width="32" Height="32" CornerRadius="16" 
                                 Background="#33adc6ff">
-                            <TextBlock Text="NA" Foreground="{StaticResource PrimaryBrush}" 
+                            <TextBlock Text="{Binding SystemBadgeInitials}" Foreground="{StaticResource PrimaryBrush}" 
                                        FontSize="10" FontWeight="Bold" 
                                        HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
                         <!-- Text -->
                         <StackPanel Grid.Column="1" Margin="10,0,0,0" VerticalAlignment="Center">
-                            <TextBlock Text="Node_Admin_01" Foreground="{StaticResource OnSurfaceBrush}" 
+                            <TextBlock Text="{Binding SystemName}" Foreground="{StaticResource OnSurfaceBrush}" 
                                        FontWeight="Bold" FontSize="10" TextTrimming="CharacterEllipsis"/>
-                            <TextBlock Text="Level 4 Clearance" Foreground="{StaticResource OnSurfaceVariantBrush}" 
+                            <TextBlock Text="{Binding SystemIdentityStatus}" Foreground="{StaticResource OnSurfaceVariantBrush}" 
                                        FontSize="8" Opacity="0.7"/>
                         </StackPanel>
                     </Grid>

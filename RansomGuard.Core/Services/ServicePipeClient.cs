@@ -385,7 +385,37 @@ namespace RansomGuard.Services
         public async Task DeleteQuarantinedFile(string path) 
         { 
             if (IsConnected) 
-                await SendCommand(CommandType.DeleteFile, path).ConfigureAwait(false); 
+            {
+                await SendCommand(CommandType.DeleteFile, path).ConfigureAwait(false);
+                return;
+            }
+
+            DeleteLocalQuarantineFile(path);
+        }
+
+        private static void DeleteLocalQuarantineFile(string path)
+        {
+            if (string.IsNullOrWhiteSpace(path))
+                return;
+
+            var quarantineRoot = Path.GetFullPath(PathConfiguration.QuarantinePath)
+                .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+            var quarantinePath = Path.GetFullPath(path);
+
+            if (!quarantinePath.StartsWith(
+                    quarantineRoot + Path.DirectorySeparatorChar,
+                    StringComparison.OrdinalIgnoreCase) ||
+                !string.Equals(Path.GetExtension(quarantinePath), ".quarantine", StringComparison.OrdinalIgnoreCase))
+            {
+                Debug.WriteLine($"[ServicePipeClient] Refusing local delete outside quarantine: {path}");
+                return;
+            }
+
+            var metadataPath = quarantinePath + ".metadata";
+            if (File.Exists(quarantinePath))
+                File.Delete(quarantinePath);
+            if (File.Exists(metadataPath))
+                File.Delete(metadataPath);
         }
         
         public async Task ClearSafeFiles() 
