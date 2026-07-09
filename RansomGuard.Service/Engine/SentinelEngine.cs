@@ -62,6 +62,13 @@ namespace RansomGuard.Service.Engine
         private Task? _processorTask;
         private bool _isEtwActive;
 
+        // Cooldown to suppress false-positive bait alerts during bait file deployment / cleanup.
+        // HoneyPotService calls NotifyBaitDeployment() before creating or deleting bait files,
+        // which prevents self-triggering from the FileSystemWatcher seeing our own writes.
+        // Stored as UTC ticks so it can be read/written with Interlocked.
+        private long _baitCooldownUntilTicks = DateTime.MinValue.Ticks;
+        private const int BaitDeploymentCooldownSeconds = 20;
+
         private record FileEvent(string Path, string Action, int ProcessId = 0, string ProcessName = "Unknown");
 
         // State
@@ -242,6 +249,21 @@ namespace RansomGuard.Service.Engine
             _fileSystemMonitor.InitializeWatchers(realTimeProtection, standardPaths, customPaths);
         }
 
+        /// <summary>
+        /// Called by HoneyPotService before creating or deleting bait files.
+        /// Arms a short suppression window so the FileSystemWatcher events caused by
+        /// our own file operations — and the immediate follow-up accesses by OneDrive,
+        /// Windows Search Indexer, and similar system processes — do not trigger a
+        /// false-positive "HONEY POT TRIPWIRE TRIGGERED" alert.
+        /// </summary>
+        public void NotifyBaitDeployment()
+        {
+            long until = DateTime.UtcNow.AddSeconds(BaitDeploymentCooldownSeconds).Ticks;
+            Interlocked.Exchange(ref _baitCooldownUntilTicks, until);
+            FileLogger.Log(AppIdentifiers.SentinelEngineLogFile,
+                $"[HoneyPot] Bait deployment/cleanup cooldown armed for {BaitDeploymentCooldownSeconds}s.");
+        }
+
         private void OnFileSystemEvent(FileSystemEvent fsEvent)
         {
             OnFileChanged(fsEvent.Path, fsEvent.Action, 0, "Unknown");
@@ -323,7 +345,8 @@ namespace RansomGuard.Service.Engine
                 if (path.Contains("!$RansomGuard_Bait", StringComparison.OrdinalIgnoreCase))
                 {
                     // Honeypot bait file hit detected!
-                    FileLogger.Log(AppIdentifiers.SentinelEngineLogFile, $"[HoneyPot] Bait hit detected: {path} | Process: {providedProcessName} | IsEtwActive: {_isEtwActive}");
+                    bool isInCooldown = DateTime.UtcNow.Ticks < Interlocked.Read(ref _baitCooldownUntilTicks);
+                    FileLogger.Log(AppIdentifiers.SentinelEngineLogFile, $"[HoneyPot] Bait hit detected: {path} | Process: {providedProcessName} | IsEtwActive: {_isEtwActive} | InCooldown: {isInCooldown}");
                     
                     // 1. Check if the process is whitelisted (safe system/admin/backup processes)
                     if (IsWhitelistedHoneypotProcess(providedProcessName))
@@ -332,13 +355,27 @@ namespace RansomGuard.Service.Engine
                         return; // Ignore safe process activity
                     }
 
-                    // 2. Prevent duplicate alerts from the fallback FileSystemWatcher when ETW is active
-                    if (providedProcessName == "Unknown" && _isEtwActive)
+                    // 2. During bait deployment/cleanup cooldown, suppress events from unidentified processes.
+                    //    The FileSystemWatcher cannot name the responsible process (it reports "Unknown").
+                    //    During this window the OS itself (OneDrive, Windows Search, Defender) creates
+                    //    legitimate access to freshly-written or just-deleted bait files, and ETW may not
+                    //    yet have correlated the event. We wait for the cooldown to expire before trusting
+                    //    Unknown-process bait hits.
+                    if (providedProcessName == "Unknown" && isInCooldown)
                     {
-                        return; // Ignore FileSystemWatcher event since ETW will capture it with full process name
+                        FileLogger.Log(AppIdentifiers.SentinelEngineLogFile, $"[HoneyPot] Suppressed bait hit during deployment/cleanup cooldown: {path}");
+                        return;
                     }
 
-                    // 3. Report the threat
+                    // 3. Prevent duplicate alerts from the fallback FileSystemWatcher when ETW is active
+                    //    outside the cooldown window.  ETW will deliver the same event with the real
+                    //    process name, so we don't need the Unknown FSW copy.
+                    if (providedProcessName == "Unknown" && _isEtwActive)
+                    {
+                        return; // Ignore FSW event — ETW will capture it with the full process name
+                    }
+
+                    // 4. Report the threat
                     ReportThreat(
                         path, 
                         "HONEY POT TRIPWIRE TRIGGERED", 
@@ -898,20 +935,45 @@ namespace RansomGuard.Service.Engine
 
         private static readonly string[] WhitelistedHoneypotProcesses = new[]
         {
+            // Shell / Explorer
             "explorer.exe",
+
+            // Windows Search (indexer + modern search host)
             "searchindexer.exe",
+            "searchhost.exe",
+            "searchprotocolhost.exe",
+            "searchfilterhost.exe",
+
+            // Windows Defender / Security
             "msmpeng.exe",
+            "securityhealthsystray.exe",
+            "mssense.exe",
+
+            // OneDrive and its co-authoring/sync helpers
             "onedrive.exe",
+            "filesynchelper.exe",
+            "filecoauth.exe",
+            "odopen.exe",
+            "onedrivestandaloneupdater.exe",
+
+            // RansomGuard own processes
             "rgservice.exe",
             "ransomguard.service.exe",
             "rgworker.exe",
             "ransomguard.watchdog.exe",
             "ransomguard.exe",
             "rgui.exe",
+
+            // Core OS processes
             "system",
             "lsass.exe",
             "svchost.exe",
             "msiexec.exe",
+            "tiworker.exe",
+            "trustedinstaller.exe",
+            "ntoskrnl.exe",
+
+            // Developer tooling (dev machines only)
             "devenv.exe",
             "dotnet.exe"
         };

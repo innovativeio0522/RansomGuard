@@ -33,6 +33,11 @@ namespace RansomGuard.Service.Engine
 
         private void DeployBaits()
         {
+            // Arm cooldown BEFORE touching any files so that FileSystemWatcher events
+            // fired by our own bait creation (and the immediate follow-up reads by
+            // OneDrive / Windows Search) are suppressed for the next 20 seconds.
+            _engine.NotifyBaitDeployment();
+
             var targets = GetDefaultBaitLocations();
             FileLogger.Log(AppIdentifiers.SentinelEngineLogFile, $"[HoneyPot] Deploying baits to {targets.Count} locations...");
             foreach (var path in targets)
@@ -69,6 +74,10 @@ namespace RansomGuard.Service.Engine
 
         private void CleanupBaits()
         {
+            // Arm cooldown BEFORE deleting bait files so that the DELETED events fired
+            // by the FileSystemWatcher do not trigger a false-positive tripwire alert.
+            _engine.NotifyBaitDeployment();
+
             try
             {
                 var targets = GetDefaultBaitLocations();
