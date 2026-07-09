@@ -125,8 +125,11 @@ namespace RansomGuard.ViewModels
 
         public string SystemName => Environment.MachineName;
 
-        [ObservableProperty]
-        private bool _isEndpointsFlyoutOpen;
+        public IEnumerable<LanPeer> TopLanPeers => LanPeers.Take(5);
+        public int ExtraPeersCount => Math.Max(0, LanPeers.Count - 5);
+        public bool HasExtraPeers => LanPeers.Count > 5;
+
+
 
 
 
@@ -210,6 +213,10 @@ namespace RansomGuard.ViewModels
                 
                 ActivePeerCount = update.Peers.Count.ToString();
                 CircuitBreakerStatus = update.IsCircuitBroken ? "TRIPPED" : "ARMED";
+
+                OnPropertyChanged(nameof(TopLanPeers));
+                OnPropertyChanged(nameof(ExtraPeersCount));
+                OnPropertyChanged(nameof(HasExtraPeers));
                 
                 if (update.IsCircuitBroken && !IsPanicModeEngaged)
                 {
@@ -643,11 +650,7 @@ namespace RansomGuard.ViewModels
             }
         }
 
-        [RelayCommand]
-        private void ToggleEndpointsFlyout()
-        {
-            IsEndpointsFlyoutOpen = !IsEndpointsFlyoutOpen;
-        }
+
 
         public void Dispose()
         {
