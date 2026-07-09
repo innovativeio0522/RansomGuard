@@ -12,6 +12,7 @@ using RansomGuard.Services;
 using RansomGuard.Core.Services;
 using RansomGuard.Core.Interfaces;
 using RansomGuard.Core.Configuration;
+using RansomGuard.Core.IPC;
 
 namespace RansomGuard.ViewModels
 {
@@ -74,6 +75,11 @@ namespace RansomGuard.ViewModels
         [ObservableProperty]
         private string _lanSharedSecret = string.Empty;
 
+        [ObservableProperty]
+        private ObservableCollection<LanPeer> _lanPeers = new();
+
+        private Action<LanPeerListUpdate>? _lanPeerListUpdatedHandler;
+
         public IEnumerable<MonitoredPathItem> StandardProtectedPaths => MonitoredPaths.Where(path => path.IsStandard);
         public IEnumerable<MonitoredPathItem> UserAddedProtectedPaths => MonitoredPaths.Where(path => !path.IsStandard);
         public bool HasUserAddedProtectedPaths => MonitoredPaths.Any(path => !path.IsStandard);
@@ -131,6 +137,9 @@ namespace RansomGuard.ViewModels
                     });
                 };
                 _monitorService.ConnectionStatusChanged += _connectionStatusChangedHandler;
+                
+                _lanPeerListUpdatedHandler = OnLanPeerListUpdated;
+                _monitorService.LanPeerListUpdated += _lanPeerListUpdatedHandler;
             }
 
             // Handle collection changes with debouncing — named handler for proper unsubscription
@@ -427,6 +436,19 @@ namespace RansomGuard.ViewModels
             }
         }
 
+        private void OnLanPeerListUpdated(LanPeerListUpdate update)
+        {
+            if (_disposed) return;
+            Application.Current.Dispatcher.Invoke(() =>
+            {
+                LanPeers.Clear();
+                foreach (var peer in update.Peers)
+                {
+                    LanPeers.Add(peer);
+                }
+            });
+        }
+
         public void Dispose()
         {
             if (_disposed) return;
@@ -451,6 +473,12 @@ namespace RansomGuard.ViewModels
             {
                 _monitorService.ConnectionStatusChanged -= _connectionStatusChangedHandler;
                 _connectionStatusChangedHandler = null;
+            }
+
+            if (_monitorService != null && _lanPeerListUpdatedHandler != null)
+            {
+                _monitorService.LanPeerListUpdated -= _lanPeerListUpdatedHandler;
+                _lanPeerListUpdatedHandler = null;
             }
 
             if (MonitoredPaths != null && _pathsCollectionChangedHandler != null)

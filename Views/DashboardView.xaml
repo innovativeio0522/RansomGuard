@@ -177,7 +177,49 @@
                 </Border>
 
                 <!-- LAN Shield -->
-                <Border Grid.Column="6" Background="{StaticResource SurfaceContainerLowBrush}" CornerRadius="8" Padding="10,8">
+                <Border Grid.Column="6" Background="{StaticResource SurfaceContainerLowBrush}" CornerRadius="8" Padding="10,8" ToolTipService.InitialShowDelay="100">
+                    <Border.ToolTip>
+                        <ToolTip Background="{StaticResource SurfaceContainerHighestBrush}" BorderBrush="{StaticResource OutlineVariantBrush}" BorderThickness="1">
+                            <StackPanel Margin="8" MinWidth="200">
+                                <TextBlock Text="Active LAN Peers" FontWeight="Bold" Foreground="{StaticResource PrimaryBrush}" FontSize="10" Margin="0,0,0,6"/>
+                                <ItemsControl ItemsSource="{Binding LanPeers}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Grid Margin="0,2">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                </Grid.ColumnDefinitions>
+                                                <Ellipse Grid.Column="0" Width="6" Height="6" VerticalAlignment="Center" Margin="0,0,8,0">
+                                                    <Ellipse.Style>
+                                                        <Style TargetType="Ellipse">
+                                                            <Setter Property="Fill" Value="#4edea3"/>
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding Status}" Value="Alert">
+                                                                    <Setter Property="Fill" Value="#ff5252"/>
+                                                                </DataTrigger>
+                                                                <DataTrigger Binding="{Binding Status}" Value="Offline">
+                                                                    <Setter Property="Fill" Value="#808080"/>
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </Ellipse.Style>
+                                                </Ellipse>
+                                                <StackPanel Grid.Column="1" Orientation="Horizontal">
+                                                    <TextBlock Text="{Binding NodeName}" FontWeight="SemiBold" FontSize="9" Foreground="{StaticResource OnSurfaceBrush}"/>
+                                                    <TextBlock Text=" (" FontSize="9" Foreground="{StaticResource OnSurfaceVariantBrush}" Opacity="0.6"/>
+                                                    <TextBlock Text="{Binding IpAddress}" FontSize="9" Foreground="{StaticResource OnSurfaceVariantBrush}" Opacity="0.6"/>
+                                                    <TextBlock Text=")" FontSize="9" Foreground="{StaticResource OnSurfaceVariantBrush}" Opacity="0.6"/>
+                                                </StackPanel>
+                                            </Grid>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                                <TextBlock Text="No remote peers connected" FontSize="9" Foreground="{StaticResource OnSurfaceVariantBrush}" Opacity="0.5"
+                                           Visibility="{Binding LanPeers.Count, Converter={StaticResource BooleanToVisibilityConverter}, ConverterParameter=Inverse}"/>
+                            </StackPanel>
+                        </ToolTip>
+                    </Border.ToolTip>
                     <StackPanel Orientation="Horizontal">
                         <Ellipse Width="10" Height="10" Margin="0,0,8,0"
                                  Fill="{Binding CircuitBreakerStatus, Converter={StaticResource StringToBrushConverter}, ConverterParameter='ARMED:#4edea3;TRIPPED:#ff5252;DISABLED:#808080'}">
@@ -441,7 +483,20 @@
                                        Style="{StaticResource TextSmall}" TextWrapping="Wrap" MaxWidth="600" HorizontalAlignment="Left" Foreground="{StaticResource OnSurfaceVariantBrush}" FontSize="9"/>
                             
                             <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
-                                <Border Background="{StaticResource SurfaceContainerHighestBrush}" Padding="10,5" CornerRadius="4" Margin="0,0,12,0">
+                                <Border x:Name="ActiveEndpointsBadge" Padding="10,5" CornerRadius="4" Margin="0,0,12,0" Cursor="Hand">
+                                    <Border.Style>
+                                        <Style TargetType="Border">
+                                            <Setter Property="Background" Value="{StaticResource SurfaceContainerHighestBrush}"/>
+                                            <Style.Triggers>
+                                                <Trigger Property="IsMouseOver" Value="True">
+                                                    <Setter Property="Background" Value="{StaticResource SurfaceBrightBrush}"/>
+                                                </Trigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Border.Style>
+                                    <Border.InputBindings>
+                                        <MouseBinding Gesture="LeftClick" Command="{Binding ToggleEndpointsFlyoutCommand}"/>
+                                    </Border.InputBindings>
                                     <StackPanel Orientation="Horizontal">
                                         <Viewbox Width="12" Height="12" Margin="0,0,6,0">
                                             <Path Data="M19 15v4H5v-4h14m1-2H4c-.55 0-1 .45-1 1v6c0 .55.45 1 1 1h16c.55 0 1-.45 1-1v-6c0-.55-.45-1-1-1zM7 18.5c-.82 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zM19 5v4H5V5h14m1-2H4c-.55 0-1 .45-1 1v6c0 .55.45 1 1 1h16c.55 0 1-.45 1-1V4c0-.55-.45-1-1-1zM7 8.5c-.82 0-1.5-.68-1.5-1.5S6.18 5.5 7 5.5s1.5.68 1.5 1.5S7.83 8.5 7 8.5z" Fill="{StaticResource SecondaryBrush}"/>
@@ -449,6 +504,109 @@
                                         <TextBlock Text="{Binding ActiveEndpoints, StringFormat='{}{0} ENDPOINTS ACTIVE'}" FontSize="9" FontWeight="Bold" Foreground="{StaticResource OnSurfaceBrush}"/>
                                     </StackPanel>
                                 </Border>
+                                <Popup IsOpen="{Binding IsEndpointsFlyoutOpen, Mode=TwoWay}" StaysOpen="False" 
+                                       PlacementTarget="{Binding ElementName=ActiveEndpointsBadge}" 
+                                       Placement="Top" VerticalOffset="-8" HorizontalOffset="-10"
+                                       AllowsTransparency="True" PopupAnimation="Fade">
+                                    <Border Background="{StaticResource SurfaceContainerHighestBrush}" 
+                                            BorderBrush="{StaticResource OutlineVariantBrush}"
+                                            BorderThickness="1" CornerRadius="12" Width="320" MaxHeight="300">
+                                        <Border.Effect>
+                                            <DropShadowEffect BlurRadius="15" ShadowDepth="3" Color="Black" Opacity="0.4"/>
+                                        </Border.Effect>
+                                        <Grid Margin="16">
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="*"/>
+                                            </Grid.RowDefinitions>
+                                            
+                                            <Grid Grid.Row="0" Margin="0,0,0,12">
+                                                <StackPanel Orientation="Horizontal">
+                                                    <Viewbox Width="14" Height="14" Margin="0,0,8,0">
+                                                        <Path Data="M19 15v4H5v-4h14m1-2H4c-.55 0-1 .45-1 1v6c0 .55.45 1 1 1h16c.55 0 1-.45 1-1v-6c0-.55-.45-1-1-1zM7 18.5c-.82 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zM19 5v4H5V5h14m1-2H4c-.55 0-1 .45-1 1v6c0 .55.45 1 1 1h16c.55 0 1-.45 1-1V4c0-.55-.45-1-1-1zM7 8.5c-.82 0-1.5-.68-1.5-1.5S6.18 5.5 7 5.5s1.5.68 1.5 1.5S7.83 8.5 7 8.5z" Fill="{StaticResource SecondaryBrush}"/>
+                                                    </Viewbox>
+                                                    <TextBlock Text="Connected Endpoints" FontWeight="Bold" Foreground="{StaticResource PrimaryBrush}" FontSize="13"/>
+                                                </StackPanel>
+                                                <Button Content="Close" Command="{Binding ToggleEndpointsFlyoutCommand}" HorizontalAlignment="Right"
+                                                        Background="Transparent" BorderThickness="0" Foreground="{StaticResource OutlineBrush}" FontSize="11" Cursor="Hand"/>
+                                            </Grid>
+                                            
+                                            <ScrollViewer Grid.Row="1" MaxHeight="220" VerticalScrollBarVisibility="Auto">
+                                                <StackPanel>
+                                                    <!-- Local Host / This Device -->
+                                                    <Border Background="#0f131d" CornerRadius="8" Padding="12" Margin="0,0,0,8">
+                                                        <Grid>
+                                                            <Grid.ColumnDefinitions>
+                                                                <ColumnDefinition Width="Auto"/>
+                                                                <ColumnDefinition Width="*"/>
+                                                                <ColumnDefinition Width="Auto"/>
+                                                            </Grid.ColumnDefinitions>
+                                                            <!-- Status indicator dot (green) -->
+                                                            <Ellipse Grid.Column="0" Width="8" Height="8" Fill="#4edea3" VerticalAlignment="Center" Margin="0,0,12,0"/>
+                                                            
+                                                            <StackPanel Grid.Column="1">
+                                                                <TextBlock Text="{Binding SystemName, StringFormat='{}{0} (This Device)'}" FontWeight="Bold" FontSize="11" Foreground="#dfe2f1"/>
+                                                                <TextBlock Text="Local Loopback (IPC)" FontSize="10" Foreground="#c2c6d6" Margin="0,2,0,0"/>
+                                                            </StackPanel>
+                                                            
+                                                            <Border Grid.Column="2" Background="#1a4edea3" CornerRadius="4" Padding="6,2" VerticalAlignment="Center">
+                                                                <TextBlock Text="Local Host" Foreground="#4edea3" FontWeight="Bold" FontSize="8"/>
+                                                            </Border>
+                                                        </Grid>
+                                                    </Border>
+                                                    
+                                                    <!-- List of LAN peers -->
+                                                    <ItemsControl ItemsSource="{Binding LanPeers}">
+                                                        <ItemsControl.ItemTemplate>
+                                                            <DataTemplate>
+                                                                <Border Background="#0f131d" CornerRadius="8" Padding="12" Margin="0,0,0,8">
+                                                                    <Grid>
+                                                                        <Grid.ColumnDefinitions>
+                                                                            <ColumnDefinition Width="Auto"/>
+                                                                            <ColumnDefinition Width="*"/>
+                                                                            <ColumnDefinition Width="Auto"/>
+                                                                        </Grid.ColumnDefinitions>
+                                                                        
+                                                                        <Ellipse Grid.Column="0" Width="8" Height="8" VerticalAlignment="Center" Margin="0,0,12,0">
+                                                                            <Ellipse.Style>
+                                                                                <Style TargetType="Ellipse">
+                                                                                    <Setter Property="Fill" Value="#4edea3"/>
+                                                                                    <Style.Triggers>
+                                                                                        <DataTrigger Binding="{Binding Status}" Value="Alert">
+                                                                                            <Setter Property="Fill" Value="#ff5252"/>
+                                                                                        </DataTrigger>
+                                                                                        <DataTrigger Binding="{Binding Status}" Value="Offline">
+                                                                                            <Setter Property="Fill" Value="#808080"/>
+                                                                                        </DataTrigger>
+                                                                                    </Style.Triggers>
+                                                                                </Style>
+                                                                            </Ellipse.Style>
+                                                                        </Ellipse>
+                                                                        
+                                                                        <StackPanel Grid.Column="1">
+                                                                            <TextBlock Text="{Binding NodeName}" FontWeight="Bold" FontSize="11" Foreground="#dfe2f1"/>
+                                                                            <TextBlock Text="{Binding IpAddress}" FontSize="10" Foreground="#c2c6d6" Margin="0,2,0,0"/>
+                                                                            <TextBlock Text="{Binding LastSeen, StringFormat='{}Last seen: {0:HH:mm:ss}'}" FontSize="8" Foreground="#8c909f" Margin="0,4,0,0" Opacity="0.7"/>
+                                                                        </StackPanel>
+                                                                        
+                                                                        <Border Grid.Column="2" Background="#1a33adc6" CornerRadius="4" Padding="6,2" VerticalAlignment="Center">
+                                                                            <TextBlock Text="{Binding AppVersion, StringFormat='{}v{0}'}" Foreground="{StaticResource PrimaryBrush}" FontWeight="Bold" FontSize="8"/>
+                                                                        </Border>
+                                                                    </Grid>
+                                                                </Border>
+                                                            </DataTemplate>
+                                                        </ItemsControl.ItemTemplate>
+                                                    </ItemsControl>
+                                                    
+                                                    <!-- If empty fallback text -->
+                                                    <TextBlock Text="No remote endpoints connected" HorizontalAlignment="Center" Margin="0,12" 
+                                                               Visibility="{Binding LanPeers.Count, Converter={StaticResource BooleanToVisibilityConverter}, ConverterParameter=Inverse}"
+                                                               Foreground="{StaticResource OutlineBrush}" Opacity="0.5" FontSize="11"/>
+                                                </StackPanel>
+                                            </ScrollViewer>
+                                        </Grid>
+                                    </Border>
+                                </Popup>
                                 <Border Background="{StaticResource SurfaceContainerHighestBrush}" Padding="10,5" CornerRadius="4">
                                     <StackPanel Orientation="Horizontal">
                                         <Viewbox Width="12" Height="12" Margin="0,0,6,0">

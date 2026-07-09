@@ -123,6 +123,11 @@ namespace RansomGuard.ViewModels
         [ObservableProperty]
         private string _monitoringStatusText = "MONITORING ACTIVE";
 
+        public string SystemName => Environment.MachineName;
+
+        [ObservableProperty]
+        private bool _isEndpointsFlyoutOpen;
+
 
 
         // Computed: ring stroke offset — circumference ~283, offset = 283*(1 - score/100)
@@ -635,6 +640,12 @@ namespace RansomGuard.ViewModels
                 ActiveAlerts.Remove(threat);
                 UpdateRiskScore();
             }
+        }
+
+        [RelayCommand]
+        private void ToggleEndpointsFlyout()
+        {
+            IsEndpointsFlyoutOpen = !IsEndpointsFlyoutOpen;
         }
 
         public void Dispose()

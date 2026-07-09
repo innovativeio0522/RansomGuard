@@ -321,6 +321,85 @@
                                              FontSize="13" 
                                              FontFamily="Consolas"/>
                             </StackPanel>
+
+                            <!-- Discovered Peer Nodes -->
+                            <StackPanel Margin="0,24,0,0" Visibility="{Binding IsLanCircuitBreakerEnabled, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                <TextBlock Text="Discovered Network Peers" FontSize="14" FontWeight="Bold" Foreground="{StaticResource OnSurfaceBrush}"/>
+                                <TextBlock Text="List of active RansomGuard nodes discovered on your local network signaling group." FontSize="12" Foreground="{StaticResource OnSurfaceVariantBrush}" Opacity="0.7" Margin="0,4,0,12" TextWrapping="Wrap"/>
+                                
+                                <Border Background="#0f131d" CornerRadius="8" Padding="12" Margin="0,0,0,12">
+                                    <StackPanel>
+                                        <!-- Local Node -->
+                                        <Grid Margin="0,0,0,8">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <Ellipse Grid.Column="0" Width="8" Height="8" Fill="#4edea3" VerticalAlignment="Center" Margin="0,0,12,0"/>
+                                            <StackPanel Grid.Column="1">
+                                                <TextBlock Text="This Device (Local Host)" FontWeight="Bold" FontSize="12" Foreground="#dfe2f1"/>
+                                                <TextBlock Text="Primary Node" FontSize="10" Foreground="#c2c6d6" Margin="0,2,0,0"/>
+                                            </StackPanel>
+                                            <Border Grid.Column="2" Background="#1a4edea3" CornerRadius="4" Padding="6,2" VerticalAlignment="Center">
+                                                <TextBlock Text="Online" Foreground="#4edea3" FontWeight="Bold" FontSize="9"/>
+                                            </Border>
+                                        </Grid>
+                                        
+                                        <!-- Divider -->
+                                        <Border Height="1" Background="{StaticResource OutlineVariantBrush}" Margin="0,8" Opacity="0.5"/>
+                                        
+                                        <!-- Peer Nodes -->
+                                        <ItemsControl ItemsSource="{Binding LanPeers}">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Grid Margin="0,4">
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="Auto"/>
+                                                            <ColumnDefinition Width="*"/>
+                                                            <ColumnDefinition Width="Auto"/>
+                                                        </Grid.ColumnDefinitions>
+                                                        
+                                                        <Ellipse Grid.Column="0" Width="8" Height="8" VerticalAlignment="Center" Margin="0,0,12,0">
+                                                            <Ellipse.Style>
+                                                                 <Style TargetType="Ellipse">
+                                                                     <Setter Property="Fill" Value="#4edea3"/>
+                                                                     <Style.Triggers>
+                                                                         <DataTrigger Binding="{Binding Status}" Value="Alert">
+                                                                             <Setter Property="Fill" Value="#ff5252"/>
+                                                                         </DataTrigger>
+                                                                         <DataTrigger Binding="{Binding Status}" Value="Offline">
+                                                                             <Setter Property="Fill" Value="#808080"/>
+                                                                         </DataTrigger>
+                                                                     </Style.Triggers>
+                                                                 </Style>
+                                                            </Ellipse.Style>
+                                                        </Ellipse>
+                                                        
+                                                        <StackPanel Grid.Column="1">
+                                                            <TextBlock Text="{Binding NodeName}" FontWeight="Bold" FontSize="12" Foreground="#dfe2f1"/>
+                                                            <StackPanel Orientation="Horizontal" Margin="0,2,0,0">
+                                                                <TextBlock Text="{Binding IpAddress}" FontSize="10" Foreground="#c2c6d6"/>
+                                                                <TextBlock Text="  •  " FontSize="10" Foreground="#8c909f"/>
+                                                                <TextBlock Text="{Binding LastSeen, StringFormat='{}Last active: {0:HH:mm:ss}'}" FontSize="10" Foreground="#8c909f"/>
+                                                            </StackPanel>
+                                                        </StackPanel>
+                                                        
+                                                        <Border Grid.Column="2" Background="#1a33adc6" CornerRadius="4" Padding="6,2" VerticalAlignment="Center">
+                                                            <TextBlock Text="{Binding AppVersion, StringFormat='{}v{0}'}" Foreground="{StaticResource PrimaryBrush}" FontWeight="Bold" FontSize="9"/>
+                                                        </Border>
+                                                    </Grid>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                        
+                                        <!-- Fallback when no peers discovered -->
+                                        <TextBlock Text="No remote network peers discovered yet" HorizontalAlignment="Center" Margin="0,12" 
+                                                   Visibility="{Binding LanPeers.Count, Converter={StaticResource BooleanToVisibilityConverter}, ConverterParameter=Inverse}"
+                                                   Foreground="{StaticResource OutlineBrush}" Opacity="0.5" FontSize="11"/>
+                                    </StackPanel>
+                                </Border>
+                            </StackPanel>
                         </StackPanel>
                     </Border>
 

@@ -93,8 +93,11 @@ echo.
 echo [6/6] Launching RansomGuard UI...
 timeout /t 2 /nobreak >nul
 
-if exist "bin\Debug\net8.0-windows\RGUI.exe" (
-    start "" "%~dp0bin\Debug\net8.0-windows\RGUI.exe"
+set UI_PATH=%~dp0.artifacts\bin\RansomGuard\Debug\net8.0-windows\RGUI.exe
+if not exist "%UI_PATH%" set UI_PATH=%~dp0bin\Debug\net8.0-windows\RGUI.exe
+
+if exist "%UI_PATH%" (
+    start "" "%UI_PATH%"
     echo   UI launched
 ) else (
     echo   ERROR: RGUI.exe not found!

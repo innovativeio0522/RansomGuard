@@ -73,7 +73,9 @@ if %errorlevel% neq 0 (
 echo [5/5] Launching RG UI...
 timeout /t 3 /nobreak >nul
 cd /d "%~dp0"
-start "" "%~dp0bin\Debug\net8.0-windows\RGUI.exe"
+set UI_PATH=%~dp0.artifacts\bin\RansomGuard\Debug\net8.0-windows\RGUI.exe
+if not exist "%UI_PATH%" set UI_PATH=%~dp0bin\Debug\net8.0-windows\RGUI.exe
+start "" "%UI_PATH%"
 
 echo.
 echo ========================================
