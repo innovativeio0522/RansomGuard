@@ -261,6 +261,9 @@ namespace RansomGuard.ViewModels
             
             // Notify other services (like SentinelEngine) that paths have changed
             ConfigurationService.Instance.NotifyPathsChanged();
+
+            // Explicitly notify the background service via IPC to reload configuration and update watchers/circuit-breaker
+            _monitorService?.InitializeWatchers();
         }
 
         [RelayCommand]

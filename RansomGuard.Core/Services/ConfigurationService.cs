@@ -159,6 +159,12 @@ namespace RansomGuard.Core.Services
             }
         }
 
+        public static void ForceReload()
+        {
+            ReloadInstance();
+        }
+
+
         private static string ConfigFile => Path.Combine(
             PathConfiguration.GetConfigDirectory(),
             "config.json"

@@ -619,8 +619,9 @@ namespace RansomGuard.Service.Communication
                         break;
 
                     case CommandType.UpdatePaths:
+                        RansomGuard.Core.Services.ConfigurationService.ForceReload();
                         _monitorService.InitializeWatchers();
-                        FileLogger.Log(AppIdentifiers.IpcLogFile, "[IPC Server] Updated monitored paths");
+                        FileLogger.Log(AppIdentifiers.IpcLogFile, "[IPC Server] Updated monitored paths and reloaded configuration");
                         break;
 
                     case CommandType.RestoreFile:
