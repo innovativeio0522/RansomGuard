@@ -136,8 +136,16 @@ namespace RansomGuard.Service.Engine
             _fileSystemMonitor.FileEventDetected += OnFileSystemEvent;
             InitializeWatchers();
             
-            // Re-trigger watchers on config change
-            ConfigurationService.Instance.PathsChanged += () => InitializeWatchers();
+            // Re-trigger watchers and LAN circuit breaker on config change
+            ConfigurationService.Instance.PathsChanged += () =>
+            {
+                InitializeWatchers();
+                if (_lanCircuitBreaker != null)
+                {
+                    _lanCircuitBreaker.Stop();
+                    _lanCircuitBreaker.Start();
+                }
+            };
 
             // Wire up mass encryption detection events
             _massEncryptionDetector.MassEncryptionDetected += OnMassEncryptionDetected;

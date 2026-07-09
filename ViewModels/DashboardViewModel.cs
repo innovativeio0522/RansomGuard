@@ -502,7 +502,8 @@ namespace RansomGuard.ViewModels
             NetworkLatency = telemetry.NetworkLatencyMs > 0
                 ? $"{telemetry.NetworkLatencyMs:F2}ms"
                 : "<1ms";
-            ActiveEndpoints = telemetry.ActiveEndpointsCount.ToString();
+            var endpointCount = Math.Max(telemetry.ActiveEndpointsCount, LanPeers.Count + 1);
+            ActiveEndpoints = endpointCount.ToString();
             EncryptionLevel = string.IsNullOrEmpty(telemetry.EncryptionLevel) ? "AES-256" : telemetry.EncryptionLevel;
             FilesPerHourText = telemetry.FilesPerHour >= 0
                 ? $"+{telemetry.FilesPerHour:N0} / HOUR"
