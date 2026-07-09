@@ -51,6 +51,8 @@ namespace RansomGuard.Services
         private List<ProcessInfo> _lastProcesses = new();
         private readonly object _telemetryLock = new();
         private readonly object _processLock = new object();
+        private LanPeerListUpdate _lastLanPeerList = new();
+        private readonly object _lanLock = new();
         private readonly HashSet<string> _processedEventIds = new();
         private readonly object _eventIdsLock = new();
 
@@ -248,7 +250,14 @@ namespace RansomGuard.Services
                         break;
                     case MessageType.LanPeerUpdate:
                         var lanUpdate = JsonSerializer.Deserialize<LanPeerListUpdate>(packet.Payload);
-                        if (lanUpdate != null) LanPeerListUpdated?.Invoke(lanUpdate);
+                        if (lanUpdate != null)
+                        {
+                            lock (_lanLock)
+                            {
+                                _lastLanPeerList = lanUpdate;
+                            }
+                            LanPeerListUpdated?.Invoke(lanUpdate);
+                        }
                         break;
                     case MessageType.HandshakeResponse:
                         IsHandshaked = true;
@@ -346,7 +355,13 @@ namespace RansomGuard.Services
         public long GetSystemMemoryUsage() { lock (_telemetryLock) { return _lastTelemetry.MemoryUsage; } }
         public int GetMonitoredFilesCount() { return ConfigurationService.Instance.MonitoredPaths.Count; }
         public TelemetryData GetTelemetry() { lock (_telemetryLock) { return _lastTelemetry; } }
-        public LanPeerListUpdate GetLanPeerList() => new LanPeerListUpdate();
+        public LanPeerListUpdate GetLanPeerList()
+        {
+            lock (_lanLock)
+            {
+                return _lastLanPeerList;
+            }
+        }
         public double GetQuarantineStorageUsage() { lock (_telemetryLock) { return _lastTelemetry.QuarantineStorageMb; } }
 
         public IEnumerable<string> GetQuarantinedFiles()

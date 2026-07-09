@@ -140,6 +140,13 @@ namespace RansomGuard.ViewModels
                 
                 _lanPeerListUpdatedHandler = OnLanPeerListUpdated;
                 _monitorService.LanPeerListUpdated += _lanPeerListUpdatedHandler;
+
+                // Load initial peer list snapshot
+                var initialPeers = _monitorService.GetLanPeerList();
+                if (initialPeers != null)
+                {
+                    OnLanPeerListUpdated(initialPeers);
+                }
             }
 
             // Handle collection changes with debouncing — named handler for proper unsubscription

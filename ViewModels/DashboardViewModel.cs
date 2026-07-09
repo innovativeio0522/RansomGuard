@@ -198,6 +198,13 @@ namespace RansomGuard.ViewModels
             InitializeBaselineScore();
 
             _monitorService.LanPeerListUpdated += OnLanPeerListUpdated;
+
+            // Load initial peer list snapshot
+            var initialPeers = _monitorService.GetLanPeerList();
+            if (initialPeers != null)
+            {
+                OnLanPeerListUpdated(initialPeers);
+            }
         }
 
         private void OnLanPeerListUpdated(LanPeerListUpdate update)
